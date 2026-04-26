@@ -1,0 +1,192 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/AppLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { Plus, Trash2 } from "lucide-react";
+import { RoleBadge } from "@/components/StatusBadge";
+import type { Sala, AppRole } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext";
+
+type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; sala?: { nome: string } | null };
+
+export default function UsuariosPage() {
+  const { profile } = useAuth();
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [salas, setSalas] = useState<Sala[]>([]);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, sala_id: "" });
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    const [{ data: profs }, { data: roles }, { data: ss }] = await Promise.all([
+      supabase.from("profiles").select("id, nome, email, sala_id, sala:salas(nome)"),
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("salas").select("*").order("nome"),
+    ]);
+    const order: AppRole[] = ["master", "admin", "analista"];
+    const list: UserRow[] = (profs ?? []).map((p: any) => {
+      const userRoles = (roles ?? []).filter((r: any) => r.user_id === p.id).map((r: any) => r.role);
+      const role = (order.find((o) => userRoles.includes(o)) ?? "analista") as AppRole;
+      return { ...p, role };
+    });
+    list.sort((a, b) => a.nome.localeCompare(b.nome));
+    setUsers(list);
+    setSalas((ss as Sala[]) ?? []);
+  };
+  useEffect(() => { load(); }, []);
+
+  const criar = async () => {
+    if (!form.email || !form.password || !form.nome) return toast.error("Preencha nome, email e senha");
+    if (form.role !== "master" && !form.sala_id) return toast.error("Admin/Analista exige sala");
+    setSaving(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: form.email.trim(),
+      password: form.password,
+      options: { data: { nome: form.nome, role: form.role, sala_id: form.role === "master" ? "" : form.sala_id } },
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    if (!data.user) return toast.error("Falha ao criar");
+    toast.success("Usuário criado");
+    setOpen(false);
+    setForm({ nome: "", email: "", password: "", role: "analista", sala_id: "" });
+    setTimeout(load, 600);
+  };
+
+  const updateRole = async (u: UserRow, newRole: AppRole) => {
+    await supabase.from("user_roles").delete().eq("user_id", u.id);
+    const { error } = await supabase.from("user_roles").insert({ user_id: u.id, role: newRole });
+    if (error) return toast.error(error.message);
+    toast.success("Perfil atualizado"); load();
+  };
+
+  const updateSala = async (u: UserRow, salaId: string | null) => {
+    const { error } = await supabase.from("profiles").update({ sala_id: salaId }).eq("id", u.id);
+    if (error) return toast.error(error.message);
+    toast.success("Sala atualizada"); load();
+  };
+
+  const remover = async (u: UserRow) => {
+    // Remove role + profile (cascade não chega no auth.users sem service-role, então mantemos auth user mas sem acesso)
+    await supabase.from("user_roles").delete().eq("user_id", u.id);
+    await supabase.from("profiles").update({ sala_id: null }).eq("id", u.id);
+    toast.success("Acesso revogado (perfil sem sala e sem role)");
+    load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Usuários"
+        description="Gestão de contas, perfis e vínculo com salas."
+        actions={<Button onClick={() => setOpen(true)}><Plus className="size-4" /> Novo usuário</Button>}
+      />
+      <div className="panel overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>E-mail</TableHead>
+              <TableHead className="w-[180px]">Perfil</TableHead>
+              <TableHead className="w-[200px]">Sala</TableHead>
+              <TableHead className="w-[100px] text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((u) => (
+              <TableRow key={u.id} className="table-row-hover">
+                <TableCell className="font-medium flex items-center gap-2">{u.nome} {u.id === profile?.id && <span className="text-xs text-muted-foreground">(você)</span>}</TableCell>
+                <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                <TableCell>
+                  <Select value={u.role} onValueChange={(v) => updateRole(u, v as AppRole)} disabled={u.id === profile?.id}>
+                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="master">Master</SelectItem>
+                      <SelectItem value="admin">Administrador</SelectItem>
+                      <SelectItem value="analista">Analista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <Select
+                    value={u.sala_id ?? "none"}
+                    onValueChange={(v) => updateSala(u, v === "none" ? null : v)}
+                    disabled={u.role === "master"}
+                  >
+                    <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— sem sala —</SelectItem>
+                      {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell className="text-right">
+                  {u.id !== profile?.id && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Revogar acesso de {u.nome}?</AlertDialogTitle>
+                          <AlertDialogDescription>O usuário ficará sem perfil e sem sala. Para excluir definitivamente do banco de autenticação, use o painel Cloud.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => remover(u)}>Revogar</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Novo usuário</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
+            <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Senha provisória</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Perfil</Label>
+                <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="master">Master</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="analista">Analista</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Sala</Label>
+                <Select value={form.sala_id} onValueChange={(v) => setForm({ ...form, sala_id: v })} disabled={form.role === "master"}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>{salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground flex items-center gap-2">Pré-visualização: <RoleBadge role={form.role} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button onClick={criar} disabled={saving}>{saving ? "Criando…" : "Criar usuário"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
