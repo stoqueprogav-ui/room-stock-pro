@@ -14,16 +14,474 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      dividas: {
+        Row: {
+          id: string
+          produto_id: string
+          sala_credora_id: string
+          sala_devedora_id: string
+          saldo: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          produto_id: string
+          sala_credora_id: string
+          sala_devedora_id: string
+          saldo?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          produto_id?: string
+          sala_credora_id?: string
+          sala_devedora_id?: string
+          saldo?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dividas_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dividas_sala_credora_id_fkey"
+            columns: ["sala_credora_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dividas_sala_devedora_id_fkey"
+            columns: ["sala_devedora_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emprestimo_itens: {
+        Row: {
+          emprestimo_id: string
+          id: string
+          produto_id: string
+          quantidade: number
+        }
+        Insert: {
+          emprestimo_id: string
+          id?: string
+          produto_id: string
+          quantidade: number
+        }
+        Update: {
+          emprestimo_id?: string
+          id?: string
+          produto_id?: string
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emprestimo_itens_emprestimo_id_fkey"
+            columns: ["emprestimo_id"]
+            isOneToOne: false
+            referencedRelation: "emprestimos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emprestimo_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emprestimos: {
+        Row: {
+          created_at: string
+          decidido_em: string | null
+          decidido_por: string | null
+          id: string
+          observacao: string | null
+          sala_destino_id: string
+          sala_origem_id: string
+          solicitante_id: string
+          status: Database["public"]["Enums"]["emprestimo_status"]
+        }
+        Insert: {
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          id?: string
+          observacao?: string | null
+          sala_destino_id: string
+          sala_origem_id: string
+          solicitante_id: string
+          status?: Database["public"]["Enums"]["emprestimo_status"]
+        }
+        Update: {
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          id?: string
+          observacao?: string | null
+          sala_destino_id?: string
+          sala_origem_id?: string
+          solicitante_id?: string
+          status?: Database["public"]["Enums"]["emprestimo_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emprestimos_sala_destino_id_fkey"
+            columns: ["sala_destino_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emprestimos_sala_origem_id_fkey"
+            columns: ["sala_origem_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque: {
+        Row: {
+          id: string
+          produto_id: string
+          quantidade: number
+          sala_id: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          produto_id: string
+          quantidade?: number
+          sala_id: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          produto_id?: string
+          quantidade?: number
+          sala_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimentacoes: {
+        Row: {
+          created_at: string
+          id: string
+          observacao: string | null
+          produto_id: string
+          quantidade: number
+          referencia_id: string | null
+          referencia_tipo: string | null
+          sala_id: string
+          saldo_apos: number
+          tipo: Database["public"]["Enums"]["movimentacao_tipo"]
+          usuario_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          produto_id: string
+          quantidade: number
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          sala_id: string
+          saldo_apos: number
+          tipo: Database["public"]["Enums"]["movimentacao_tipo"]
+          usuario_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          produto_id?: string
+          quantidade?: number
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          sala_id?: string
+          saldo_apos?: number
+          tipo?: Database["public"]["Enums"]["movimentacao_tipo"]
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      produtos: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          estoque_minimo: number
+          id: string
+          nome: string
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          estoque_minimo?: number
+          id?: string
+          nome: string
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          estoque_minimo?: number
+          id?: string
+          nome?: string
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          sala_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          nome: string
+          sala_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          sala_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salas: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      solicitacao_itens: {
+        Row: {
+          id: string
+          produto_id: string
+          quantidade: number
+          solicitacao_id: string
+        }
+        Insert: {
+          id?: string
+          produto_id: string
+          quantidade: number
+          solicitacao_id: string
+        }
+        Update: {
+          id?: string
+          produto_id?: string
+          quantidade?: number
+          solicitacao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacao_itens_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacoes: {
+        Row: {
+          created_at: string
+          decidido_em: string | null
+          decidido_por: string | null
+          id: string
+          observacao: string | null
+          sala_id: string
+          status: Database["public"]["Enums"]["solicitacao_status"]
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          id?: string
+          observacao?: string | null
+          sala_id: string
+          status?: Database["public"]["Enums"]["solicitacao_status"]
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          id?: string
+          observacao?: string | null
+          sala_id?: string
+          status?: Database["public"]["Enums"]["solicitacao_status"]
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      ajustar_estoque: {
+        Args: {
+          _observacao: string
+          _produto: string
+          _quantidade: number
+          _sala: string
+        }
+        Returns: number
+      }
+      criar_emprestimo: {
+        Args: { _itens: Json; _observacao: string; _sala_origem: string }
+        Returns: string
+      }
+      criar_solicitacao: {
+        Args: { _itens: Json; _observacao: string }
+        Returns: string
+      }
+      decidir_emprestimo: {
+        Args: { _aprovar: boolean; _emp: string }
+        Returns: undefined
+      }
+      decidir_solicitacao: {
+        Args: { _aprovar: boolean; _solic: string }
+        Returns: undefined
+      }
+      get_user_sala: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      quitar_divida: {
+        Args: { _divida: string; _quantidade: number }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "master" | "admin" | "analista"
+      emprestimo_status: "pendente" | "aprovado" | "rejeitado"
+      movimentacao_tipo:
+        | "entrada"
+        | "saida"
+        | "ajuste"
+        | "solicitacao"
+        | "estorno"
+        | "emprestimo_saida"
+        | "emprestimo_entrada"
+      solicitacao_status: "pendente" | "aprovado" | "rejeitado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +608,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["master", "admin", "analista"],
+      emprestimo_status: ["pendente", "aprovado", "rejeitado"],
+      movimentacao_tipo: [
+        "entrada",
+        "saida",
+        "ajuste",
+        "solicitacao",
+        "estorno",
+        "emprestimo_saida",
+        "emprestimo_entrada",
+      ],
+      solicitacao_status: ["pendente", "aprovado", "rejeitado"],
+    },
   },
 } as const
