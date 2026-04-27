@@ -52,13 +52,25 @@ export default function RelatoriosPage() {
     return Array.from(map.entries()).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total);
   }, [movs]);
 
+  const isGlobal = scopeSalaId === null;
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Relatórios" description="Indicadores agregados de consumo e movimentação." />
+      <PageHeader
+        title="Relatórios"
+        description={isGlobal
+          ? "Indicadores agregados de consumo e movimentação (todas as salas)."
+          : `Consumo da sala ${salaNome ?? "—"}.`}
+      />
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {isGlobal
+          ? <><Globe2 className="size-3.5 text-primary" /> Visão global.</>
+          : <><Building2 className="size-3.5 text-primary" /> Filtrado pela sala em foco.</>}
+      </div>
       <Tabs defaultValue="produtos">
         <TabsList>
           <TabsTrigger value="produtos">Produtos mais consumidos</TabsTrigger>
-          <TabsTrigger value="salas">Salas que mais consomem</TabsTrigger>
+          {isGlobal && <TabsTrigger value="salas">Salas que mais consomem</TabsTrigger>}
         </TabsList>
         <TabsContent value="produtos" className="mt-4">
           <Card className="p-4">
