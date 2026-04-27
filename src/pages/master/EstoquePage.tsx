@@ -46,11 +46,10 @@ export default function EstoquePage() {
   const [editObs, setEditObs] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Modal de Entrada/Saída manual
+  // Modal de Entrada/Saída rápida (a partir da linha do produto)
   const [movOpen, setMovOpen] = useState(false);
   const [movTipo, setMovTipo] = useState<"entrada" | "saida">("entrada");
-  const [movProduto, setMovProduto] = useState<string>("");
-  const [movSala, setMovSala] = useState<string>("");
+  const [movRow, setMovRow] = useState<Row | null>(null);
   const [movQtd, setMovQtd] = useState<number>(0);
   const [movObs, setMovObs] = useState("");
   const [movSaving, setMovSaving] = useState(false);
@@ -111,12 +110,7 @@ export default function EstoquePage() {
     return { critico, baixo, ok, total: inScope.length };
   }, [rows, effectiveSalaFilter]);
 
-  // Lista de produtos disponíveis para movimento (deduplicada)
-  const produtosDisponiveis = useMemo(() => {
-    const map = new Map<string, Produto>();
-    rows.forEach((r) => { if (!map.has(r.produto.id)) map.set(r.produto.id, r.produto); });
-    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [rows]);
+  // (lista de produtos não é mais necessária — modal opera sobre uma linha específica)
 
   const ajustar = async () => {
     if (!editing) return;
@@ -130,35 +124,32 @@ export default function EstoquePage() {
     toast.success("Estoque ajustado"); setEditing(null); setEditObs(""); load();
   };
 
-  const openMov = (tipo: "entrada" | "saida") => {
+  const openMovForRow = (row: Row, tipo: "entrada" | "saida") => {
     setMovTipo(tipo);
-    setMovProduto("");
-    // Sugere a sala em foco do master (se houver)
-    setMovSala(masterScope.scopeSalaId ?? "");
+    setMovRow(row);
     setMovQtd(0);
     setMovObs("");
     setMovOpen(true);
   };
 
   const confirmarMov = async () => {
-    if (!movProduto) return toast.error("Escolha um produto");
-    if (!movSala) return toast.error("Escolha uma sala");
+    if (!movRow) return;
     if (!movQtd || movQtd <= 0) return toast.error("Quantidade inválida");
 
-    const atual = rows.find((r) => r.produto_id === movProduto && r.sala_id === movSala)?.quantidade ?? 0;
+    const atual = movRow.quantidade;
     const novoSaldo = movTipo === "entrada" ? atual + movQtd : atual - movQtd;
     if (novoSaldo < 0) return toast.error("Estoque insuficiente para esta saída");
 
     setMovSaving(true);
     const { error } = await supabase.rpc("ajustar_estoque", {
-      _produto: movProduto,
-      _sala: movSala,
+      _produto: movRow.produto_id,
+      _sala: movRow.sala_id,
       _quantidade: novoSaldo,
-      _observacao: `${movTipo === "entrada" ? "Entrada" : "Saída"} manual${movObs ? ` — ${movObs}` : ""}`,
+      _observacao: `${movTipo === "entrada" ? "Entrada" : "Saída"} rápida${movObs ? ` — ${movObs}` : ""}`,
     });
     setMovSaving(false);
     if (error) return toast.error(error.message);
-    toast.success(`${movTipo === "entrada" ? "Entrada" : "Saída"} registrada`);
+    toast.success(`${movTipo === "entrada" ? "Entrada" : "Saída"} de ${movQtd} ${movRow.produto.unidade} registrada`);
     setMovOpen(false);
     load();
   };
