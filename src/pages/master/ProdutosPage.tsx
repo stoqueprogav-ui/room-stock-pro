@@ -128,7 +128,8 @@ export default function ProdutosPage() {
               <TableHead>Nome</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead className="w-[100px]">Unidade</TableHead>
-              <TableHead className="w-[140px] text-right">Estoque mín.</TableHead>
+              <TableHead className="w-[110px] text-right">Mínimo</TableHead>
+              <TableHead className="w-[110px] text-right">Crítico</TableHead>
               <TableHead className="w-[120px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -138,7 +139,8 @@ export default function ProdutosPage() {
                 <TableCell className="font-medium">{p.nome}</TableCell>
                 <TableCell className="text-muted-foreground max-w-md truncate">{p.descricao ?? "—"}</TableCell>
                 <TableCell>{p.unidade}</TableCell>
-                <TableCell className="text-right font-mono">{p.estoque_minimo}</TableCell>
+                <TableCell className="text-right font-mono text-warning">{p.estoque_minimo}</TableCell>
+                <TableCell className="text-right font-mono text-destructive">{p.estoque_critico ?? 0}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
                   <AlertDialog>
