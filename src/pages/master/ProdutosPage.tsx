@@ -20,7 +20,7 @@ export default function ProdutosPage() {
   const [salas, setSalas] = useState<Sala[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Produto | null>(null);
-  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0 });
+  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, estoque_critico: 0 });
   const [escopo, setEscopo] = useState<"todas" | "selecionadas">("todas");
   const [salasQty, setSalasQty] = useState<SalaQty[]>([]);
 
