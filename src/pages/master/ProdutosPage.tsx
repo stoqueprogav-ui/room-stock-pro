@@ -40,14 +40,14 @@ export default function ProdutosPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0 });
+    setForm({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, estoque_critico: 0 });
     setEscopo("todas");
     resetSalasQty(salas, true);
     setOpen(true);
   };
   const openEdit = (p: Produto) => {
     setEditing(p);
-    setForm({ nome: p.nome, descricao: p.descricao ?? "", unidade: p.unidade, estoque_minimo: p.estoque_minimo });
+    setForm({ nome: p.nome, descricao: p.descricao ?? "", unidade: p.unidade, estoque_minimo: p.estoque_minimo, estoque_critico: p.estoque_critico ?? 0 });
     setOpen(true);
   };
 
@@ -60,6 +60,7 @@ export default function ProdutosPage() {
       descricao: form.descricao || null,
       unidade: form.unidade.trim() || "un",
       estoque_minimo: Number(form.estoque_minimo) || 0,
+      estoque_critico: Number(form.estoque_critico) || 0,
     };
 
     if (editing) {
@@ -167,10 +168,12 @@ export default function ProdutosPage() {
           <div className="space-y-3">
             <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2"><Label>Unidade</Label><Input value={form.unidade} onChange={(e) => setForm({ ...form, unidade: e.target.value })} placeholder="un, kg, cx…" /></div>
-              <div className="space-y-2"><Label>Estoque mínimo</Label><Input type="number" min={0} value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} /></div>
+              <div className="space-y-2"><Label>Estoque mínimo <span className="text-warning">●</span></Label><Input type="number" min={0} value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} /></div>
+              <div className="space-y-2"><Label>Estoque crítico <span className="text-destructive">●</span></Label><Input type="number" min={0} value={form.estoque_critico} onChange={(e) => setForm({ ...form, estoque_critico: Number(e.target.value) })} /></div>
             </div>
+            <div className="text-xs text-muted-foreground -mt-1">Status: ≤ crítico = vermelho · ≤ mínimo = amarelo · acima = verde.</div>
 
             {!editing && (
               <div className="space-y-3 pt-2 border-t">
