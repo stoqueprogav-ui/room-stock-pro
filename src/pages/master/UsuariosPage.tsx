@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,18 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Globe2, Building2 } from "lucide-react";
 import { RoleBadge } from "@/components/StatusBadge";
 import type { Sala, AppRole } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
 
 type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; sala?: { nome: string } | null };
 
 export default function UsuariosPage() {
   const { profile } = useAuth();
+  const { scopeSalaId } = useMasterScope();
+  const isGlobal = scopeSalaId === null;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
   const [open, setOpen] = useState(false);
@@ -41,6 +44,23 @@ export default function UsuariosPage() {
     setSalas((ss as Sala[]) ?? []);
   };
   useEffect(() => { load(); }, []);
+
+  // Lista visível conforme escopo: em sala específica, mostra masters + usuários daquela sala
+  const visibleUsers = useMemo(() => {
+    if (isGlobal) return users;
+    return users.filter((u) => u.role === "master" || u.sala_id === scopeSalaId);
+  }, [users, isGlobal, scopeSalaId]);
+
+  const salaAtualNome = useMemo(
+    () => (scopeSalaId ? salas.find((s) => s.id === scopeSalaId)?.nome : null),
+    [scopeSalaId, salas]
+  );
+
+  const openNovo = () => {
+    // Em sala específica, pré-vincula automaticamente
+    setForm({ nome: "", email: "", password: "", role: "analista", sala_id: isGlobal ? "" : (scopeSalaId ?? "") });
+    setOpen(true);
+  };
 
   const criar = async () => {
     if (!form.email || !form.password || !form.nome) return toast.error("Preencha nome, email e senha");
