@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatDateTime } from "@/lib/format";
 
-export default function MinhasSolicitacoes() {
+export default function MinhasRequisicoes() {
   const { profile } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
 
@@ -25,7 +25,7 @@ export default function MinhasSolicitacoes() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Minhas solicitações" description="Histórico das solicitações da sua sala." />
+      <PageHeader title="Minhas requisições" description="Histórico das requisições da sua sala ao Master." />
       <div className="panel overflow-x-auto">
         <Table>
           <TableHeader>
@@ -46,13 +46,13 @@ export default function MinhasSolicitacoes() {
                       <span key={i} className="rounded bg-muted px-2 py-0.5 text-xs font-mono">{it.produto.nome} · {it.quantidade}{it.produto.unidade}</span>
                     ))}
                   </div>
-                  {s.observacao && <div className="text-xs text-muted-foreground mt-1">“{s.observacao}”</div>}
+                  {s.observacao && <div className="text-xs text-muted-foreground mt-1">"{s.observacao}"</div>}
                 </TableCell>
                 <TableCell><StatusBadge status={s.status} /></TableCell>
                 <TableCell className="text-muted-foreground">{s.decidido_em ? formatDateTime(s.decidido_em) : "—"}</TableCell>
               </TableRow>
             ))}
-            {rows.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-12">Nenhuma solicitação ainda.</TableCell></TableRow>}
+            {rows.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-12">Nenhuma requisição ainda.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>

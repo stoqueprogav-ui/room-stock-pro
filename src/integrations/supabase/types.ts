@@ -373,6 +373,7 @@ export type Database = {
           created_at: string
           decidido_em: string | null
           decidido_por: string | null
+          estoque_baixado: boolean
           id: string
           observacao: string | null
           sala_id: string
@@ -383,6 +384,7 @@ export type Database = {
           created_at?: string
           decidido_em?: string | null
           decidido_por?: string | null
+          estoque_baixado?: boolean
           id?: string
           observacao?: string | null
           sala_id: string
@@ -393,6 +395,7 @@ export type Database = {
           created_at?: string
           decidido_em?: string | null
           decidido_por?: string | null
+          estoque_baixado?: boolean
           id?: string
           observacao?: string | null
           sala_id?: string
@@ -444,6 +447,8 @@ export type Database = {
         }
         Returns: number
       }
+      arquivar_emprestimo: { Args: { _emp: string }; Returns: undefined }
+      arquivar_solicitacao: { Args: { _solic: string }; Returns: undefined }
       criar_emprestimo: {
         Args: { _itens: Json; _observacao: string; _sala_origem: string }
         Returns: string
@@ -475,7 +480,7 @@ export type Database = {
     }
     Enums: {
       app_role: "master" | "admin" | "analista"
-      emprestimo_status: "pendente" | "aprovado" | "rejeitado"
+      emprestimo_status: "pendente" | "aprovado" | "rejeitado" | "arquivado"
       movimentacao_tipo:
         | "entrada"
         | "saida"
@@ -484,7 +489,7 @@ export type Database = {
         | "estorno"
         | "emprestimo_saida"
         | "emprestimo_entrada"
-      solicitacao_status: "pendente" | "aprovado" | "rejeitado"
+      solicitacao_status: "pendente" | "aprovado" | "rejeitado" | "arquivado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -613,7 +618,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["master", "admin", "analista"],
-      emprestimo_status: ["pendente", "aprovado", "rejeitado"],
+      emprestimo_status: ["pendente", "aprovado", "rejeitado", "arquivado"],
       movimentacao_tipo: [
         "entrada",
         "saida",
@@ -623,7 +628,7 @@ export const Constants = {
         "emprestimo_saida",
         "emprestimo_entrada",
       ],
-      solicitacao_status: ["pendente", "aprovado", "rejeitado"],
+      solicitacao_status: ["pendente", "aprovado", "rejeitado", "arquivado"],
     },
   },
 } as const

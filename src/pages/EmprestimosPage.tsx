@@ -6,14 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ArrowRight } from "lucide-react";
+import { Check, X, ArrowRight, Archive } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
 
 type Emp = {
   id: string;
-  status: "pendente" | "aprovado" | "rejeitado";
+  status: "pendente" | "aprovado" | "rejeitado" | "arquivado";
   observacao: string | null;
   created_at: string;
   sala_origem_id: string;
@@ -26,9 +26,8 @@ type Emp = {
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
   const { role, profile } = useAuth();
-  // Hook sempre chamado; só usado para o role master
   const { scopeSalaId } = useMasterScope();
-  const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado">("pendente");
+  const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
 
   const load = async () => {
@@ -55,8 +54,16 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     load();
   };
 
+  const arquivar = async (id: string) => {
+    const { error } = await supabase.rpc("arquivar_emprestimo", { _emp: id });
+    if (error) return toast.error(error.message);
+    toast.success("Empréstimo arquivado");
+    load();
+  };
+
+  // Apenas admin da sala ORIGEM aprova
   const podeDecidir = (e: Emp) =>
-    role === "master" || (role === "admin" && profile?.sala_id === e.sala_origem_id);
+    role === "admin" && profile?.sala_id === e.sala_origem_id;
 
   let list = rows.filter((r) => r.status === tab);
   if (approveOnly) list = list.filter((r) => r.sala_origem_id === profile?.sala_id);
@@ -64,14 +71,21 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   return (
     <div className="space-y-4">
       <PageHeader
-        title={approveOnly ? "Aprovar empréstimos recebidos" : "Empréstimos entre salas"}
-        description={approveOnly ? "Pedidos feitos a você por outras salas." : "Histórico completo de transferências entre salas."}
+        title={approveOnly ? "Pedidos de empréstimo recebidos" : (role === "master" ? "Controle de empréstimos" : "Empréstimos entre salas")}
+        description={
+          approveOnly
+            ? "Outras salas pediram emprestado da sua sala. Aprove para transferir o estoque."
+            : role === "master"
+              ? "Visualização de todos os empréstimos. A aprovação é feita pelo administrador da sala que empresta."
+              : "Histórico completo de transferências entre salas."
+        }
       />
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList>
           <TabsTrigger value="pendente">Pendentes</TabsTrigger>
           <TabsTrigger value="aprovado">Aprovados</TabsTrigger>
           <TabsTrigger value="rejeitado">Rejeitados</TabsTrigger>
+          <TabsTrigger value="arquivado">Arquivados</TabsTrigger>
         </TabsList>
         <TabsContent value={tab} className="mt-4">
           <div className="panel overflow-x-auto">
@@ -83,7 +97,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                   <TableHead>Itens</TableHead>
                   <TableHead className="w-[170px]">Criado em</TableHead>
                   <TableHead className="w-[120px]">Status</TableHead>
-                  {tab === "pendente" && <TableHead className="text-right w-[200px]">Ações</TableHead>}
+                  <TableHead className="text-right w-[220px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -94,7 +108,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                       <div className="flex items-center gap-2 font-medium">
                         {e.origem.nome} <ArrowRight className="size-3 text-muted-foreground" /> {e.destino.nome}
                       </div>
-                      {e.observacao && <div className="text-xs text-muted-foreground mt-1">“{e.observacao}”</div>}
+                      {e.observacao && <div className="text-xs text-muted-foreground mt-1">"{e.observacao}"</div>}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -107,18 +121,21 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDateTime(e.created_at)}</TableCell>
                     <TableCell><StatusBadge status={e.status} /></TableCell>
-                    {tab === "pendente" && (
-                      <TableCell className="text-right">
-                        {podeDecidir(e) ? (
+                    <TableCell className="text-right whitespace-nowrap">
+                      {tab === "pendente" && (
+                        podeDecidir(e) ? (
                           <>
                             <Button size="sm" variant="outline" className="mr-2" onClick={() => decidir(e.id, false)}><X className="size-4" /> Rejeitar</Button>
                             <Button size="sm" onClick={() => decidir(e.id, true)}><Check className="size-4" /> Aprovar</Button>
                           </>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Aguardando origem</span>
-                        )}
-                      </TableCell>
-                    )}
+                          <span className="text-xs text-muted-foreground">Aguardando admin da origem</span>
+                        )
+                      )}
+                      {(tab === "aprovado" || tab === "rejeitado") && role === "master" && (
+                        <Button size="sm" variant="ghost" onClick={() => arquivar(e.id)}><Archive className="size-4" /> Arquivar</Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
                 {list.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Nenhum empréstimo.</TableCell></TableRow>}

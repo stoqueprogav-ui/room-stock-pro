@@ -64,7 +64,7 @@ export default function MasterOverview() {
   const cards = [
     !isGlobal ? null : { label: "Salas ativas", value: s?.salas ?? "…", icon: Building2, color: "text-primary" },
     { label: "Produtos no catálogo", value: s?.produtos ?? "…", icon: Boxes, color: "text-accent" },
-    { label: "Solicitações pendentes", value: s?.solicitacoesPendentes ?? "…", icon: Inbox, color: "text-warning" },
+    { label: "Requisições pendentes", value: s?.solicitacoesPendentes ?? "…", icon: Inbox, color: "text-warning" },
     { label: "Empréstimos pendentes", value: s?.emprestimosPendentes ?? "…", icon: ArrowLeftRight, color: "text-warning" },
     { label: "Alertas de estoque baixo", value: s?.alertasEstoque ?? "…", icon: AlertTriangle, color: "text-destructive" },
     { label: "Dívidas em aberto", value: s?.dividas ?? "…", icon: Wallet, color: "text-primary" },

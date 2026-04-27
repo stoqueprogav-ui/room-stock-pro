@@ -7,14 +7,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ChevronDown } from "lucide-react";
+import { Check, X, ChevronDown, Archive, Printer } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
 
-type Solicitacao = {
+type Requisicao = {
   id: string;
-  status: "pendente" | "aprovado" | "rejeitado";
+  status: "pendente" | "aprovado" | "rejeitado" | "arquivado";
   observacao: string | null;
   created_at: string;
   decidido_em: string | null;
@@ -23,13 +23,15 @@ type Solicitacao = {
   itens: { quantidade: number; produto: { nome: string; unidade: string } }[];
 };
 
-export default function SolicitacoesPage() {
+export default function RequisicoesPage() {
   const { role } = useAuth();
   const { scopeSalaId } = useMasterScope();
-  const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado">("pendente");
-  const [rows, setRows] = useState<Solicitacao[]>([]);
+  const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
+  const [rows, setRows] = useState<Requisicao[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const load = async () => {
+    setLoading(true);
     let q = supabase
       .from("solicitacoes")
       .select(`id, status, observacao, created_at, decidido_em, sala_id,
@@ -40,26 +42,39 @@ export default function SolicitacoesPage() {
     if (scopeSalaId) q = q.eq("sala_id", scopeSalaId);
     const { data } = await q;
     setRows((data as any) ?? []);
+    setLoading(false);
   };
   useEffect(() => { load(); }, [scopeSalaId]);
 
   const decidir = async (id: string, aprovar: boolean) => {
     const { error } = await supabase.rpc("decidir_solicitacao", { _solic: id, _aprovar: aprovar });
     if (error) return toast.error(error.message);
-    toast.success(aprovar ? "Solicitação aprovada" : "Solicitação rejeitada (estoque estornado)");
+    toast.success(aprovar ? "Requisição aprovada · estoque atualizado" : "Requisição rejeitada");
     load();
+  };
+
+  const arquivar = async (id: string) => {
+    const { error } = await supabase.rpc("arquivar_solicitacao", { _solic: id });
+    if (error) return toast.error(error.message);
+    toast.success("Requisição arquivada");
+    load();
+  };
+
+  const imprimir = (id: string) => {
+    window.open(`/app/requisicoes/${id}/imprimir`, "_blank");
   };
 
   const list = rows.filter((r) => r.status === tab);
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Solicitações ao Master" description="Pedidos de retirada feitos por administradores e analistas." />
+      <PageHeader title="Requisições recebidas" description="Pedidos de produtos enviados pelas salas. A baixa no estoque ocorre apenas após sua aprovação." />
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList>
           <TabsTrigger value="pendente">Pendentes</TabsTrigger>
           <TabsTrigger value="aprovado">Aprovadas</TabsTrigger>
           <TabsTrigger value="rejeitado">Rejeitadas</TabsTrigger>
+          <TabsTrigger value="arquivado">Arquivadas</TabsTrigger>
         </TabsList>
         <TabsContent value={tab} className="mt-4">
           <div className="panel overflow-x-auto">
@@ -72,14 +87,14 @@ export default function SolicitacoesPage() {
                   <TableHead>Itens</TableHead>
                   <TableHead className="w-[170px]">Criada em</TableHead>
                   <TableHead className="w-[120px]">Status</TableHead>
-                  {role === "master" && tab === "pendente" && <TableHead className="text-right w-[180px]">Ações</TableHead>}
+                  {role === "master" && <TableHead className="text-right w-[260px]">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {list.map((s) => (
-                  <SolicRow key={s.id} s={s} role={role} tab={tab} onDecidir={decidir} />
+                  <ReqRow key={s.id} s={s} role={role} tab={tab} onDecidir={decidir} onArquivar={arquivar} onImprimir={imprimir} />
                 ))}
-                {list.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhuma solicitação.</TableCell></TableRow>}
+                {list.length === 0 && !loading && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhuma requisição.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </div>
@@ -89,7 +104,14 @@ export default function SolicitacoesPage() {
   );
 }
 
-function SolicRow({ s, role, tab, onDecidir }: { s: Solicitacao; role: string | null; tab: string; onDecidir: (id: string, ap: boolean) => void }) {
+function ReqRow({
+  s, role, tab, onDecidir, onArquivar, onImprimir,
+}: {
+  s: Requisicao; role: string | null; tab: string;
+  onDecidir: (id: string, ap: boolean) => void;
+  onArquivar: (id: string) => void;
+  onImprimir: (id: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -109,10 +131,23 @@ function SolicRow({ s, role, tab, onDecidir }: { s: Solicitacao; role: string | 
         <TableCell className="text-muted-foreground">{s.itens.length} item(ns)</TableCell>
         <TableCell className="text-muted-foreground">{formatDateTime(s.created_at)}</TableCell>
         <TableCell><StatusBadge status={s.status} /></TableCell>
-        {role === "master" && tab === "pendente" && (
-          <TableCell className="text-right">
-            <Button size="sm" variant="outline" className="mr-2" onClick={() => onDecidir(s.id, false)}><X className="size-4" /> Rejeitar</Button>
-            <Button size="sm" onClick={() => onDecidir(s.id, true)}><Check className="size-4" /> Aprovar</Button>
+        {role === "master" && (
+          <TableCell className="text-right whitespace-nowrap">
+            {tab === "pendente" && (
+              <>
+                <Button size="sm" variant="outline" className="mr-2" onClick={() => onDecidir(s.id, false)}><X className="size-4" /> Rejeitar</Button>
+                <Button size="sm" onClick={() => onDecidir(s.id, true)}><Check className="size-4" /> Aprovar</Button>
+              </>
+            )}
+            {tab === "aprovado" && (
+              <>
+                <Button size="sm" variant="outline" className="mr-2" onClick={() => onImprimir(s.id)}><Printer className="size-4" /> Imprimir</Button>
+                <Button size="sm" variant="ghost" onClick={() => onArquivar(s.id)}><Archive className="size-4" /> Arquivar</Button>
+              </>
+            )}
+            {tab === "rejeitado" && (
+              <Button size="sm" variant="ghost" onClick={() => onArquivar(s.id)}><Archive className="size-4" /> Arquivar</Button>
+            )}
           </TableCell>
         )}
       </TableRow>
