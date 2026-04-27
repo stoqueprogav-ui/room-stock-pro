@@ -5,6 +5,8 @@ import {
   Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
+import MasterScopeSwitcher from "@/components/MasterScopeSwitcher";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
