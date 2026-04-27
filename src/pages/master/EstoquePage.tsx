@@ -312,9 +312,9 @@ export default function EstoquePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Entrada/Saída */}
+      {/* Modal: Entrada/Saída rápida (a partir de uma linha) */}
       <Dialog open={movOpen} onOpenChange={setMovOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {movTipo === "entrada"
@@ -322,49 +322,49 @@ export default function EstoquePage() {
                 : <><ArrowUpFromLine className="size-5 text-destructive" /> Saída de produto</>}
             </DialogTitle>
             <DialogDescription>
-              {movTipo === "entrada"
-                ? "Soma a quantidade ao estoque da sala selecionada."
-                : "Subtrai do estoque (uso interno, perda, etc.)."}
+              {movRow && (
+                <>
+                  <span className="font-medium text-foreground">{movRow.produto.nome}</span>
+                  {" · "}{movRow.sala.nome}
+                  {" · estoque atual: "}
+                  <span className="font-mono text-foreground">{movRow.quantidade} {movRow.produto.unidade}</span>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label>Sala</Label>
-              <Select value={movSala} onValueChange={setMovSala}>
-                <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
-                <SelectContent>
-                  {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Produto</Label>
-              <Select value={movProduto} onValueChange={setMovProduto}>
-                <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
-                <SelectContent>
-                  {produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome} ({p.unidade})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Quantidade</Label>
-              <Input type="number" min={1} value={movQtd || ""} onChange={(e) => setMovQtd(Number(e.target.value))} />
-              {movProduto && movSala && (
+              <Input
+                type="number"
+                min={1}
+                autoFocus
+                value={movQtd || ""}
+                onChange={(e) => setMovQtd(Number(e.target.value))}
+                onKeyDown={(e) => { if (e.key === "Enter" && movQtd > 0) confirmarMov(); }}
+              />
+              {movRow && movQtd > 0 && (
                 <div className="text-xs text-muted-foreground">
-                  Estoque atual: <span className="font-mono text-foreground">
-                    {rows.find(r => r.produto_id === movProduto && r.sala_id === movSala)?.quantidade ?? 0}
+                  Novo saldo: <span className="font-mono text-foreground font-semibold">
+                    {movTipo === "entrada" ? movRow.quantidade + movQtd : movRow.quantidade - movQtd}
                   </span>
                 </div>
               )}
             </div>
             <div className="space-y-2">
               <Label>Observação (opcional)</Label>
-              <Textarea value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Ex: Compra NF 1234 / Uso evento X" />
+              <Textarea value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Ex: Compra NF 1234 / Uso evento X" rows={2} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMovOpen(false)}>Cancelar</Button>
-            <Button onClick={confirmarMov} disabled={movSaving} className={movTipo === "saida" ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-success hover:bg-success/90 text-success-foreground"}>
+            <Button
+              onClick={confirmarMov}
+              disabled={movSaving || movQtd <= 0}
+              className={movTipo === "saida"
+                ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                : "bg-success hover:bg-success/90 text-success-foreground"}
+            >
               {movSaving && <Loader2 className="size-4 animate-spin" />}
               {movTipo === "entrada" ? "Confirmar entrada" : "Confirmar saída"}
             </Button>
