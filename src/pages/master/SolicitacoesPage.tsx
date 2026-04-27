@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
 import { Check, X, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
 
 type Solicitacao = {
@@ -24,20 +25,23 @@ type Solicitacao = {
 
 export default function SolicitacoesPage() {
   const { role } = useAuth();
+  const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado">("pendente");
   const [rows, setRows] = useState<Solicitacao[]>([]);
 
   const load = async () => {
-    const { data } = await supabase
+    let q = supabase
       .from("solicitacoes")
-      .select(`id, status, observacao, created_at, decidido_em,
+      .select(`id, status, observacao, created_at, decidido_em, sala_id,
                sala:salas(nome),
                usuario:profiles!solicitacoes_usuario_id_fkey(nome, email),
                itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade))`)
       .order("created_at", { ascending: false });
+    if (scopeSalaId) q = q.eq("sala_id", scopeSalaId);
+    const { data } = await q;
     setRows((data as any) ?? []);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [scopeSalaId]);
 
   const decidir = async (id: string, aprovar: boolean) => {
     const { error } = await supabase.rpc("decidir_solicitacao", { _solic: id, _aprovar: aprovar });
