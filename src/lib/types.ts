@@ -19,6 +19,7 @@ export type Produto = {
   descricao: string | null;
   unidade: string;
   estoque_minimo: number;
+  estoque_critico: number;
 };
 
 export type EstoqueRow = {
