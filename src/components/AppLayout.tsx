@@ -48,7 +48,16 @@ function navForRole(role: string | null): NavItem[] {
 const ROLE_LABEL: Record<string, string> = { master: "Master", admin: "Administrador", analista: "Analista" };
 
 export default function AppLayout() {
+  return (
+    <MasterScopeProvider>
+      <AppLayoutInner />
+    </MasterScopeProvider>
+  );
+}
+
+function AppLayoutInner() {
   const { user, role, profile, loading, signOut } = useAuth();
+  const { scopeReady } = useMasterScope();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -73,6 +82,13 @@ export default function AppLayout() {
       </div>
     );
   }
+
+  // Master: gate de seleção de sala antes de entrar no painel.
+  const isPickRoute = location.pathname === "/app/escolher-sala";
+  if (role === "master" && !scopeReady && !isPickRoute) {
+    return <Navigate to="/app/escolher-sala" replace />;
+  }
+  if (isPickRoute) return <Outlet />;
 
   const handleSignOut = async () => {
     await signOut();
@@ -123,7 +139,7 @@ export default function AppLayout() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b border-border bg-card/60 backdrop-blur flex items-center justify-between px-4 md:px-8">
+        <header className="h-14 border-b border-border bg-card/60 backdrop-blur flex items-center justify-between px-4 md:px-8 gap-3">
           <div className="md:hidden flex items-center gap-2">
             <div className="size-8 rounded-md bg-gradient-primary grid place-items-center text-primary-foreground">
               <Boxes className="size-4" />
@@ -131,7 +147,8 @@ export default function AppLayout() {
             <span className="font-display font-bold">Estoque Pro</span>
           </div>
           <div className="hidden md:block text-sm text-muted-foreground">Painel · {ROLE_LABEL[role]}</div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 ml-auto">
+            {role === "master" && <MasterScopeSwitcher />}
             <Badge variant="secondary" className="hidden sm:inline-flex">{ROLE_LABEL[role]}</Badge>
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="md:hidden">
               <LogOut className="size-4" />
