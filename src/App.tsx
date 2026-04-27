@@ -20,6 +20,7 @@ import MovimentacoesPage from "./pages/MovimentacoesPage";
 import NovaSolicitacao from "./pages/sala/NovaSolicitacao";
 import MinhasSolicitacoes from "./pages/sala/MinhasSolicitacoes";
 import NovoEmprestimo from "./pages/sala/NovoEmprestimo";
+import EscolherSala from "./pages/master/EscolherSala";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/app" replace />} />
             <Route path="/app" element={<AppLayout />}>
               <Route index element={<Index />} />
+              <Route path="escolher-sala" element={<EscolherSala />} />
               {/* Master */}
               <Route path="salas" element={<SalasPage />} />
               <Route path="produtos" element={<ProdutosPage />} />

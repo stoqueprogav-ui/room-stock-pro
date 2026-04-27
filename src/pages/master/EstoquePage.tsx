@@ -5,80 +5,256 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil } from "lucide-react";
+import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2 } from "lucide-react";
 import type { Sala, Produto } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
 
 type Row = { produto_id: string; sala_id: string; quantidade: number; produto: Produto; sala: Sala };
+type StatusKind = "ok" | "baixo" | "critico";
+type SortKey = "nome" | "quantidade" | "menor";
+
+function getStatus(q: number, p: Produto): StatusKind {
+  const critico = p.estoque_critico ?? 0;
+  const minimo = p.estoque_minimo ?? 0;
+  if (critico > 0 && q <= critico) return "critico";
+  if (q <= 0) return "critico";
+  if (q <= minimo) return "baixo";
+  return "ok";
+}
 
 export default function EstoquePage() {
   const { role, profile } = useAuth();
+  const isMaster = role === "master";
+  // Hook chamado sempre — só consumimos o valor quando o role for master
+  const masterScope = useMasterScope();
+
   const [salas, setSalas] = useState<Sala[]>([]);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
-  const [salaFilter, setSalaFilter] = useState<string>("all");
   const [busca, setBusca] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"todos" | StatusKind>("todos");
+  const [sort, setSort] = useState<SortKey>("nome");
+  const [salaFilterUI, setSalaFilterUI] = useState<string>("all"); // só para admin/analista (fixo na própria sala)
+
   const [editing, setEditing] = useState<Row | null>(null);
   const [editValue, setEditValue] = useState(0);
-  const [obs, setObs] = useState("");
+  const [editObs, setEditObs] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Modal de Entrada/Saída manual
+  const [movOpen, setMovOpen] = useState(false);
+  const [movTipo, setMovTipo] = useState<"entrada" | "saida">("entrada");
+  const [movProduto, setMovProduto] = useState<string>("");
+  const [movSala, setMovSala] = useState<string>("");
+  const [movQtd, setMovQtd] = useState<number>(0);
+  const [movObs, setMovObs] = useState("");
+  const [movSaving, setMovSaving] = useState(false);
 
   const load = async () => {
-    const [{ data: s }, { data: p }, { data: e }] = await Promise.all([
+    const [{ data: s }, { data: e }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("produtos").select("*").order("nome"),
       supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos(*), salas(*)"),
     ]);
     setSalas((s as Sala[]) ?? []);
-    setProdutos((p as Produto[]) ?? []);
     const mapped: Row[] = (e ?? []).map((r: any) => ({
-      produto_id: r.produto_id, sala_id: r.sala_id, quantidade: r.quantidade,
-      produto: r.produtos, sala: r.salas,
+      produto_id: r.produto_id,
+      sala_id: r.sala_id,
+      quantidade: r.quantidade,
+      produto: r.produtos,
+      sala: r.salas,
     }));
     setRows(mapped);
   };
+
   useEffect(() => { load(); }, []);
+
+  // Para admin/analista, fixa o filtro na própria sala
   useEffect(() => {
-    if (role !== "master" && profile?.sala_id) setSalaFilter(profile.sala_id);
-  }, [role, profile]);
+    if (!isMaster && profile?.sala_id) setSalaFilterUI(profile.sala_id);
+  }, [isMaster, profile]);
+
+  // Sala efetiva considerando o escopo do master
+  const effectiveSalaFilter: string = isMaster
+    ? (masterScope.scopeSalaId ?? "all")
+    : (profile?.sala_id ?? "all");
 
   const filtered = useMemo(() => {
-    return rows
-      .filter((r) => salaFilter === "all" || r.sala_id === salaFilter)
+    const base = rows
+      .filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter)
       .filter((r) => !busca || r.produto.nome.toLowerCase().includes(busca.toLowerCase()))
-      .sort((a, b) => a.produto.nome.localeCompare(b.produto.nome) || a.sala.nome.localeCompare(b.sala.nome));
-  }, [rows, salaFilter, busca]);
+      .filter((r) => {
+        if (statusFilter === "todos") return true;
+        return getStatus(r.quantidade, r.produto) === statusFilter;
+      });
+
+    return base.sort((a, b) => {
+      if (sort === "quantidade") return b.quantidade - a.quantidade;
+      if (sort === "menor") return a.quantidade - b.quantidade;
+      return a.produto.nome.localeCompare(b.produto.nome) || a.sala.nome.localeCompare(b.sala.nome);
+    });
+  }, [rows, effectiveSalaFilter, busca, statusFilter, sort]);
+
+  const counts = useMemo(() => {
+    const inScope = rows.filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter);
+    let critico = 0, baixo = 0, ok = 0;
+    inScope.forEach((r) => {
+      const s = getStatus(r.quantidade, r.produto);
+      if (s === "critico") critico++;
+      else if (s === "baixo") baixo++;
+      else ok++;
+    });
+    return { critico, baixo, ok, total: inScope.length };
+  }, [rows, effectiveSalaFilter]);
+
+  // Lista de produtos disponíveis para movimento (deduplicada)
+  const produtosDisponiveis = useMemo(() => {
+    const map = new Map<string, Produto>();
+    rows.forEach((r) => { if (!map.has(r.produto.id)) map.set(r.produto.id, r.produto); });
+    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [rows]);
 
   const ajustar = async () => {
     if (!editing) return;
+    setSavingEdit(true);
     const { error } = await supabase.rpc("ajustar_estoque", {
-      _produto: editing.produto_id, _sala: editing.sala_id, _quantidade: Number(editValue), _observacao: obs || null,
+      _produto: editing.produto_id, _sala: editing.sala_id,
+      _quantidade: Number(editValue), _observacao: editObs || null,
     });
+    setSavingEdit(false);
     if (error) return toast.error(error.message);
-    toast.success("Estoque ajustado"); setEditing(null); setObs(""); load();
+    toast.success("Estoque ajustado"); setEditing(null); setEditObs(""); load();
+  };
+
+  const openMov = (tipo: "entrada" | "saida") => {
+    setMovTipo(tipo);
+    setMovProduto("");
+    // Sugere a sala em foco do master (se houver)
+    setMovSala(masterScope.scopeSalaId ?? "");
+    setMovQtd(0);
+    setMovObs("");
+    setMovOpen(true);
+  };
+
+  const confirmarMov = async () => {
+    if (!movProduto) return toast.error("Escolha um produto");
+    if (!movSala) return toast.error("Escolha uma sala");
+    if (!movQtd || movQtd <= 0) return toast.error("Quantidade inválida");
+
+    const atual = rows.find((r) => r.produto_id === movProduto && r.sala_id === movSala)?.quantidade ?? 0;
+    const novoSaldo = movTipo === "entrada" ? atual + movQtd : atual - movQtd;
+    if (novoSaldo < 0) return toast.error("Estoque insuficiente para esta saída");
+
+    setMovSaving(true);
+    const { error } = await supabase.rpc("ajustar_estoque", {
+      _produto: movProduto,
+      _sala: movSala,
+      _quantidade: novoSaldo,
+      _observacao: `${movTipo === "entrada" ? "Entrada" : "Saída"} manual${movObs ? ` — ${movObs}` : ""}`,
+    });
+    setMovSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success(`${movTipo === "entrada" ? "Entrada" : "Saída"} registrada`);
+    setMovOpen(false);
+    load();
+  };
+
+  const StatusBadgeCell = ({ q, p }: { q: number; p: Produto }) => {
+    const s = getStatus(q, p);
+    if (s === "critico") return <Badge className="bg-destructive/15 text-destructive border border-destructive/30 gap-1"><AlertOctagon className="size-3" /> Crítico</Badge>;
+    if (s === "baixo") return <Badge className="bg-warning/15 text-warning border border-warning/30 gap-1"><AlertTriangle className="size-3" /> Baixo</Badge>;
+    return <Badge className="bg-success/15 text-success border border-success/30 gap-1"><CheckCircle2 className="size-3" /> Normal</Badge>;
   };
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Controle de estoque" description="Quantidades por produto em cada sala. Ajustes registrados em movimentações." />
+      <PageHeader
+        title="Controle de estoque"
+        description={
+          isMaster
+            ? (masterScope.scopeSalaId
+                ? `Sala em foco: ${salas.find(s => s.id === masterScope.scopeSalaId)?.nome ?? "—"}`
+                : "Modo global · todas as salas")
+            : "Quantidades por produto na sua sala."
+        }
+        actions={isMaster ? (
+          <>
+            <Button variant="outline" onClick={() => openMov("entrada")} className="gap-2">
+              <ArrowDownToLine className="size-4 text-success" /> Entrada
+            </Button>
+            <Button variant="outline" onClick={() => openMov("saida")} className="gap-2">
+              <ArrowUpFromLine className="size-4 text-destructive" /> Saída
+            </Button>
+          </>
+        ) : undefined}
+      />
 
+      {/* Resumo de status */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="panel p-3">
+          <div className="text-xs text-muted-foreground">Total de itens</div>
+          <div className="font-display text-2xl font-bold">{counts.total}</div>
+        </div>
+        <div className="panel p-3">
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success" /> Normais</div>
+          <div className="font-display text-2xl font-bold text-success">{counts.ok}</div>
+        </div>
+        <div className="panel p-3">
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5"><AlertTriangle className="size-3.5 text-warning" /> Baixos</div>
+          <div className="font-display text-2xl font-bold text-warning">{counts.baixo}</div>
+        </div>
+        <div className="panel p-3">
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5"><AlertOctagon className="size-3.5 text-destructive" /> Críticos</div>
+          <div className="font-display text-2xl font-bold text-destructive">{counts.critico}</div>
+        </div>
+      </div>
+
+      {/* Filtros */}
       <div className="flex flex-wrap gap-3 items-end">
+        {!isMaster && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Sala</Label>
+            <Select value={salaFilterUI} onValueChange={setSalaFilterUI} disabled>
+              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <div className="space-y-1.5 flex-1 min-w-60">
+          <Label className="text-xs">Buscar produto</Label>
+          <div className="relative">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome do produto…" className="pl-9" />
+          </div>
+        </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Sala</Label>
-          <Select value={salaFilter} onValueChange={setSalaFilter} disabled={role !== "master"}>
-            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+          <Label className="text-xs">Status</Label>
+          <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {role === "master" && <SelectItem value="all">Todas as salas</SelectItem>}
-              {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="critico">Críticos</SelectItem>
+              <SelectItem value="baixo">Baixos</SelectItem>
+              <SelectItem value="ok">Normais</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5 flex-1 min-w-60">
-          <Label className="text-xs">Buscar produto</Label>
-          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome do produto…" />
+        <div className="space-y-1.5">
+          <Label className="text-xs">Ordenar</Label>
+          <Select value={sort} onValueChange={(v: any) => setSort(v)}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nome">Nome (A→Z)</SelectItem>
+              <SelectItem value="menor">Menor estoque primeiro</SelectItem>
+              <SelectItem value="quantidade">Maior estoque primeiro</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -88,52 +264,110 @@ export default function EstoquePage() {
             <TableRow>
               <TableHead>Produto</TableHead>
               <TableHead>Sala</TableHead>
-              <TableHead className="text-right w-[140px]">Quantidade</TableHead>
-              <TableHead className="text-right w-[140px]">Mínimo</TableHead>
+              <TableHead className="text-right w-[120px]">Quantidade</TableHead>
+              <TableHead className="text-right w-[100px]">Mínimo</TableHead>
+              <TableHead className="text-right w-[100px]">Crítico</TableHead>
               <TableHead className="w-[140px]">Status</TableHead>
-              {role === "master" && <TableHead className="w-[80px] text-right">Ação</TableHead>}
+              {isMaster && <TableHead className="w-[80px] text-right">Ação</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((r) => {
-              const baixo = r.quantidade <= r.produto.estoque_minimo;
-              return (
-                <TableRow key={`${r.produto_id}-${r.sala_id}`} className="table-row-hover">
-                  <TableCell className="font-medium">{r.produto.nome} <span className="text-muted-foreground text-xs">({r.produto.unidade})</span></TableCell>
-                  <TableCell>{r.sala.nome}</TableCell>
-                  <TableCell className="text-right font-mono">{r.quantidade}</TableCell>
-                  <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
-                  <TableCell>
-                    {baixo
-                      ? <Badge className="bg-warning/15 text-warning border border-warning/30 gap-1"><AlertTriangle className="size-3" /> Estoque baixo</Badge>
-                      : <Badge variant="secondary">OK</Badge>}
+            {filtered.map((r) => (
+              <TableRow key={`${r.produto_id}-${r.sala_id}`} className="table-row-hover">
+                <TableCell className="font-medium">{r.produto.nome} <span className="text-muted-foreground text-xs">({r.produto.unidade})</span></TableCell>
+                <TableCell>{r.sala.nome}</TableCell>
+                <TableCell className="text-right font-mono">{r.quantidade}</TableCell>
+                <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
+                <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_critico ?? 0}</TableCell>
+                <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
+                {isMaster && (
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => { setEditing(r); setEditValue(r.quantidade); setEditObs(""); }}>
+                      <Pencil className="size-4" />
+                    </Button>
                   </TableCell>
-                  {role === "master" && (
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => { setEditing(r); setEditValue(r.quantidade); setObs(""); }}>
-                        <Pencil className="size-4" />
-                      </Button>
-                    </TableCell>
-                  )}
-                </TableRow>
-              );
-            })}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={role === "master" ? 6 : 5} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+                )}
+              </TableRow>
+            ))}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 7 : 6} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
 
+      {/* Modal: Ajustar quantidade exata */}
       <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Ajustar estoque · {editing?.produto.nome}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">Sala: <span className="text-foreground font-medium">{editing?.sala.nome}</span></div>
             <div className="space-y-2"><Label>Nova quantidade</Label><Input type="number" min={0} value={editValue} onChange={(e) => setEditValue(Number(e.target.value))} /></div>
-            <div className="space-y-2"><Label>Observação (opcional)</Label><Input value={obs} onChange={(e) => setObs(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Observação (opcional)</Label><Input value={editObs} onChange={(e) => setEditObs(e.target.value)} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
-            <Button onClick={ajustar}>Salvar ajuste</Button>
+            <Button onClick={ajustar} disabled={savingEdit}>
+              {savingEdit && <Loader2 className="size-4 animate-spin" />} Salvar ajuste
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Entrada/Saída */}
+      <Dialog open={movOpen} onOpenChange={setMovOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {movTipo === "entrada"
+                ? <><ArrowDownToLine className="size-5 text-success" /> Entrada de produto</>
+                : <><ArrowUpFromLine className="size-5 text-destructive" /> Saída de produto</>}
+            </DialogTitle>
+            <DialogDescription>
+              {movTipo === "entrada"
+                ? "Soma a quantidade ao estoque da sala selecionada."
+                : "Subtrai do estoque (uso interno, perda, etc.)."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Sala</Label>
+              <Select value={movSala} onValueChange={setMovSala}>
+                <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
+                <SelectContent>
+                  {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Produto</Label>
+              <Select value={movProduto} onValueChange={setMovProduto}>
+                <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                <SelectContent>
+                  {produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome} ({p.unidade})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantidade</Label>
+              <Input type="number" min={1} value={movQtd || ""} onChange={(e) => setMovQtd(Number(e.target.value))} />
+              {movProduto && movSala && (
+                <div className="text-xs text-muted-foreground">
+                  Estoque atual: <span className="font-mono text-foreground">
+                    {rows.find(r => r.produto_id === movProduto && r.sala_id === movSala)?.quantidade ?? 0}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Observação (opcional)</Label>
+              <Textarea value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Ex: Compra NF 1234 / Uso evento X" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMovOpen(false)}>Cancelar</Button>
+            <Button onClick={confirmarMov} disabled={movSaving} className={movTipo === "saida" ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-success hover:bg-success/90 text-success-foreground"}>
+              {movSaving && <Loader2 className="size-4 animate-spin" />}
+              {movTipo === "entrada" ? "Confirmar entrada" : "Confirmar saída"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
