@@ -1,4 +1,4 @@
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
@@ -10,22 +10,22 @@ import MasterScopeSwitcher from "@/components/MasterScopeSwitcher";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
-type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; badgeKey?: "requisicoes" | "emprestimosAprovar" };
 
 function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
   if (role === "master") {
     const items: NavItem[] = [
       { to: "/app", label: "Visão geral", icon: LayoutDashboard },
     ];
-    // Salas e Usuários são administração global — só aparecem em "Todas as salas"
     if (isGlobalScope) {
       items.push({ to: "/app/salas", label: "Salas", icon: Building2 });
     }
     items.push(
       { to: "/app/produtos", label: "Produtos", icon: Package },
       { to: "/app/estoque", label: "Estoque", icon: Boxes },
-      { to: "/app/solicitacoes", label: "Solicitações", icon: Inbox },
+      { to: "/app/requisicoes", label: "Requisições", icon: Inbox, badgeKey: "requisicoes" },
       { to: "/app/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
       { to: "/app/dividas", label: "Dívidas", icon: Wallet },
       { to: "/app/usuarios", label: "Usuários", icon: Users },
@@ -38,15 +38,15 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
   const base: NavItem[] = [
     { to: "/app", label: "Visão geral", icon: LayoutDashboard },
     { to: "/app/meu-estoque", label: "Meu estoque", icon: Boxes },
-    { to: "/app/nova-solicitacao", label: "Solicitar ao Master", icon: Send },
-    { to: "/app/minhas-solicitacoes", label: "Minhas solicitações", icon: ClipboardList },
+    { to: "/app/nova-requisicao", label: "Realizar requisição", icon: Send },
+    { to: "/app/minhas-requisicoes", label: "Minhas requisições", icon: ClipboardList },
     { to: "/app/novo-emprestimo", label: "Pedir empréstimo", icon: ArrowLeftRight },
     { to: "/app/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
     { to: "/app/dividas", label: "Dívidas da sala", icon: Wallet },
     { to: "/app/movimentacoes", label: "Movimentações", icon: History },
   ];
   if (role === "admin") {
-    base.splice(5, 0, { to: "/app/aprovar-emprestimos", label: "Aprovar empréstimos", icon: ShieldCheck });
+    base.splice(5, 0, { to: "/app/aprovar-emprestimos", label: "Aprovar empréstimos", icon: ShieldCheck, badgeKey: "emprestimosAprovar" });
   }
   return base;
 }
@@ -66,8 +66,32 @@ function AppLayoutInner() {
   const { scopeReady, scopeSalaId } = useMasterScope();
   const navigate = useNavigate();
   const location = useLocation();
+  const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0 });
 
   const items = useMemo(() => navForRole(role, scopeSalaId === null), [role, scopeSalaId]);
+
+  // Carrega contadores de pendências para badges
+  const loadCounts = useCallback(async () => {
+    if (!role) return;
+    if (role === "master") {
+      let q = supabase.from("solicitacoes").select("id", { count: "exact", head: true }).eq("status", "pendente");
+      if (scopeSalaId) q = q.eq("sala_id", scopeSalaId);
+      const { count } = await q;
+      setPendCounts((p) => ({ ...p, requisicoes: count ?? 0 }));
+    } else if (role === "admin" && profile?.sala_id) {
+      const { count } = await supabase
+        .from("emprestimos")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pendente")
+        .eq("sala_origem_id", profile.sala_id);
+      setPendCounts((p) => ({ ...p, emprestimosAprovar: count ?? 0 }));
+    }
+  }, [role, scopeSalaId, profile?.sala_id]);
+
+  useEffect(() => {
+    loadCounts();
+    // Recarrega ao trocar de rota (ações podem ter alterado pendências)
+  }, [loadCounts, location.pathname]);
 
   if (loading) {
     return (
@@ -101,7 +125,6 @@ function AppLayoutInner() {
     return <Navigate to="/app" replace />;
   }
 
-
   const handleSignOut = async () => {
     await signOut();
     navigate("/login", { replace: true });
@@ -120,24 +143,32 @@ function AppLayoutInner() {
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {items.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/app"}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-                )
-              }
-            >
-              <Icon className="size-4" />
-              {label}
-            </NavLink>
-          ))}
+          {items.map(({ to, label, icon: Icon, badgeKey }) => {
+            const count = badgeKey ? pendCounts[badgeKey] : 0;
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/app"}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                  )
+                }
+              >
+                <Icon className="size-4" />
+                <span className="flex-1">{label}</span>
+                {count > 0 && (
+                  <Badge className="bg-warning text-warning-foreground hover:bg-warning border-transparent h-5 min-w-5 px-1.5 text-[10px]">
+                    {count}
+                  </Badge>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
         <div className="p-3 border-t border-sidebar-border space-y-2">
           <div className="px-2">
