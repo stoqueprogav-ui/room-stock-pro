@@ -250,6 +250,7 @@ export type Database = {
         Row: {
           created_at: string
           descricao: string | null
+          estoque_critico: number
           estoque_minimo: number
           id: string
           nome: string
@@ -259,6 +260,7 @@ export type Database = {
         Insert: {
           created_at?: string
           descricao?: string | null
+          estoque_critico?: number
           estoque_minimo?: number
           id?: string
           nome: string
@@ -268,6 +270,7 @@ export type Database = {
         Update: {
           created_at?: string
           descricao?: string | null
+          estoque_critico?: number
           estoque_minimo?: number
           id?: string
           nome?: string
