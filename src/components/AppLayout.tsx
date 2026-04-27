@@ -96,6 +96,12 @@ function AppLayoutInner() {
   }
   if (isPickRoute) return <Outlet />;
 
+  // Em modo sala específica, página de Salas é só global → redireciona
+  if (role === "master" && scopeSalaId !== null && location.pathname.startsWith("/app/salas")) {
+    return <Navigate to="/app" replace />;
+  }
+
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/login", { replace: true });
