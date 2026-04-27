@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Send, Trash2 } from "lucide-react";
+import { Send, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Sala, Produto } from "@/lib/types";
 
@@ -100,27 +100,57 @@ export default function NovoEmprestimo() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {produtos.map((p) => (
-                  <TableRow key={p.id} className="table-row-hover">
-                    <TableCell className="font-medium">{p.nome} <span className="text-muted-foreground text-xs">({p.unidade})</span></TableCell>
-                    <TableCell className="text-right font-mono text-muted-foreground">{salaOrigem ? (estoqueOrigem[p.id] ?? "—") : "—"}</TableCell>
-                    <TableCell>
-                      <Input type="number" min={0} value={carrinho[p.id] ?? ""} onChange={(e) => setCarrinho({ ...carrinho, [p.id]: Number(e.target.value) })} />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {produtos.map((p) => {
+                  const disp = estoqueOrigem[p.id];
+                  const qtdPedida = Number(carrinho[p.id] ?? 0);
+                  const excede = disp !== undefined && qtdPedida > disp;
+                  return (
+                    <TableRow key={p.id} className="table-row-hover">
+                      <TableCell className="font-medium">{p.nome} <span className="text-muted-foreground text-xs">({p.unidade})</span></TableCell>
+                      <TableCell className="text-right font-mono text-muted-foreground">{salaOrigem ? (disp ?? "—") : "—"}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={disp}
+                          value={carrinho[p.id] ?? ""}
+                          onChange={(e) => setCarrinho({ ...carrinho, [p.id]: Number(e.target.value) })}
+                          className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
+                        />
+                        {excede && (
+                          <div className="text-xs text-destructive mt-1 flex items-center gap-1">
+                            <AlertTriangle className="size-3" /> Excede o estoque disponível.
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {produtos.length === 0 && (
+                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-12">Nenhum produto disponível.</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
         </div>
         <div className="panel p-4 space-y-3 h-fit">
           <h3 className="font-semibold">Resumo</h3>
+          {!salaOrigem && (
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2.5">
+              Escolha a sala de origem para liberar a seleção de produtos.
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Observação</Label>
-            <Textarea value={obs} onChange={(e) => setObs(e.target.value)} />
+            <Textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Motivo / detalhes do pedido" />
           </div>
-          <Button className="w-full" onClick={enviar}><Send className="size-4" /> Enviar pedido</Button>
-          <Button variant="ghost" className="w-full" onClick={() => setCarrinho({})}><Trash2 className="size-4" /> Limpar</Button>
+          <Button className="w-full" onClick={enviar} disabled={enviando || !salaOrigem}>
+            {enviando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            Enviar pedido
+          </Button>
+          <Button variant="ghost" className="w-full" onClick={() => setCarrinho({})} disabled={enviando}>
+            <Trash2 className="size-4" /> Limpar
+          </Button>
         </div>
       </div>
     </div>
