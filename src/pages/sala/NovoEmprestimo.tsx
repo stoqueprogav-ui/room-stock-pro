@@ -46,13 +46,29 @@ export default function NovoEmprestimo() {
     })();
   }, [salaOrigem]);
 
+  const [enviando, setEnviando] = useState(false);
+
   const enviar = async () => {
     if (!salaOrigem) return toast.error("Escolha a sala de origem");
     const itens = Object.entries(carrinho)
       .map(([produto_id, quantidade]) => ({ produto_id, quantidade: Number(quantidade) }))
       .filter((i) => i.quantidade > 0);
     if (itens.length === 0) return toast.error("Selecione ao menos um produto");
+
+    // Validação extra: se temos visibilidade do estoque origem, não permitir pedir mais do que existe.
+    if (Object.keys(estoqueOrigem).length > 0) {
+      for (const i of itens) {
+        const disp = estoqueOrigem[i.produto_id] ?? 0;
+        if (i.quantidade > disp) {
+          const prod = produtos.find((p) => p.id === i.produto_id);
+          return toast.error(`Quantidade pedida (${i.quantidade}) excede o estoque de ${prod?.nome ?? "produto"} na sala origem (${disp}).`);
+        }
+      }
+    }
+
+    setEnviando(true);
     const { error } = await supabase.rpc("criar_emprestimo", { _sala_origem: salaOrigem, _itens: itens, _observacao: obs || null });
+    setEnviando(false);
     if (error) return toast.error(error.message);
     toast.success("Empréstimo solicitado. Aguardando aprovação da sala de origem.");
     navigate("/app/emprestimos");
