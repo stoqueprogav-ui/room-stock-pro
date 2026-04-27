@@ -172,16 +172,7 @@ export default function EstoquePage() {
                 : "Modo global · todas as salas")
             : "Quantidades por produto na sua sala."
         }
-        actions={isMaster ? (
-          <>
-            <Button variant="outline" onClick={() => openMov("entrada")} className="gap-2">
-              <ArrowDownToLine className="size-4 text-success" /> Entrada
-            </Button>
-            <Button variant="outline" onClick={() => openMov("saida")} className="gap-2">
-              <ArrowUpFromLine className="size-4 text-destructive" /> Saída
-            </Button>
-          </>
-        ) : undefined}
+        actions={undefined}
       />
 
       {/* Resumo de status */}
@@ -255,11 +246,11 @@ export default function EstoquePage() {
             <TableRow>
               <TableHead>Produto</TableHead>
               <TableHead>Sala</TableHead>
-              <TableHead className="text-right w-[120px]">Quantidade</TableHead>
-              <TableHead className="text-right w-[100px]">Mínimo</TableHead>
-              <TableHead className="text-right w-[100px]">Crítico</TableHead>
-              <TableHead className="w-[140px]">Status</TableHead>
-              {isMaster && <TableHead className="w-[80px] text-right">Ação</TableHead>}
+              <TableHead className="text-right w-[110px]">Quantidade</TableHead>
+              <TableHead className="text-right w-[80px]">Mín.</TableHead>
+              <TableHead className="text-right w-[80px]">Crít.</TableHead>
+              <TableHead className="w-[130px]">Status</TableHead>
+              {isMaster && <TableHead className="w-[260px] text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -267,15 +258,33 @@ export default function EstoquePage() {
               <TableRow key={`${r.produto_id}-${r.sala_id}`} className="table-row-hover">
                 <TableCell className="font-medium">{r.produto.nome} <span className="text-muted-foreground text-xs">({r.produto.unidade})</span></TableCell>
                 <TableCell>{r.sala.nome}</TableCell>
-                <TableCell className="text-right font-mono">{r.quantidade}</TableCell>
+                <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_critico ?? 0}</TableCell>
                 <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
                 {isMaster && (
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => { setEditing(r); setEditValue(r.quantidade); setEditObs(""); }}>
-                      <Pencil className="size-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 border-success/40 text-success hover:bg-success/10 hover:text-success"
+                        onClick={() => openMovForRow(r, "entrada")}
+                      >
+                        <ArrowDownToLine className="size-3.5" /> Entrada
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => openMovForRow(r, "saida")}
+                      >
+                        <ArrowUpFromLine className="size-3.5" /> Saída
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Ajustar quantidade exata" onClick={() => { setEditing(r); setEditValue(r.quantidade); setEditObs(""); }}>
+                        <Pencil className="size-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
