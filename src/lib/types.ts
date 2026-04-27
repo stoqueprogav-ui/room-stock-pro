@@ -29,8 +29,11 @@ export type EstoqueRow = {
   quantidade: number;
 };
 
-export type SolicitacaoStatus = "pendente" | "aprovado" | "rejeitado";
-export type EmprestimoStatus = "pendente" | "aprovado" | "rejeitado";
+export type RequisicaoStatus = "pendente" | "aprovado" | "rejeitado" | "arquivado";
+export type EmprestimoStatus = "pendente" | "aprovado" | "rejeitado" | "arquivado";
+
+// Alias compatível
+export type SolicitacaoStatus = RequisicaoStatus;
 
 export type MovimentacaoTipo =
   | "entrada"
