@@ -20,6 +20,7 @@ import MovimentacoesPage from "./pages/MovimentacoesPage";
 import NovaSolicitacao from "./pages/sala/NovaSolicitacao";
 import MinhasSolicitacoes from "./pages/sala/MinhasSolicitacoes";
 import NovoEmprestimo from "./pages/sala/NovoEmprestimo";
+import EscolherSala from "./pages/master/EscolherSala";
 
 const queryClient = new QueryClient();
 
