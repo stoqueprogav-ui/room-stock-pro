@@ -159,7 +159,7 @@ export default function ProdutosPage() {
                 </TableCell>
               </TableRow>
             ))}
-            {produtos.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Nenhum produto cadastrado.</TableCell></TableRow>}
+            {produtos.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Nenhum produto cadastrado.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
