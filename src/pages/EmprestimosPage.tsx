@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
 import { Check, X, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
 
 type Emp = {
@@ -25,11 +26,13 @@ type Emp = {
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
   const { role, profile } = useAuth();
+  // Hook sempre chamado; só usado para o role master
+  const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
 
   const load = async () => {
-    const { data } = await supabase
+    let q = supabase
       .from("emprestimos")
       .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id,
                origem:salas!emprestimos_sala_origem_id_fkey(nome),
@@ -37,9 +40,13 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                solicitante:profiles!emprestimos_solicitante_id_fkey(nome),
                itens:emprestimo_itens(quantidade, produto:produtos(nome, unidade))`)
       .order("created_at", { ascending: false });
+    if (role === "master" && scopeSalaId) {
+      q = q.or(`sala_origem_id.eq.${scopeSalaId},sala_destino_id.eq.${scopeSalaId}`);
+    }
+    const { data } = await q;
     setRows((data as any) ?? []);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [scopeSalaId, role]);
 
   const decidir = async (id: string, ap: boolean) => {
     const { error } = await supabase.rpc("decidir_emprestimo", { _emp: id, _aprovar: ap });

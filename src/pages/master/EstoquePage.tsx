@@ -46,11 +46,10 @@ export default function EstoquePage() {
   const [editObs, setEditObs] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Modal de Entrada/Saída manual
+  // Modal de Entrada/Saída rápida (a partir da linha do produto)
   const [movOpen, setMovOpen] = useState(false);
   const [movTipo, setMovTipo] = useState<"entrada" | "saida">("entrada");
-  const [movProduto, setMovProduto] = useState<string>("");
-  const [movSala, setMovSala] = useState<string>("");
+  const [movRow, setMovRow] = useState<Row | null>(null);
   const [movQtd, setMovQtd] = useState<number>(0);
   const [movObs, setMovObs] = useState("");
   const [movSaving, setMovSaving] = useState(false);
@@ -111,12 +110,7 @@ export default function EstoquePage() {
     return { critico, baixo, ok, total: inScope.length };
   }, [rows, effectiveSalaFilter]);
 
-  // Lista de produtos disponíveis para movimento (deduplicada)
-  const produtosDisponiveis = useMemo(() => {
-    const map = new Map<string, Produto>();
-    rows.forEach((r) => { if (!map.has(r.produto.id)) map.set(r.produto.id, r.produto); });
-    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [rows]);
+  // (lista de produtos não é mais necessária — modal opera sobre uma linha específica)
 
   const ajustar = async () => {
     if (!editing) return;
@@ -130,35 +124,32 @@ export default function EstoquePage() {
     toast.success("Estoque ajustado"); setEditing(null); setEditObs(""); load();
   };
 
-  const openMov = (tipo: "entrada" | "saida") => {
+  const openMovForRow = (row: Row, tipo: "entrada" | "saida") => {
     setMovTipo(tipo);
-    setMovProduto("");
-    // Sugere a sala em foco do master (se houver)
-    setMovSala(masterScope.scopeSalaId ?? "");
+    setMovRow(row);
     setMovQtd(0);
     setMovObs("");
     setMovOpen(true);
   };
 
   const confirmarMov = async () => {
-    if (!movProduto) return toast.error("Escolha um produto");
-    if (!movSala) return toast.error("Escolha uma sala");
+    if (!movRow) return;
     if (!movQtd || movQtd <= 0) return toast.error("Quantidade inválida");
 
-    const atual = rows.find((r) => r.produto_id === movProduto && r.sala_id === movSala)?.quantidade ?? 0;
+    const atual = movRow.quantidade;
     const novoSaldo = movTipo === "entrada" ? atual + movQtd : atual - movQtd;
     if (novoSaldo < 0) return toast.error("Estoque insuficiente para esta saída");
 
     setMovSaving(true);
     const { error } = await supabase.rpc("ajustar_estoque", {
-      _produto: movProduto,
-      _sala: movSala,
+      _produto: movRow.produto_id,
+      _sala: movRow.sala_id,
       _quantidade: novoSaldo,
-      _observacao: `${movTipo === "entrada" ? "Entrada" : "Saída"} manual${movObs ? ` — ${movObs}` : ""}`,
+      _observacao: `${movTipo === "entrada" ? "Entrada" : "Saída"} rápida${movObs ? ` — ${movObs}` : ""}`,
     });
     setMovSaving(false);
     if (error) return toast.error(error.message);
-    toast.success(`${movTipo === "entrada" ? "Entrada" : "Saída"} registrada`);
+    toast.success(`${movTipo === "entrada" ? "Entrada" : "Saída"} de ${movQtd} ${movRow.produto.unidade} registrada`);
     setMovOpen(false);
     load();
   };
@@ -181,16 +172,7 @@ export default function EstoquePage() {
                 : "Modo global · todas as salas")
             : "Quantidades por produto na sua sala."
         }
-        actions={isMaster ? (
-          <>
-            <Button variant="outline" onClick={() => openMov("entrada")} className="gap-2">
-              <ArrowDownToLine className="size-4 text-success" /> Entrada
-            </Button>
-            <Button variant="outline" onClick={() => openMov("saida")} className="gap-2">
-              <ArrowUpFromLine className="size-4 text-destructive" /> Saída
-            </Button>
-          </>
-        ) : undefined}
+        actions={undefined}
       />
 
       {/* Resumo de status */}
@@ -264,11 +246,11 @@ export default function EstoquePage() {
             <TableRow>
               <TableHead>Produto</TableHead>
               <TableHead>Sala</TableHead>
-              <TableHead className="text-right w-[120px]">Quantidade</TableHead>
-              <TableHead className="text-right w-[100px]">Mínimo</TableHead>
-              <TableHead className="text-right w-[100px]">Crítico</TableHead>
-              <TableHead className="w-[140px]">Status</TableHead>
-              {isMaster && <TableHead className="w-[80px] text-right">Ação</TableHead>}
+              <TableHead className="text-right w-[110px]">Quantidade</TableHead>
+              <TableHead className="text-right w-[80px]">Mín.</TableHead>
+              <TableHead className="text-right w-[80px]">Crít.</TableHead>
+              <TableHead className="w-[130px]">Status</TableHead>
+              {isMaster && <TableHead className="w-[260px] text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -276,15 +258,33 @@ export default function EstoquePage() {
               <TableRow key={`${r.produto_id}-${r.sala_id}`} className="table-row-hover">
                 <TableCell className="font-medium">{r.produto.nome} <span className="text-muted-foreground text-xs">({r.produto.unidade})</span></TableCell>
                 <TableCell>{r.sala.nome}</TableCell>
-                <TableCell className="text-right font-mono">{r.quantidade}</TableCell>
+                <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_critico ?? 0}</TableCell>
                 <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
                 {isMaster && (
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => { setEditing(r); setEditValue(r.quantidade); setEditObs(""); }}>
-                      <Pencil className="size-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 border-success/40 text-success hover:bg-success/10 hover:text-success"
+                        onClick={() => openMovForRow(r, "entrada")}
+                      >
+                        <ArrowDownToLine className="size-3.5" /> Entrada
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => openMovForRow(r, "saida")}
+                      >
+                        <ArrowUpFromLine className="size-3.5" /> Saída
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Ajustar quantidade exata" onClick={() => { setEditing(r); setEditValue(r.quantidade); setEditObs(""); }}>
+                        <Pencil className="size-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
@@ -312,9 +312,9 @@ export default function EstoquePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Entrada/Saída */}
+      {/* Modal: Entrada/Saída rápida (a partir de uma linha) */}
       <Dialog open={movOpen} onOpenChange={setMovOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {movTipo === "entrada"
@@ -322,49 +322,49 @@ export default function EstoquePage() {
                 : <><ArrowUpFromLine className="size-5 text-destructive" /> Saída de produto</>}
             </DialogTitle>
             <DialogDescription>
-              {movTipo === "entrada"
-                ? "Soma a quantidade ao estoque da sala selecionada."
-                : "Subtrai do estoque (uso interno, perda, etc.)."}
+              {movRow && (
+                <>
+                  <span className="font-medium text-foreground">{movRow.produto.nome}</span>
+                  {" · "}{movRow.sala.nome}
+                  {" · estoque atual: "}
+                  <span className="font-mono text-foreground">{movRow.quantidade} {movRow.produto.unidade}</span>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label>Sala</Label>
-              <Select value={movSala} onValueChange={setMovSala}>
-                <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
-                <SelectContent>
-                  {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Produto</Label>
-              <Select value={movProduto} onValueChange={setMovProduto}>
-                <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
-                <SelectContent>
-                  {produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome} ({p.unidade})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Quantidade</Label>
-              <Input type="number" min={1} value={movQtd || ""} onChange={(e) => setMovQtd(Number(e.target.value))} />
-              {movProduto && movSala && (
+              <Input
+                type="number"
+                min={1}
+                autoFocus
+                value={movQtd || ""}
+                onChange={(e) => setMovQtd(Number(e.target.value))}
+                onKeyDown={(e) => { if (e.key === "Enter" && movQtd > 0) confirmarMov(); }}
+              />
+              {movRow && movQtd > 0 && (
                 <div className="text-xs text-muted-foreground">
-                  Estoque atual: <span className="font-mono text-foreground">
-                    {rows.find(r => r.produto_id === movProduto && r.sala_id === movSala)?.quantidade ?? 0}
+                  Novo saldo: <span className="font-mono text-foreground font-semibold">
+                    {movTipo === "entrada" ? movRow.quantidade + movQtd : movRow.quantidade - movQtd}
                   </span>
                 </div>
               )}
             </div>
             <div className="space-y-2">
               <Label>Observação (opcional)</Label>
-              <Textarea value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Ex: Compra NF 1234 / Uso evento X" />
+              <Textarea value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Ex: Compra NF 1234 / Uso evento X" rows={2} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMovOpen(false)}>Cancelar</Button>
-            <Button onClick={confirmarMov} disabled={movSaving} className={movTipo === "saida" ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-success hover:bg-success/90 text-success-foreground"}>
+            <Button
+              onClick={confirmarMov}
+              disabled={movSaving || movQtd <= 0}
+              className={movTipo === "saida"
+                ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                : "bg-success hover:bg-success/90 text-success-foreground"}
+            >
               {movSaving && <Loader2 className="size-4 animate-spin" />}
               {movTipo === "entrada" ? "Confirmar entrada" : "Confirmar saída"}
             </Button>

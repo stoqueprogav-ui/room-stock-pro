@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,18 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Globe2, Building2 } from "lucide-react";
 import { RoleBadge } from "@/components/StatusBadge";
 import type { Sala, AppRole } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
 
 type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; sala?: { nome: string } | null };
 
 export default function UsuariosPage() {
   const { profile } = useAuth();
+  const { scopeSalaId } = useMasterScope();
+  const isGlobal = scopeSalaId === null;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
   const [open, setOpen] = useState(false);
@@ -41,6 +44,23 @@ export default function UsuariosPage() {
     setSalas((ss as Sala[]) ?? []);
   };
   useEffect(() => { load(); }, []);
+
+  // Lista visível conforme escopo: em sala específica, mostra masters + usuários daquela sala
+  const visibleUsers = useMemo(() => {
+    if (isGlobal) return users;
+    return users.filter((u) => u.role === "master" || u.sala_id === scopeSalaId);
+  }, [users, isGlobal, scopeSalaId]);
+
+  const salaAtualNome = useMemo(
+    () => (scopeSalaId ? salas.find((s) => s.id === scopeSalaId)?.nome : null),
+    [scopeSalaId, salas]
+  );
+
+  const openNovo = () => {
+    // Em sala específica, pré-vincula automaticamente
+    setForm({ nome: "", email: "", password: "", role: "analista", sala_id: isGlobal ? "" : (scopeSalaId ?? "") });
+    setOpen(true);
+  };
 
   const criar = async () => {
     if (!form.email || !form.password || !form.nome) return toast.error("Preencha nome, email e senha");
@@ -85,9 +105,22 @@ export default function UsuariosPage() {
     <div className="space-y-4">
       <PageHeader
         title="Usuários"
-        description="Gestão de contas, perfis e vínculo com salas."
-        actions={<Button onClick={() => setOpen(true)}><Plus className="size-4" /> Novo usuário</Button>}
+        description={
+          isGlobal
+            ? "Gestão global de contas, perfis e vínculo com salas."
+            : `Usuários da sala ${salaAtualNome ?? "—"} (e administradores Master).`
+        }
+        actions={
+          <Button onClick={openNovo}>
+            <Plus className="size-4" /> Novo usuário
+          </Button>
+        }
       />
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {isGlobal
+          ? <><Globe2 className="size-3.5 text-primary" /> Modo global — você vê todos os usuários do sistema.</>
+          : <><Building2 className="size-3.5 text-primary" /> Sala em foco — apenas usuários vinculados a esta sala.</>}
+      </div>
       <div className="panel overflow-x-auto">
         <Table>
           <TableHeader>
@@ -100,7 +133,7 @@ export default function UsuariosPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((u) => (
+            {visibleUsers.map((u) => (
               <TableRow key={u.id} className="table-row-hover">
                 <TableCell className="font-medium flex items-center gap-2">{u.nome} {u.id === profile?.id && <span className="text-xs text-muted-foreground">(você)</span>}</TableCell>
                 <TableCell className="text-muted-foreground">{u.email}</TableCell>
@@ -156,6 +189,12 @@ export default function UsuariosPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Novo usuário</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            {!isGlobal && (
+              <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+                <Building2 className="size-3.5 text-primary" />
+                Será vinculado automaticamente à sala <span className="font-medium text-foreground">{salaAtualNome}</span>.
+              </div>
+            )}
             <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
             <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             <div className="space-y-2"><Label>Senha provisória</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
@@ -165,7 +204,8 @@ export default function UsuariosPage() {
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="master">Master</SelectItem>
+                    {/* Em modo sala, não permite criar Master por aqui (Master é global) */}
+                    {isGlobal && <SelectItem value="master">Master</SelectItem>}
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="analista">Analista</SelectItem>
                   </SelectContent>
@@ -173,7 +213,11 @@ export default function UsuariosPage() {
               </div>
               <div className="space-y-2">
                 <Label>Sala</Label>
-                <Select value={form.sala_id} onValueChange={(v) => setForm({ ...form, sala_id: v })} disabled={form.role === "master"}>
+                <Select
+                  value={form.sala_id}
+                  onValueChange={(v) => setForm({ ...form, sala_id: v })}
+                  disabled={form.role === "master" || !isGlobal}
+                >
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>{salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
                 </Select>

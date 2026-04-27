@@ -13,11 +13,16 @@ import { cn } from "@/lib/utils";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 
-function navForRole(role: string | null): NavItem[] {
+function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
   if (role === "master") {
-    return [
+    const items: NavItem[] = [
       { to: "/app", label: "Visão geral", icon: LayoutDashboard },
-      { to: "/app/salas", label: "Salas", icon: Building2 },
+    ];
+    // Salas e Usuários são administração global — só aparecem em "Todas as salas"
+    if (isGlobalScope) {
+      items.push({ to: "/app/salas", label: "Salas", icon: Building2 });
+    }
+    items.push(
       { to: "/app/produtos", label: "Produtos", icon: Package },
       { to: "/app/estoque", label: "Estoque", icon: Boxes },
       { to: "/app/solicitacoes", label: "Solicitações", icon: Inbox },
@@ -26,7 +31,8 @@ function navForRole(role: string | null): NavItem[] {
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
       { to: "/app/movimentacoes", label: "Movimentações", icon: History },
-    ];
+    );
+    return items;
   }
   // admin & analista
   const base: NavItem[] = [
@@ -57,11 +63,11 @@ export default function AppLayout() {
 
 function AppLayoutInner() {
   const { user, role, profile, loading, signOut } = useAuth();
-  const { scopeReady } = useMasterScope();
+  const { scopeReady, scopeSalaId } = useMasterScope();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const items = useMemo(() => navForRole(role), [role]);
+  const items = useMemo(() => navForRole(role, scopeSalaId === null), [role, scopeSalaId]);
 
   if (loading) {
     return (
@@ -89,6 +95,12 @@ function AppLayoutInner() {
     return <Navigate to="/app/escolher-sala" replace />;
   }
   if (isPickRoute) return <Outlet />;
+
+  // Em modo sala específica, página de Salas é só global → redireciona
+  if (role === "master" && scopeSalaId !== null && location.pathname.startsWith("/app/salas")) {
+    return <Navigate to="/app" replace />;
+  }
+
 
   const handleSignOut = async () => {
     await signOut();

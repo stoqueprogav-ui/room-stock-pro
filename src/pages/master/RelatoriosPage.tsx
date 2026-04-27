@@ -4,23 +4,35 @@ import { PageHeader } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
+import { Building2, Globe2 } from "lucide-react";
 
 type Mov = { produto_id: string; sala_id: string; tipo: string; quantidade: number; produto: { nome: string }; sala: { nome: string } };
 
 export default function RelatoriosPage() {
+  const { scopeSalaId } = useMasterScope();
   const [movs, setMovs] = useState<Mov[]>([]);
+  const [salaNome, setSalaNome] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("movimentacoes")
         .select(`produto_id, sala_id, tipo, quantidade, produto:produtos(nome), sala:salas(nome)`)
         .in("tipo", ["solicitacao", "emprestimo_saida"])
         .limit(2000)
         .order("created_at", { ascending: false });
+      if (scopeSalaId) q = q.eq("sala_id", scopeSalaId);
+      const { data } = await q;
       setMovs((data as any) ?? []);
+      if (scopeSalaId) {
+        const { data: s } = await supabase.from("salas").select("nome").eq("id", scopeSalaId).maybeSingle();
+        setSalaNome((s as any)?.nome ?? null);
+      } else {
+        setSalaNome(null);
+      }
     })();
-  }, []);
+  }, [scopeSalaId]);
 
   const consumoPorProduto = useMemo(() => {
     const map = new Map<string, number>();
@@ -40,13 +52,25 @@ export default function RelatoriosPage() {
     return Array.from(map.entries()).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total);
   }, [movs]);
 
+  const isGlobal = scopeSalaId === null;
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Relatórios" description="Indicadores agregados de consumo e movimentação." />
+      <PageHeader
+        title="Relatórios"
+        description={isGlobal
+          ? "Indicadores agregados de consumo e movimentação (todas as salas)."
+          : `Consumo da sala ${salaNome ?? "—"}.`}
+      />
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {isGlobal
+          ? <><Globe2 className="size-3.5 text-primary" /> Visão global.</>
+          : <><Building2 className="size-3.5 text-primary" /> Filtrado pela sala em foco.</>}
+      </div>
       <Tabs defaultValue="produtos">
         <TabsList>
           <TabsTrigger value="produtos">Produtos mais consumidos</TabsTrigger>
-          <TabsTrigger value="salas">Salas que mais consomem</TabsTrigger>
+          {isGlobal && <TabsTrigger value="salas">Salas que mais consomem</TabsTrigger>}
         </TabsList>
         <TabsContent value="produtos" className="mt-4">
           <Card className="p-4">

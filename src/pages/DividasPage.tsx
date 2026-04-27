@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { Wallet, ArrowRight } from "lucide-react";
 
 type Divida = {
@@ -22,21 +23,26 @@ type Divida = {
 
 export default function DividasPage() {
   const { role, profile } = useAuth();
+  const { scopeSalaId } = useMasterScope();
   const [rows, setRows] = useState<Divida[]>([]);
   const [editing, setEditing] = useState<Divida | null>(null);
   const [qtd, setQtd] = useState(0);
 
   const load = async () => {
-    const { data } = await supabase
+    let q = supabase
       .from("dividas")
       .select(`id, saldo, sala_devedora_id, sala_credora_id,
                devedora:salas!dividas_sala_devedora_id_fkey(nome),
                credora:salas!dividas_sala_credora_id_fkey(nome),
                produto:produtos(nome, unidade)`)
       .order("saldo", { ascending: false });
+    if (role === "master" && scopeSalaId) {
+      q = q.or(`sala_devedora_id.eq.${scopeSalaId},sala_credora_id.eq.${scopeSalaId}`);
+    }
+    const { data } = await q;
     setRows((data as any) ?? []);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [scopeSalaId, role]);
 
   const quitar = async () => {
     if (!editing) return;

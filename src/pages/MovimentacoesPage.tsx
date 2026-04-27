@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
 import type { Sala } from "@/lib/types";
 
@@ -30,6 +31,7 @@ const TIPO_LABEL: Record<string, { label: string; cls: string }> = {
 
 export default function MovimentacoesPage() {
   const { role, profile } = useAuth();
+  const { scopeSalaId } = useMasterScope();
   const [rows, setRows] = useState<Mov[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
   const [salaFilter, setSalaFilter] = useState("all");
@@ -52,9 +54,14 @@ export default function MovimentacoesPage() {
     })();
   }, []);
 
+  // Sincroniza filtro com escopo do master / sala do user
   useEffect(() => {
-    if (role !== "master" && profile?.sala_id) setSalaFilter(profile.sala_id);
-  }, [role, profile]);
+    if (role === "master") {
+      setSalaFilter(scopeSalaId ?? "all");
+    } else if (profile?.sala_id) {
+      setSalaFilter(profile.sala_id);
+    }
+  }, [role, profile, scopeSalaId]);
 
   const filtered = useMemo(() => {
     return rows
