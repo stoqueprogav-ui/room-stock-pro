@@ -251,6 +251,13 @@ export type Database = {
             referencedRelation: "salas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "movimentacoes_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       produtos: {
