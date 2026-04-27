@@ -36,7 +36,7 @@ export default function SalaOverview() {
   const cards = [
     { label: "Itens no estoque", value: s?.produtos ?? "…", icon: Boxes },
     { label: "Estoque baixo", value: s?.baixo ?? "…", icon: AlertTriangle, danger: true },
-    { label: "Solicitações pendentes", value: s?.solicitacoesPendentes ?? "…", icon: Inbox },
+    { label: "Requisições pendentes", value: s?.solicitacoesPendentes ?? "…", icon: Inbox },
     ...(role === "admin" ? [{ label: "Empréstimos a aprovar", value: s?.emprestimosAprovar ?? "…", icon: ArrowLeftRight }] : []),
     { label: "Dívidas envolvendo a sala", value: s?.dividas ?? "…", icon: Wallet },
   ];
