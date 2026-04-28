@@ -9,13 +9,13 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Globe2, Building2 } from "lucide-react";
+import { Plus, Trash2, Globe2, Building2, KeyRound } from "lucide-react";
 import { RoleBadge } from "@/components/StatusBadge";
 import type { Sala, AppRole } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 
-type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; sala?: { nome: string } | null };
+type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null };
 
 export default function UsuariosPage() {
   const { profile } = useAuth();
@@ -26,10 +26,13 @@ export default function UsuariosPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, sala_id: "" });
   const [saving, setSaving] = useState(false);
+  const [resetOpen, setResetOpen] = useState<UserRow | null>(null);
+  const [resetPwd, setResetPwd] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   const load = async () => {
     const [{ data: profs }, { data: roles }, { data: ss }] = await Promise.all([
-      supabase.from("profiles").select("id, nome, email, sala_id, sala:salas(nome)"),
+      supabase.from("profiles").select("id, nome, email, sala_id, must_change_password, sala:salas(nome)"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("salas").select("*").order("nome"),
     ]);
