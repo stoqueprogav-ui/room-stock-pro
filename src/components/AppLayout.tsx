@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
-  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2,
+  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
@@ -31,6 +31,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
       { to: "/app/movimentacoes", label: "Movimentações", icon: History },
+      { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
     );
     return items;
   }
@@ -44,6 +45,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
     { to: "/app/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
     { to: "/app/dividas", label: "Dívidas da sala", icon: Wallet },
     { to: "/app/movimentacoes", label: "Movimentações", icon: History },
+    { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
   ];
   if (role === "admin") {
     base.splice(5, 0, { to: "/app/aprovar-emprestimos", label: "Aprovar empréstimos", icon: ShieldCheck, badgeKey: "emprestimosAprovar" });
