@@ -305,6 +305,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          must_change_password: boolean
           nome: string
           sala_id: string | null
           updated_at: string
@@ -313,6 +314,7 @@ export type Database = {
           created_at?: string
           email: string
           id: string
+          must_change_password?: boolean
           nome: string
           sala_id?: string | null
           updated_at?: string
@@ -321,6 +323,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          must_change_password?: boolean
           nome?: string
           sala_id?: string | null
           updated_at?: string
@@ -508,6 +511,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      marcar_senha_trocada: { Args: never; Returns: undefined }
       quitar_divida: {
         Args: { _divida: string; _quantidade: number }
         Returns: undefined

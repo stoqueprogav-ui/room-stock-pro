@@ -11,6 +11,7 @@ export type Profile = {
   nome: string;
   email: string;
   sala_id: string | null;
+  must_change_password?: boolean;
 };
 
 export type Produto = {

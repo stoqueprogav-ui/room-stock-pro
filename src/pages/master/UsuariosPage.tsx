@@ -9,13 +9,13 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Globe2, Building2 } from "lucide-react";
+import { Plus, Trash2, Globe2, Building2, KeyRound } from "lucide-react";
 import { RoleBadge } from "@/components/StatusBadge";
 import type { Sala, AppRole } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 
-type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; sala?: { nome: string } | null };
+type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null };
 
 export default function UsuariosPage() {
   const { profile } = useAuth();
@@ -26,10 +26,13 @@ export default function UsuariosPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, sala_id: "" });
   const [saving, setSaving] = useState(false);
+  const [resetOpen, setResetOpen] = useState<UserRow | null>(null);
+  const [resetPwd, setResetPwd] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   const load = async () => {
     const [{ data: profs }, { data: roles }, { data: ss }] = await Promise.all([
-      supabase.from("profiles").select("id, nome, email, sala_id, sala:salas(nome)"),
+      supabase.from("profiles").select("id, nome, email, sala_id, must_change_password, sala:salas(nome)"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("salas").select("*").order("nome"),
     ]);
@@ -69,7 +72,7 @@ export default function UsuariosPage() {
     const { data, error } = await supabase.auth.signUp({
       email: form.email.trim(),
       password: form.password,
-      options: { data: { nome: form.nome, role: form.role, sala_id: form.role === "master" ? "" : form.sala_id } },
+      options: { data: { nome: form.nome, role: form.role, sala_id: form.role === "master" ? "" : form.sala_id, must_change_password: "true" } },
     });
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -101,6 +104,21 @@ export default function UsuariosPage() {
     load();
   };
 
+  const resetarSenha = async () => {
+    if (!resetOpen) return;
+    if (resetPwd.length < 6) return toast.error("Senha deve ter ao menos 6 caracteres");
+    setResetting(true);
+    const { error } = await supabase.functions.invoke("admin-reset-password", {
+      body: { target_user_id: resetOpen.id, new_password: resetPwd },
+    });
+    setResetting(false);
+    if (error) return toast.error(error.message);
+    toast.success("Senha redefinida. Usuário deverá trocar no próximo login.");
+    setResetOpen(null);
+    setResetPwd("");
+    load();
+  };
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -129,7 +147,8 @@ export default function UsuariosPage() {
               <TableHead>E-mail</TableHead>
               <TableHead className="w-[180px]">Perfil</TableHead>
               <TableHead className="w-[200px]">Sala</TableHead>
-              <TableHead className="w-[100px] text-right">Ações</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[140px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -160,24 +179,38 @@ export default function UsuariosPage() {
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell className="text-right">
-                  {u.id !== profile?.id && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Revogar acesso de {u.nome}?</AlertDialogTitle>
-                          <AlertDialogDescription>O usuário ficará sem perfil e sem sala. Para excluir definitivamente do banco de autenticação, use o painel Cloud.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => remover(u)}>Revogar</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                <TableCell>
+                  {u.must_change_password ? (
+                    <span className="inline-flex items-center rounded-full bg-warning/15 text-warning px-2 py-0.5 text-xs font-medium">Trocar senha</span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-success/15 text-success px-2 py-0.5 text-xs font-medium">Ativo</span>
                   )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    {u.id !== profile?.id && (
+                      <Button variant="ghost" size="icon" title="Redefinir senha" onClick={() => { setResetOpen(u); setResetPwd(""); }}>
+                        <KeyRound className="size-4 text-primary" />
+                      </Button>
+                    )}
+                    {u.id !== profile?.id && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Revogar acesso de {u.nome}?</AlertDialogTitle>
+                            <AlertDialogDescription>O usuário ficará sem perfil e sem sala. Para excluir definitivamente do banco de autenticação, use o painel Cloud.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => remover(u)}>Revogar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -228,6 +261,23 @@ export default function UsuariosPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={criar} disabled={saving}>{saving ? "Criando…" : "Criar usuário"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!resetOpen} onOpenChange={(o) => !o && setResetOpen(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Redefinir senha de {resetOpen?.nome}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Defina uma nova senha provisória. O usuário será obrigado a trocá-la no próximo login.</p>
+            <div className="space-y-2">
+              <Label>Nova senha provisória</Label>
+              <Input type="password" value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="Mínimo 6 caracteres" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetOpen(null)}>Cancelar</Button>
+            <Button onClick={resetarSenha} disabled={resetting}>{resetting ? "Salvando…" : "Redefinir"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
