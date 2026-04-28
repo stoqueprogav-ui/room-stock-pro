@@ -147,7 +147,8 @@ export default function UsuariosPage() {
               <TableHead>E-mail</TableHead>
               <TableHead className="w-[180px]">Perfil</TableHead>
               <TableHead className="w-[200px]">Sala</TableHead>
-              <TableHead className="w-[100px] text-right">Ações</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[140px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -178,24 +179,38 @@ export default function UsuariosPage() {
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell className="text-right">
-                  {u.id !== profile?.id && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Revogar acesso de {u.nome}?</AlertDialogTitle>
-                          <AlertDialogDescription>O usuário ficará sem perfil e sem sala. Para excluir definitivamente do banco de autenticação, use o painel Cloud.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => remover(u)}>Revogar</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                <TableCell>
+                  {u.must_change_password ? (
+                    <span className="inline-flex items-center rounded-full bg-warning/15 text-warning px-2 py-0.5 text-xs font-medium">Trocar senha</span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-success/15 text-success px-2 py-0.5 text-xs font-medium">Ativo</span>
                   )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    {u.id !== profile?.id && (
+                      <Button variant="ghost" size="icon" title="Redefinir senha" onClick={() => { setResetOpen(u); setResetPwd(""); }}>
+                        <KeyRound className="size-4 text-primary" />
+                      </Button>
+                    )}
+                    {u.id !== profile?.id && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Revogar acesso de {u.nome}?</AlertDialogTitle>
+                            <AlertDialogDescription>O usuário ficará sem perfil e sem sala. Para excluir definitivamente do banco de autenticação, use o painel Cloud.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => remover(u)}>Revogar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
