@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ArrowRight, Archive } from "lucide-react";
+import { Check, X, ArrowRight, Archive, Printer } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
@@ -132,8 +132,23 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                           <span className="text-xs text-muted-foreground">Aguardando admin da origem</span>
                         )
                       )}
-                      {(tab === "aprovado" || tab === "rejeitado") && role === "master" && (
+                      {tab === "aprovado" && (
+                        <>
+                          <Button size="sm" variant="outline" className="mr-2" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
+                            <Printer className="size-4" /> Imprimir
+                          </Button>
+                          {role === "master" && (
+                            <Button size="sm" variant="ghost" onClick={() => arquivar(e.id)}><Archive className="size-4" /> Arquivar</Button>
+                          )}
+                        </>
+                      )}
+                      {tab === "rejeitado" && role === "master" && (
                         <Button size="sm" variant="ghost" onClick={() => arquivar(e.id)}><Archive className="size-4" /> Arquivar</Button>
+                      )}
+                      {tab === "arquivado" && (
+                        <Button size="sm" variant="outline" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
+                          <Printer className="size-4" /> Imprimir
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>

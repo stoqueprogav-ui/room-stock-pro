@@ -22,6 +22,7 @@ import MinhasRequisicoes from "./pages/sala/MinhasRequisicoes";
 import NovoEmprestimo from "./pages/sala/NovoEmprestimo";
 import EscolherSala from "./pages/master/EscolherSala";
 import RequisicaoImprimir from "./pages/RequisicaoImprimir";
+import EmprestimoImprimir from "./pages/EmprestimoImprimir";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/app" replace />} />
             {/* Rota de impressão fora do layout principal */}
             <Route path="/app/requisicoes/:id/imprimir" element={<RequisicaoImprimir />} />
+            <Route path="/app/emprestimos/:id/imprimir" element={<EmprestimoImprimir />} />
             <Route path="/app" element={<AppLayout />}>
               <Route index element={<Index />} />
               <Route path="escolher-sala" element={<EscolherSala />} />
