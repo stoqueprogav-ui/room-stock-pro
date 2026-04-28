@@ -72,7 +72,7 @@ export default function UsuariosPage() {
     const { data, error } = await supabase.auth.signUp({
       email: form.email.trim(),
       password: form.password,
-      options: { data: { nome: form.nome, role: form.role, sala_id: form.role === "master" ? "" : form.sala_id } },
+      options: { data: { nome: form.nome, role: form.role, sala_id: form.role === "master" ? "" : form.sala_id, must_change_password: "true" } },
     });
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -101,6 +101,21 @@ export default function UsuariosPage() {
     await supabase.from("user_roles").delete().eq("user_id", u.id);
     await supabase.from("profiles").update({ sala_id: null }).eq("id", u.id);
     toast.success("Acesso revogado (perfil sem sala e sem role)");
+    load();
+  };
+
+  const resetarSenha = async () => {
+    if (!resetOpen) return;
+    if (resetPwd.length < 6) return toast.error("Senha deve ter ao menos 6 caracteres");
+    setResetting(true);
+    const { error } = await supabase.functions.invoke("admin-reset-password", {
+      body: { target_user_id: resetOpen.id, new_password: resetPwd },
+    });
+    setResetting(false);
+    if (error) return toast.error(error.message);
+    toast.success("Senha redefinida. Usuário deverá trocar no próximo login.");
+    setResetOpen(null);
+    setResetPwd("");
     load();
   };
 
