@@ -23,6 +23,8 @@ import NovoEmprestimo from "./pages/sala/NovoEmprestimo";
 import EscolherSala from "./pages/master/EscolherSala";
 import RequisicaoImprimir from "./pages/RequisicaoImprimir";
 import EmprestimoImprimir from "./pages/EmprestimoImprimir";
+import MeuPerfil from "./pages/MeuPerfil";
+import TrocarSenhaObrigatoria from "./pages/TrocarSenhaObrigatoria";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +41,7 @@ const App = () => (
             {/* Rota de impressão fora do layout principal */}
             <Route path="/app/requisicoes/:id/imprimir" element={<RequisicaoImprimir />} />
             <Route path="/app/emprestimos/:id/imprimir" element={<EmprestimoImprimir />} />
+            <Route path="/app/trocar-senha" element={<TrocarSenhaObrigatoria />} />
             <Route path="/app" element={<AppLayout />}>
               <Route index element={<Index />} />
               <Route path="escolher-sala" element={<EscolherSala />} />
@@ -63,6 +66,7 @@ const App = () => (
               <Route path="nova-solicitacao" element={<Navigate to="/app/nova-requisicao" replace />} />
               <Route path="minhas-solicitacoes" element={<Navigate to="/app/minhas-requisicoes" replace />} />
               <Route path="novo-emprestimo" element={<NovoEmprestimo />} />
+              <Route path="meu-perfil" element={<MeuPerfil />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
