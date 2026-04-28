@@ -264,6 +264,23 @@ export default function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!resetOpen} onOpenChange={(o) => !o && setResetOpen(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Redefinir senha de {resetOpen?.nome}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Defina uma nova senha provisória. O usuário será obrigado a trocá-la no próximo login.</p>
+            <div className="space-y-2">
+              <Label>Nova senha provisória</Label>
+              <Input type="password" value={resetPwd} onChange={(e) => setResetPwd(e.target.value)} placeholder="Mínimo 6 caracteres" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetOpen(null)}>Cancelar</Button>
+            <Button onClick={resetarSenha} disabled={resetting}>{resetting ? "Salvando…" : "Redefinir"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
