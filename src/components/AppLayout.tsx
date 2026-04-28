@@ -115,6 +115,11 @@ function AppLayoutInner() {
     );
   }
 
+  // Força troca de senha no primeiro login / após reset pelo Master
+  if (profile?.must_change_password && location.pathname !== "/app/trocar-senha") {
+    return <Navigate to="/app/trocar-senha" replace />;
+  }
+
   // Master: gate de seleção de sala antes de entrar no painel.
   const isPickRoute = location.pathname === "/app/escolher-sala";
   if (role === "master" && !scopeReady && !isPickRoute) {
