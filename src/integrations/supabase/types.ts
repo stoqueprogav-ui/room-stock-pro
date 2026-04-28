@@ -135,6 +135,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "emprestimos_decidido_por_fkey"
+            columns: ["decidido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "emprestimos_sala_destino_id_fkey"
             columns: ["sala_destino_id"]
             isOneToOne: false
@@ -417,6 +424,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "solicitacoes_decidido_por_fkey"
+            columns: ["decidido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "solicitacoes_sala_id_fkey"
             columns: ["sala_id"]
