@@ -71,7 +71,7 @@ export default function RequisicoesPage() {
       _retirado_por: data.retirado_por,
       _retirado_em: data.retirado_em,
     });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Requisição arquivada com retirada registrada");
     setArquivarId(null);
     load();
