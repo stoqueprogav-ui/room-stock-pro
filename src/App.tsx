@@ -13,6 +13,7 @@ import ProdutosPage from "./pages/master/ProdutosPage";
 import EstoquePage from "./pages/master/EstoquePage";
 import RequisicoesPage from "./pages/master/RequisicoesPage";
 import UsuariosPage from "./pages/master/UsuariosPage";
+import CategoriasPage from "./pages/master/CategoriasPage";
 import RelatoriosPage from "./pages/master/RelatoriosPage";
 import EmprestimosPage from "./pages/EmprestimosPage";
 import DividasPage from "./pages/DividasPage";
@@ -53,6 +54,7 @@ const App = () => (
               {/* Compatibilidade com link antigo */}
               <Route path="solicitacoes" element={<Navigate to="/app/requisicoes" replace />} />
               <Route path="usuarios" element={<UsuariosPage />} />
+              <Route path="categorias" element={<CategoriasPage />} />
               <Route path="relatorios" element={<RelatoriosPage />} />
               {/* Compartilhado */}
               <Route path="emprestimos" element={<EmprestimosPage />} />

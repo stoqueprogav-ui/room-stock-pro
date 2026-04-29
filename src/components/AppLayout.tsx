@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
-  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle,
+  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
@@ -21,6 +21,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
     ];
     if (isGlobalScope) {
       items.push({ to: "/app/salas", label: "Salas", icon: Building2 });
+      items.push({ to: "/app/categorias", label: "Categorias", icon: Tag });
     }
     items.push(
       { to: "/app/produtos", label: "Produtos", icon: Package },
