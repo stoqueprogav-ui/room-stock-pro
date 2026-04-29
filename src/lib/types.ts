@@ -14,6 +14,12 @@ export type Profile = {
   must_change_password?: boolean;
 };
 
+export type Categoria = {
+  id: string;
+  nome: string;
+  created_at?: string;
+};
+
 export type Produto = {
   id: string;
   nome: string;
@@ -21,6 +27,8 @@ export type Produto = {
   unidade: string;
   estoque_minimo: number;
   estoque_critico: number;
+  categoria_id: string | null;
+  categoria?: { id: string; nome: string } | null;
 };
 
 export type EstoqueRow = {
