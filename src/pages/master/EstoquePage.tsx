@@ -262,6 +262,7 @@ export default function EstoquePage() {
           <TableHeader>
             <TableRow>
               <TableHead>Produto</TableHead>
+              <TableHead className="w-[130px]">Categoria</TableHead>
               <TableHead>Sala</TableHead>
               <TableHead className="text-right w-[110px]">Quantidade</TableHead>
               <TableHead className="text-right w-[80px]">Mín.</TableHead>
@@ -274,6 +275,11 @@ export default function EstoquePage() {
             {filtered.map((r) => (
               <TableRow key={`${r.produto_id}-${r.sala_id}`} className="table-row-hover">
                 <TableCell className="font-medium">{r.produto.nome} <span className="text-muted-foreground text-xs">({r.produto.unidade})</span></TableCell>
+                <TableCell>
+                  {(r.produto as any)?.categoria?.nome
+                    ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {(r.produto as any).categoria.nome}</Badge>
+                    : <span className="text-xs text-muted-foreground">—</span>}
+                </TableCell>
                 <TableCell>{r.sala.nome}</TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
