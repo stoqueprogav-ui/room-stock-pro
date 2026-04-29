@@ -32,11 +32,12 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
+  const [arquivarId, setArquivarId] = useState<string | null>(null);
 
   const load = async () => {
     let q = supabase
       .from("emprestimos")
-      .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id,
+      .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id, retirado_por, retirado_em,
                origem:salas!emprestimos_sala_origem_id_fkey(nome),
                destino:salas!emprestimos_sala_destino_id_fkey(nome),
                solicitante:profiles!emprestimos_solicitante_id_fkey(nome),
