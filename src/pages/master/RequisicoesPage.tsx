@@ -32,12 +32,13 @@ export default function RequisicoesPage() {
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Requisicao[]>([]);
   const [loading, setLoading] = useState(false);
+  const [arquivarId, setArquivarId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     let q = supabase
       .from("solicitacoes")
-      .select(`id, status, observacao, created_at, decidido_em, sala_id,
+      .select(`id, status, observacao, created_at, decidido_em, sala_id, retirado_por, retirado_em,
                sala:salas(nome),
                usuario:profiles!solicitacoes_usuario_id_fkey(nome, email),
                itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade))`)
@@ -56,10 +57,23 @@ export default function RequisicoesPage() {
     load();
   };
 
-  const arquivar = async (id: string) => {
+  const arquivarRejeitada = async (id: string) => {
     const { error } = await supabase.rpc("arquivar_solicitacao", { _solic: id });
     if (error) return toast.error(error.message);
     toast.success("Requisição arquivada");
+    load();
+  };
+
+  const confirmarArquivar = async (data: { retirado_por: string; retirado_em: string }) => {
+    if (!arquivarId) return;
+    const { error } = await supabase.rpc("arquivar_solicitacao", {
+      _solic: arquivarId,
+      _retirado_por: data.retirado_por,
+      _retirado_em: data.retirado_em,
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Requisição arquivada com retirada registrada");
+    setArquivarId(null);
     load();
   };
 
