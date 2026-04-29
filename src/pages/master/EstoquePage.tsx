@@ -89,6 +89,7 @@ export default function EstoquePage() {
   const filtered = useMemo(() => {
     const base = rows
       .filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter)
+      .filter((r) => catFilter === "all" || (r.produto as any)?.categoria_id === catFilter)
       .filter((r) => !busca || r.produto.nome.toLowerCase().includes(busca.toLowerCase()))
       .filter((r) => {
         if (statusFilter === "todos") return true;
@@ -100,7 +101,7 @@ export default function EstoquePage() {
       if (sort === "menor") return a.quantidade - b.quantidade;
       return a.produto.nome.localeCompare(b.produto.nome) || a.sala.nome.localeCompare(b.sala.nome);
     });
-  }, [rows, effectiveSalaFilter, busca, statusFilter, sort]);
+  }, [rows, effectiveSalaFilter, catFilter, busca, statusFilter, sort]);
 
   const counts = useMemo(() => {
     const inScope = rows.filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter);
