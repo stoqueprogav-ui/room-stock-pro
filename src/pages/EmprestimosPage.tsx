@@ -6,10 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ArrowRight, Archive, Printer } from "lucide-react";
+import { Check, X, ArrowRight, Archive, Printer, UserCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
+import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
 
 type Emp = {
   id: string;
@@ -18,6 +19,8 @@ type Emp = {
   created_at: string;
   sala_origem_id: string;
   sala_destino_id: string;
+  retirado_por: string | null;
+  retirado_em: string | null;
   origem: { nome: string };
   destino: { nome: string };
   solicitante: { nome: string } | null;
@@ -29,11 +32,12 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
+  const [arquivarId, setArquivarId] = useState<string | null>(null);
 
   const load = async () => {
     let q = supabase
       .from("emprestimos")
-      .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id,
+      .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id, retirado_por, retirado_em,
                origem:salas!emprestimos_sala_origem_id_fkey(nome),
                destino:salas!emprestimos_sala_destino_id_fkey(nome),
                solicitante:profiles!emprestimos_solicitante_id_fkey(nome),
@@ -54,10 +58,23 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     load();
   };
 
-  const arquivar = async (id: string) => {
+  const arquivarRejeitado = async (id: string) => {
     const { error } = await supabase.rpc("arquivar_emprestimo", { _emp: id });
     if (error) return toast.error(error.message);
     toast.success("Empréstimo arquivado");
+    load();
+  };
+
+  const confirmarArquivar = async (data: { retirado_por: string; retirado_em: string }) => {
+    if (!arquivarId) return;
+    const { error } = await supabase.rpc("arquivar_emprestimo", {
+      _emp: arquivarId,
+      _retirado_por: data.retirado_por,
+      _retirado_em: data.retirado_em,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Empréstimo arquivado com retirada registrada");
+    setArquivarId(null);
     load();
   };
 
@@ -138,12 +155,12 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                             <Printer className="size-4" /> Imprimir
                           </Button>
                           {role === "master" && (
-                            <Button size="sm" variant="ghost" onClick={() => arquivar(e.id)}><Archive className="size-4" /> Arquivar</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setArquivarId(e.id)}><Archive className="size-4" /> Arquivar</Button>
                           )}
                         </>
                       )}
                       {tab === "rejeitado" && role === "master" && (
-                        <Button size="sm" variant="ghost" onClick={() => arquivar(e.id)}><Archive className="size-4" /> Arquivar</Button>
+                        <Button size="sm" variant="ghost" onClick={() => arquivarRejeitado(e.id)}><Archive className="size-4" /> Arquivar</Button>
                       )}
                       {tab === "arquivado" && (
                         <Button size="sm" variant="outline" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>

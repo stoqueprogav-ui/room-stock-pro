@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      categorias: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dividas: {
         Row: {
           id: string
@@ -106,6 +127,8 @@ export type Database = {
           decidido_por: string | null
           id: string
           observacao: string | null
+          retirado_em: string | null
+          retirado_por: string | null
           sala_destino_id: string
           sala_origem_id: string
           solicitante_id: string
@@ -117,6 +140,8 @@ export type Database = {
           decidido_por?: string | null
           id?: string
           observacao?: string | null
+          retirado_em?: string | null
+          retirado_por?: string | null
           sala_destino_id: string
           sala_origem_id: string
           solicitante_id: string
@@ -128,6 +153,8 @@ export type Database = {
           decidido_por?: string | null
           id?: string
           observacao?: string | null
+          retirado_em?: string | null
+          retirado_por?: string | null
           sala_destino_id?: string
           sala_origem_id?: string
           solicitante_id?: string
@@ -269,6 +296,7 @@ export type Database = {
       }
       produtos: {
         Row: {
+          categoria_id: string | null
           created_at: string
           descricao: string | null
           estoque_critico: number
@@ -279,6 +307,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          categoria_id?: string | null
           created_at?: string
           descricao?: string | null
           estoque_critico?: number
@@ -289,6 +318,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          categoria_id?: string | null
           created_at?: string
           descricao?: string | null
           estoque_critico?: number
@@ -298,7 +328,15 @@ export type Database = {
           unidade?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "produtos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -400,6 +438,8 @@ export type Database = {
           estoque_baixado: boolean
           id: string
           observacao: string | null
+          retirado_em: string | null
+          retirado_por: string | null
           sala_id: string
           status: Database["public"]["Enums"]["solicitacao_status"]
           usuario_id: string
@@ -411,6 +451,8 @@ export type Database = {
           estoque_baixado?: boolean
           id?: string
           observacao?: string | null
+          retirado_em?: string | null
+          retirado_por?: string | null
           sala_id: string
           status?: Database["public"]["Enums"]["solicitacao_status"]
           usuario_id: string
@@ -422,6 +464,8 @@ export type Database = {
           estoque_baixado?: boolean
           id?: string
           observacao?: string | null
+          retirado_em?: string | null
+          retirado_por?: string | null
           sala_id?: string
           status?: Database["public"]["Enums"]["solicitacao_status"]
           usuario_id?: string
@@ -485,8 +529,26 @@ export type Database = {
         }
         Returns: number
       }
-      arquivar_emprestimo: { Args: { _emp: string }; Returns: undefined }
-      arquivar_solicitacao: { Args: { _solic: string }; Returns: undefined }
+      arquivar_emprestimo:
+        | { Args: { _emp: string }; Returns: undefined }
+        | {
+            Args: {
+              _emp: string
+              _retirado_em?: string
+              _retirado_por?: string
+            }
+            Returns: undefined
+          }
+      arquivar_solicitacao:
+        | { Args: { _solic: string }; Returns: undefined }
+        | {
+            Args: {
+              _retirado_em?: string
+              _retirado_por?: string
+              _solic: string
+            }
+            Returns: undefined
+          }
       criar_emprestimo: {
         Args: { _itens: Json; _observacao: string; _sala_origem: string }
         Returns: string

@@ -9,15 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Send, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { Send, Trash2, Loader2, AlertTriangle, Tag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import type { Sala, Produto } from "@/lib/types";
+import type { Sala, Produto, Categoria } from "@/lib/types";
 
 export default function NovoEmprestimo() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [salas, setSalas] = useState<Sala[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [catFilter, setCatFilter] = useState<string>("");
   const [salaOrigem, setSalaOrigem] = useState("");
   const [obs, setObs] = useState("");
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
@@ -25,12 +28,14 @@ export default function NovoEmprestimo() {
 
   useEffect(() => {
     (async () => {
-      const [{ data: ss }, { data: pp }] = await Promise.all([
+      const [{ data: ss }, { data: pp }, { data: cc }] = await Promise.all([
         supabase.from("salas").select("*").order("nome"),
-        supabase.from("produtos").select("*").order("nome"),
+        supabase.from("produtos").select("*, categoria:categorias(id, nome)").order("nome"),
+        supabase.from("categorias").select("*").order("nome"),
       ]);
       setSalas((ss as Sala[]) ?? []);
-      setProdutos((pp as Produto[]) ?? []);
+      setProdutos((pp as any) ?? []);
+      setCategorias((cc as Categoria[]) ?? []);
     })();
   }, []);
 
@@ -81,13 +86,25 @@ export default function NovoEmprestimo() {
       <PageHeader title="Pedir empréstimo a outra sala" description="Sua sala receberá o produto após a aprovação. Será gerada uma dívida automaticamente." />
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 panel">
-          <div className="p-3 border-b border-border grid sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Sala de origem</Label>
-              <Select value={salaOrigem} onValueChange={setSalaOrigem}>
-                <SelectTrigger><SelectValue placeholder="Escolha a sala que possui o produto" /></SelectTrigger>
-                <SelectContent>{outrasSalas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
-              </Select>
+          <div className="p-3 border-b border-border space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Sala de origem</Label>
+                <Select value={salaOrigem} onValueChange={setSalaOrigem}>
+                  <SelectTrigger><SelectValue placeholder="Escolha a sala que possui o produto" /></SelectTrigger>
+                  <SelectContent>{outrasSalas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Categoria</Label>
+                <Select value={catFilter || "all"} onValueChange={(v) => setCatFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -95,39 +112,47 @@ export default function NovoEmprestimo() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
+                  <TableHead className="w-[120px]">Categoria</TableHead>
                   <TableHead className="text-right w-[140px]">Estoque origem</TableHead>
                   <TableHead className="w-[160px]">Quantidade</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {produtos.map((p) => {
-                  const disp = estoqueOrigem[p.id];
-                  const qtdPedida = Number(carrinho[p.id] ?? 0);
-                  const excede = disp !== undefined && qtdPedida > disp;
-                  return (
-                    <TableRow key={p.id} className="table-row-hover">
-                      <TableCell className="font-medium">{p.nome} <span className="text-muted-foreground text-xs">({p.unidade})</span></TableCell>
-                      <TableCell className="text-right font-mono text-muted-foreground">{salaOrigem ? (disp ?? "—") : "—"}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={disp}
-                          value={carrinho[p.id] ?? ""}
-                          onChange={(e) => setCarrinho({ ...carrinho, [p.id]: Number(e.target.value) })}
-                          className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
-                        />
-                        {excede && (
-                          <div className="text-xs text-destructive mt-1 flex items-center gap-1">
-                            <AlertTriangle className="size-3" /> Excede o estoque disponível.
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {produtos
+                  .filter((p) => !catFilter || p.categoria_id === catFilter)
+                  .map((p) => {
+                    const disp = estoqueOrigem[p.id];
+                    const qtdPedida = Number(carrinho[p.id] ?? 0);
+                    const excede = disp !== undefined && qtdPedida > disp;
+                    return (
+                      <TableRow key={p.id} className="table-row-hover">
+                        <TableCell className="font-medium">{p.nome} <span className="text-muted-foreground text-xs">({p.unidade})</span></TableCell>
+                        <TableCell>
+                          {p.categoria?.nome
+                            ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" />{p.categoria.nome}</Badge>
+                            : <span className="text-xs text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-muted-foreground">{salaOrigem ? (disp ?? "—") : "—"}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={disp}
+                            value={carrinho[p.id] ?? ""}
+                            onChange={(e) => setCarrinho({ ...carrinho, [p.id]: Number(e.target.value) })}
+                            className={excede ? "border-destructive focus-visible:ring-destructive" : undefined}
+                          />
+                          {excede && (
+                            <div className="text-xs text-destructive mt-1 flex items-center gap-1">
+                              <AlertTriangle className="size-3" /> Excede o estoque disponível.
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 {produtos.length === 0 && (
-                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-12">Nenhum produto disponível.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-12">Nenhum produto disponível.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

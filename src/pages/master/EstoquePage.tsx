@@ -10,8 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2 } from "lucide-react";
-import type { Sala, Produto } from "@/lib/types";
+import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag } from "lucide-react";
+import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 
@@ -35,11 +35,13 @@ export default function EstoquePage() {
   const masterScope = useMasterScope();
 
   const [salas, setSalas] = useState<Sala[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [busca, setBusca] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | StatusKind>("todos");
   const [sort, setSort] = useState<SortKey>("nome");
-  const [salaFilterUI, setSalaFilterUI] = useState<string>("all"); // só para admin/analista (fixo na própria sala)
+  const [salaFilterUI, setSalaFilterUI] = useState<string>("all");
+  const [catFilter, setCatFilter] = useState<string>("all");
 
   const [editing, setEditing] = useState<Row | null>(null);
   const [editValue, setEditValue] = useState(0);
@@ -55,11 +57,13 @@ export default function EstoquePage() {
   const [movSaving, setMovSaving] = useState(false);
 
   const load = async () => {
-    const [{ data: s }, { data: e }] = await Promise.all([
+    const [{ data: s }, { data: e }, { data: c }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos(*), salas(*)"),
+      supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos(*, categoria:categorias(id, nome)), salas(*)"),
+      supabase.from("categorias").select("*").order("nome"),
     ]);
     setSalas((s as Sala[]) ?? []);
+    setCategorias((c as Categoria[]) ?? []);
     const mapped: Row[] = (e ?? []).map((r: any) => ({
       produto_id: r.produto_id,
       sala_id: r.sala_id,
@@ -85,6 +89,7 @@ export default function EstoquePage() {
   const filtered = useMemo(() => {
     const base = rows
       .filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter)
+      .filter((r) => catFilter === "all" || (r.produto as any)?.categoria_id === catFilter)
       .filter((r) => !busca || r.produto.nome.toLowerCase().includes(busca.toLowerCase()))
       .filter((r) => {
         if (statusFilter === "todos") return true;
@@ -96,7 +101,7 @@ export default function EstoquePage() {
       if (sort === "menor") return a.quantidade - b.quantidade;
       return a.produto.nome.localeCompare(b.produto.nome) || a.sala.nome.localeCompare(b.sala.nome);
     });
-  }, [rows, effectiveSalaFilter, busca, statusFilter, sort]);
+  }, [rows, effectiveSalaFilter, catFilter, busca, statusFilter, sort]);
 
   const counts = useMemo(() => {
     const inScope = rows.filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter);
@@ -175,7 +180,19 @@ export default function EstoquePage() {
         actions={undefined}
       />
 
-      {/* Resumo de status */}
+      {/* Abas de categoria */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
+        <Button size="sm" variant={catFilter === "all" ? "default" : "outline"} onClick={() => setCatFilter("all")}>
+          Todas
+        </Button>
+        {categorias.map((c) => (
+          <Button key={c.id} size="sm" variant={catFilter === c.id ? "default" : "outline"} onClick={() => setCatFilter(c.id)}>
+            <Tag className="size-3" /> {c.nome}
+          </Button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="panel p-3">
           <div className="text-xs text-muted-foreground">Total de itens</div>
@@ -245,6 +262,7 @@ export default function EstoquePage() {
           <TableHeader>
             <TableRow>
               <TableHead>Produto</TableHead>
+              <TableHead className="w-[130px]">Categoria</TableHead>
               <TableHead>Sala</TableHead>
               <TableHead className="text-right w-[110px]">Quantidade</TableHead>
               <TableHead className="text-right w-[80px]">Mín.</TableHead>
@@ -257,6 +275,11 @@ export default function EstoquePage() {
             {filtered.map((r) => (
               <TableRow key={`${r.produto_id}-${r.sala_id}`} className="table-row-hover">
                 <TableCell className="font-medium">{r.produto.nome} <span className="text-muted-foreground text-xs">({r.produto.unidade})</span></TableCell>
+                <TableCell>
+                  {(r.produto as any)?.categoria?.nome
+                    ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {(r.produto as any).categoria.nome}</Badge>
+                    : <span className="text-xs text-muted-foreground">—</span>}
+                </TableCell>
                 <TableCell>{r.sala.nome}</TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
@@ -289,7 +312,7 @@ export default function EstoquePage() {
                 )}
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 7 : 6} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 8 : 7} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
