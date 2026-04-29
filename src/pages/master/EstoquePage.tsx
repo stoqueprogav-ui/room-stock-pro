@@ -180,7 +180,19 @@ export default function EstoquePage() {
         actions={undefined}
       />
 
-      {/* Resumo de status */}
+      {/* Abas de categoria */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
+        <Button size="sm" variant={catFilter === "all" ? "default" : "outline"} onClick={() => setCatFilter("all")}>
+          Todas
+        </Button>
+        {categorias.map((c) => (
+          <Button key={c.id} size="sm" variant={catFilter === c.id ? "default" : "outline"} onClick={() => setCatFilter(c.id)}>
+            <Tag className="size-3" /> {c.nome}
+          </Button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="panel p-3">
           <div className="text-xs text-muted-foreground">Total de itens</div>
