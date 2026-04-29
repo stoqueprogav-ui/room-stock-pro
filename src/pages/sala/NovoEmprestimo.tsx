@@ -19,6 +19,8 @@ export default function NovoEmprestimo() {
   const navigate = useNavigate();
   const [salas, setSalas] = useState<Sala[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [catFilter, setCatFilter] = useState<string>("");
   const [salaOrigem, setSalaOrigem] = useState("");
   const [obs, setObs] = useState("");
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
@@ -26,12 +28,14 @@ export default function NovoEmprestimo() {
 
   useEffect(() => {
     (async () => {
-      const [{ data: ss }, { data: pp }] = await Promise.all([
+      const [{ data: ss }, { data: pp }, { data: cc }] = await Promise.all([
         supabase.from("salas").select("*").order("nome"),
-        supabase.from("produtos").select("*").order("nome"),
+        supabase.from("produtos").select("*, categoria:categorias(id, nome)").order("nome"),
+        supabase.from("categorias").select("*").order("nome"),
       ]);
       setSalas((ss as Sala[]) ?? []);
-      setProdutos((pp as Produto[]) ?? []);
+      setProdutos((pp as any) ?? []);
+      setCategorias((cc as Categoria[]) ?? []);
     })();
   }, []);
 
