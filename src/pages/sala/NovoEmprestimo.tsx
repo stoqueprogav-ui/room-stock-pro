@@ -9,9 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Send, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { Send, Trash2, Loader2, AlertTriangle, Tag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import type { Sala, Produto } from "@/lib/types";
+import type { Sala, Produto, Categoria } from "@/lib/types";
 
 export default function NovoEmprestimo() {
   const { profile } = useAuth();
