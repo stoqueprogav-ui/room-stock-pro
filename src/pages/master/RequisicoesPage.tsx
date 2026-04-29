@@ -7,10 +7,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ChevronDown, Archive, Printer } from "lucide-react";
+import { Check, X, ChevronDown, Archive, Printer, UserCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
+import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
 
 type Requisicao = {
   id: string;
@@ -18,6 +19,8 @@ type Requisicao = {
   observacao: string | null;
   created_at: string;
   decidido_em: string | null;
+  retirado_por: string | null;
+  retirado_em: string | null;
   sala: { nome: string };
   usuario: { nome: string; email: string } | null;
   itens: { quantidade: number; produto: { nome: string; unidade: string } }[];
