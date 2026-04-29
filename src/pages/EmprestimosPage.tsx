@@ -58,10 +58,23 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     load();
   };
 
-  const arquivar = async (id: string) => {
+  const arquivarRejeitado = async (id: string) => {
     const { error } = await supabase.rpc("arquivar_emprestimo", { _emp: id });
     if (error) return toast.error(error.message);
     toast.success("Empréstimo arquivado");
+    load();
+  };
+
+  const confirmarArquivar = async (data: { retirado_por: string; retirado_em: string }) => {
+    if (!arquivarId) return;
+    const { error } = await supabase.rpc("arquivar_emprestimo", {
+      _emp: arquivarId,
+      _retirado_por: data.retirado_por,
+      _retirado_em: data.retirado_em,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Empréstimo arquivado com retirada registrada");
+    setArquivarId(null);
     load();
   };
 
