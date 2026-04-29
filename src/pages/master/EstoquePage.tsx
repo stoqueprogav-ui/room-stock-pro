@@ -35,11 +35,13 @@ export default function EstoquePage() {
   const masterScope = useMasterScope();
 
   const [salas, setSalas] = useState<Sala[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [busca, setBusca] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | StatusKind>("todos");
   const [sort, setSort] = useState<SortKey>("nome");
-  const [salaFilterUI, setSalaFilterUI] = useState<string>("all"); // só para admin/analista (fixo na própria sala)
+  const [salaFilterUI, setSalaFilterUI] = useState<string>("all");
+  const [catFilter, setCatFilter] = useState<string>("all");
 
   const [editing, setEditing] = useState<Row | null>(null);
   const [editValue, setEditValue] = useState(0);
