@@ -57,11 +57,13 @@ export default function EstoquePage() {
   const [movSaving, setMovSaving] = useState(false);
 
   const load = async () => {
-    const [{ data: s }, { data: e }] = await Promise.all([
+    const [{ data: s }, { data: e }, { data: c }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos(*), salas(*)"),
+      supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos(*, categoria:categorias(id, nome)), salas(*)"),
+      supabase.from("categorias").select("*").order("nome"),
     ]);
     setSalas((s as Sala[]) ?? []);
+    setCategorias((c as Categoria[]) ?? []);
     const mapped: Row[] = (e ?? []).map((r: any) => ({
       produto_id: r.produto_id,
       sala_id: r.sala_id,
