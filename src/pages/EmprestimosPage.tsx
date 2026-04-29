@@ -155,12 +155,12 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                             <Printer className="size-4" /> Imprimir
                           </Button>
                           {role === "master" && (
-                            <Button size="sm" variant="ghost" onClick={() => arquivar(e.id)}><Archive className="size-4" /> Arquivar</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setArquivarId(e.id)}><Archive className="size-4" /> Arquivar</Button>
                           )}
                         </>
                       )}
                       {tab === "rejeitado" && role === "master" && (
-                        <Button size="sm" variant="ghost" onClick={() => arquivar(e.id)}><Archive className="size-4" /> Arquivar</Button>
+                        <Button size="sm" variant="ghost" onClick={() => arquivarRejeitado(e.id)}><Archive className="size-4" /> Arquivar</Button>
                       )}
                       {tab === "arquivado" && (
                         <Button size="sm" variant="outline" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
