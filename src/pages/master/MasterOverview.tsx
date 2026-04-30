@@ -79,6 +79,7 @@ export default function MasterOverview() {
           ? "Visão consolidada de todo o sistema."
           : `Visão da sala: ${salaNome ?? "—"}`}
       />
+      <WelcomeAlerts />
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         {isGlobal
           ? <><Globe2 className="size-4 text-primary" /> Modo global ativo — use o seletor no topo para entrar em uma sala específica.</>
