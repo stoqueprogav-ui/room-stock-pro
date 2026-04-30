@@ -2,8 +2,6 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, Re
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Inbox, ArrowLeftRight, CheckCircle2 } from "lucide-react";
-import { createElement } from "react";
 
 export type PendingRequisicao = {
   id: string;
@@ -327,6 +325,3 @@ export function useNotifications() {
   if (!ctx) throw new Error("useNotifications deve ser usado dentro de NotificationsProvider");
   return ctx;
 }
-
-// helpers de ícones para reuso fora
-export const NotifIcons = { Inbox, ArrowLeftRight, CheckCircle2, createElement };
