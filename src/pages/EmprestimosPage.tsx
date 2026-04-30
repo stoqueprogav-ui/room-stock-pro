@@ -113,8 +113,9 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                   <TableHead>Origem → Destino</TableHead>
                   <TableHead>Itens</TableHead>
                   <TableHead className="w-[170px]">Criado em</TableHead>
+                  <TableHead className="w-[160px]">Retirada</TableHead>
                   <TableHead className="w-[120px]">Status</TableHead>
-                  <TableHead className="text-right w-[220px]">Ações</TableHead>
+                  <TableHead className="text-right w-[260px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
