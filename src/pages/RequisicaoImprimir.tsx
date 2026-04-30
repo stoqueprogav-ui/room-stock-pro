@@ -11,6 +11,8 @@ type Req = {
   observacao: string | null;
   created_at: string;
   decidido_em: string | null;
+  retirado_por: string | null;
+  retirado_em: string | null;
   sala: { nome: string };
   usuario: { nome: string; email: string } | null;
   itens: { quantidade: number; produto: { nome: string; unidade: string } }[];
