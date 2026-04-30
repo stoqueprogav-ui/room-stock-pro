@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { PageHeader } from "@/components/AppLayout";
+import WelcomeAlerts from "@/components/WelcomeAlerts";
 import { Card } from "@/components/ui/card";
 import { Boxes, Building2, Inbox, ArrowLeftRight, AlertTriangle, Wallet, Globe2 } from "lucide-react";
 import type { Sala } from "@/lib/types";
