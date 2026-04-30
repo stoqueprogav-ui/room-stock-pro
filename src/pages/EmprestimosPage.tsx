@@ -59,7 +59,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   };
 
   const arquivarRejeitado = async (id: string) => {
-    const { error } = await supabase.rpc("arquivar_emprestimo", { _emp: id });
+    const { error } = await supabase.rpc("arquivar_emprestimo", { _emp: id } as any);
     if (error) return toast.error(error.message);
     toast.success("Empréstimo arquivado");
     load();
