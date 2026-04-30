@@ -11,6 +11,8 @@ type Emp = {
   observacao: string | null;
   created_at: string;
   decidido_em: string | null;
+  retirado_por: string | null;
+  retirado_em: string | null;
   origem: { nome: string };
   destino: { nome: string };
   solicitante: { nome: string; email: string } | null;
