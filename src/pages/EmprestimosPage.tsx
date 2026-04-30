@@ -138,6 +138,14 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDateTime(e.created_at)}</TableCell>
+                    <TableCell className="text-xs">
+                      {e.retirado_por ? (
+                        <div>
+                          <div className="flex items-center gap-1 font-medium text-foreground"><UserCheck className="size-3" /> {e.retirado_por}</div>
+                          {e.retirado_em && <div className="text-muted-foreground">{formatDateTime(e.retirado_em)}</div>}
+                        </div>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
                     <TableCell><StatusBadge status={e.status} /></TableCell>
                     <TableCell className="text-right whitespace-nowrap">
                       {tab === "pendente" && (
