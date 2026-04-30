@@ -30,7 +30,7 @@ export default function NovoEmprestimo() {
     (async () => {
       const [{ data: ss }, { data: pp }, { data: cc }] = await Promise.all([
         supabase.from("salas").select("*").order("nome"),
-        supabase.from("produtos").select("*, categoria:categorias(id, nome)").order("nome"),
+        supabase.from("produtos").select("*, categoria:categorias(id, nome)").eq("ativo", true).order("nome"),
         supabase.from("categorias").select("*").order("nome"),
       ]);
       setSalas((ss as Sala[]) ?? []);
