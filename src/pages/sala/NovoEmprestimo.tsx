@@ -119,6 +119,7 @@ export default function NovoEmprestimo() {
               </TableHeader>
               <TableBody>
                 {produtos
+                  .filter((p) => !p.sala_id || p.sala_id === salaOrigem)
                   .filter((p) => !catFilter || p.categoria_id === catFilter)
                   .map((p) => {
                     const disp = estoqueOrigem[p.id];
