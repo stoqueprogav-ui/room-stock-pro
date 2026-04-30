@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
+import { NotificationsProvider } from "@/contexts/NotificationsContext";
+import NotificationsBell from "@/components/NotificationsBell";
 import MasterScopeSwitcher from "@/components/MasterScopeSwitcher";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +61,9 @@ const ROLE_LABEL: Record<string, string> = { master: "Master", admin: "Administr
 export default function AppLayout() {
   return (
     <MasterScopeProvider>
-      <AppLayoutInner />
+      <NotificationsProvider>
+        <AppLayoutInner />
+      </NotificationsProvider>
     </MasterScopeProvider>
   );
 }
@@ -200,6 +204,7 @@ function AppLayoutInner() {
           <div className="hidden md:block text-sm text-muted-foreground">Painel · {ROLE_LABEL[role]}</div>
           <div className="flex items-center gap-3 ml-auto">
             {role === "master" && <MasterScopeSwitcher />}
+            <NotificationsBell />
             <Badge variant="secondary" className="hidden sm:inline-flex">{ROLE_LABEL[role]}</Badge>
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="md:hidden">
               <LogOut className="size-4" />
