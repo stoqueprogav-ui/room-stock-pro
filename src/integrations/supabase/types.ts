@@ -296,6 +296,7 @@ export type Database = {
       }
       produtos: {
         Row: {
+          ativo: boolean
           categoria_id: string | null
           created_at: string
           descricao: string | null
@@ -303,10 +304,12 @@ export type Database = {
           estoque_minimo: number
           id: string
           nome: string
+          sala_id: string | null
           unidade: string
           updated_at: string
         }
         Insert: {
+          ativo?: boolean
           categoria_id?: string | null
           created_at?: string
           descricao?: string | null
@@ -314,10 +317,12 @@ export type Database = {
           estoque_minimo?: number
           id?: string
           nome: string
+          sala_id?: string | null
           unidade?: string
           updated_at?: string
         }
         Update: {
+          ativo?: boolean
           categoria_id?: string | null
           created_at?: string
           descricao?: string | null
@@ -325,6 +330,7 @@ export type Database = {
           estoque_minimo?: number
           id?: string
           nome?: string
+          sala_id?: string | null
           unidade?: string
           updated_at?: string
         }
@@ -334,6 +340,13 @@ export type Database = {
             columns: ["categoria_id"]
             isOneToOne: false
             referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produtos_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
             referencedColumns: ["id"]
           },
         ]
@@ -565,6 +578,7 @@ export type Database = {
         Args: { _aprovar: boolean; _solic: string }
         Returns: undefined
       }
+      excluir_produto: { Args: { _produto: string }; Returns: Json }
       get_user_sala: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -578,6 +592,7 @@ export type Database = {
         Args: { _divida: string; _quantidade: number }
         Returns: undefined
       }
+      reativar_produto: { Args: { _produto: string }; Returns: undefined }
     }
     Enums: {
       app_role: "master" | "admin" | "analista"

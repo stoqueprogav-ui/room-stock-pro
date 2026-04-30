@@ -29,6 +29,9 @@ export type Produto = {
   estoque_critico: number;
   categoria_id: string | null;
   categoria?: { id: string; nome: string } | null;
+  ativo?: boolean;
+  sala_id?: string | null;
+  sala?: { id: string; nome: string } | null;
 };
 
 export type EstoqueRow = {
