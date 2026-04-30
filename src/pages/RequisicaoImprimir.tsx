@@ -28,7 +28,7 @@ export default function RequisicaoImprimir() {
     (async () => {
       const { data } = await supabase
         .from("solicitacoes")
-        .select(`id, status, observacao, created_at, decidido_em,
+        .select(`id, status, observacao, created_at, decidido_em, retirado_por, retirado_em,
                  sala:salas(nome),
                  usuario:profiles!solicitacoes_usuario_id_fkey(nome, email),
                  itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade))`)
