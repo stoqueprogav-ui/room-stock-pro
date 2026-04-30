@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/AppLayout";
+import WelcomeAlerts from "@/components/WelcomeAlerts";
 import { Card } from "@/components/ui/card";
 import { Boxes, AlertTriangle, Inbox, ArrowLeftRight, Wallet } from "lucide-react";
 
@@ -44,6 +45,7 @@ export default function SalaOverview() {
   return (
     <div className="space-y-6">
       <PageHeader title={`Olá, ${profile.nome.split(" ")[0]}`} description="Visão geral da sua sala." />
+      <WelcomeAlerts />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map(({ label, value, icon: Icon, danger }) => (
           <Card key={label} className="stat-card">
