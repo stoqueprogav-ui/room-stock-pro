@@ -179,12 +179,19 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                     </TableCell>
                   </TableRow>
                 ))}
-                {list.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Nenhum empréstimo.</TableCell></TableRow>}
+                {list.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Nenhum empréstimo.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </div>
         </TabsContent>
       </Tabs>
+
+      <ArquivarRetiradaDialog
+        open={!!arquivarId}
+        onOpenChange={(v) => !v && setArquivarId(null)}
+        tipo="emprestimo"
+        onConfirm={confirmarArquivar}
+      />
     </div>
   );
 }
