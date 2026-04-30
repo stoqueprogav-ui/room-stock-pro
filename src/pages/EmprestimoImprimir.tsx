@@ -30,7 +30,7 @@ export default function EmprestimoImprimir() {
     (async () => {
       const { data } = await supabase
         .from("emprestimos")
-        .select(`id, status, observacao, created_at, decidido_em,
+        .select(`id, status, observacao, created_at, decidido_em, retirado_por, retirado_em,
                  origem:salas!emprestimos_sala_origem_id_fkey(nome),
                  destino:salas!emprestimos_sala_destino_id_fkey(nome),
                  solicitante:profiles!emprestimos_solicitante_id_fkey(nome, email),
