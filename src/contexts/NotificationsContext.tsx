@@ -83,45 +83,28 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
 
     if (role === "master") {
-      const { data: reqs } = await supabase
+      let reqsMapped: PendingRequisicao[] = [];
+      const { data: rs } = await supabase
         .from("solicitacoes")
-        .select("id, sala_id, created_at, sala:salas(nome), usuario:profiles!solicitacoes_usuario_id_fkey(nome)")
+        .select("id, sala_id, usuario_id, created_at")
         .eq("status", "pendente")
         .order("created_at", { ascending: false });
-      // fallback sem FK nomeada — buscar via duas queries se necessário
-      let reqsMapped: PendingRequisicao[] = [];
-      if (reqs && reqs.length) {
-        reqsMapped = reqs.map((r: any) => ({
+      if (rs?.length) {
+        const salaIds = [...new Set(rs.map((x) => x.sala_id))];
+        const userIds = [...new Set(rs.map((x) => x.usuario_id))];
+        const [{ data: salas }, { data: profs }] = await Promise.all([
+          supabase.from("salas").select("id, nome").in("id", salaIds),
+          supabase.from("profiles").select("id, nome").in("id", userIds),
+        ]);
+        const sm = new Map((salas ?? []).map((s) => [s.id, s.nome]));
+        const um = new Map((profs ?? []).map((p) => [p.id, p.nome]));
+        reqsMapped = rs.map((r) => ({
           id: r.id,
           sala_id: r.sala_id,
-          sala_nome: r.sala?.nome ?? "—",
-          usuario_nome: r.usuario?.nome ?? "—",
+          sala_nome: sm.get(r.sala_id) ?? "—",
+          usuario_nome: um.get(r.usuario_id) ?? "—",
           created_at: r.created_at,
         }));
-      } else {
-        // fallback manual (caso o embed por FK falhe)
-        const { data: rs } = await supabase
-          .from("solicitacoes")
-          .select("id, sala_id, usuario_id, created_at")
-          .eq("status", "pendente")
-          .order("created_at", { ascending: false });
-        if (rs?.length) {
-          const salaIds = [...new Set(rs.map((x) => x.sala_id))];
-          const userIds = [...new Set(rs.map((x) => x.usuario_id))];
-          const [{ data: salas }, { data: profs }] = await Promise.all([
-            supabase.from("salas").select("id, nome").in("id", salaIds),
-            supabase.from("profiles").select("id, nome").in("id", userIds),
-          ]);
-          const sm = new Map((salas ?? []).map((s) => [s.id, s.nome]));
-          const um = new Map((profs ?? []).map((p) => [p.id, p.nome]));
-          reqsMapped = rs.map((r) => ({
-            id: r.id,
-            sala_id: r.sala_id,
-            sala_nome: sm.get(r.sala_id) ?? "—",
-            usuario_nome: um.get(r.usuario_id) ?? "—",
-            created_at: r.created_at,
-          }));
-        }
       }
       setRequisicoes(reqsMapped);
 
