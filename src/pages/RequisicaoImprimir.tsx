@@ -78,6 +78,13 @@ export default function RequisicaoImprimir() {
             <div className="text-xs uppercase tracking-wide opacity-70">Aprovada em</div>
             <div>{req.decidido_em ? formatDateTime(req.decidido_em) : "—"}</div>
           </div>
+          {req.retirado_por && (
+            <div className="col-span-2 mt-2 p-3 border-2 border-black rounded">
+              <div className="text-xs uppercase tracking-wide opacity-70">Retirada confirmada</div>
+              <div className="font-semibold">Retirado por: {req.retirado_por}</div>
+              {req.retirado_em && <div className="text-xs">Em: {formatDateTime(req.retirado_em)}</div>}
+            </div>
+          )}
         </div>
 
         <table className="w-full border-collapse mb-6">
