@@ -11,6 +11,8 @@ type Emp = {
   observacao: string | null;
   created_at: string;
   decidido_em: string | null;
+  retirado_por: string | null;
+  retirado_em: string | null;
   origem: { nome: string };
   destino: { nome: string };
   solicitante: { nome: string; email: string } | null;
@@ -28,7 +30,7 @@ export default function EmprestimoImprimir() {
     (async () => {
       const { data } = await supabase
         .from("emprestimos")
-        .select(`id, status, observacao, created_at, decidido_em,
+        .select(`id, status, observacao, created_at, decidido_em, retirado_por, retirado_em,
                  origem:salas!emprestimos_sala_origem_id_fkey(nome),
                  destino:salas!emprestimos_sala_destino_id_fkey(nome),
                  solicitante:profiles!emprestimos_solicitante_id_fkey(nome, email),
@@ -98,6 +100,13 @@ export default function EmprestimoImprimir() {
             <div className="text-xs uppercase tracking-wide opacity-70">Aprovado em</div>
             <div>{emp.decidido_em ? formatDateTime(emp.decidido_em) : "—"}</div>
           </div>
+          {emp.retirado_por && (
+            <div className="col-span-2 mt-2 p-3 border-2 border-black rounded">
+              <div className="text-xs uppercase tracking-wide opacity-70">Retirada confirmada</div>
+              <div className="font-semibold">Retirado por: {emp.retirado_por}</div>
+              {emp.retirado_em && <div className="text-xs">Em: {formatDateTime(emp.retirado_em)}</div>}
+            </div>
+          )}
         </div>
 
         <table className="w-full border-collapse mb-6">

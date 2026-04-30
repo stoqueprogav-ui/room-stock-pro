@@ -59,7 +59,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   };
 
   const arquivarRejeitado = async (id: string) => {
-    const { error } = await supabase.rpc("arquivar_emprestimo", { _emp: id });
+    const { error } = await supabase.rpc("arquivar_emprestimo", { _emp: id } as any);
     if (error) return toast.error(error.message);
     toast.success("Empréstimo arquivado");
     load();
@@ -113,8 +113,9 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                   <TableHead>Origem → Destino</TableHead>
                   <TableHead>Itens</TableHead>
                   <TableHead className="w-[170px]">Criado em</TableHead>
+                  <TableHead className="w-[160px]">Retirada</TableHead>
                   <TableHead className="w-[120px]">Status</TableHead>
-                  <TableHead className="text-right w-[220px]">Ações</TableHead>
+                  <TableHead className="text-right w-[260px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -137,6 +138,14 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDateTime(e.created_at)}</TableCell>
+                    <TableCell className="text-xs">
+                      {e.retirado_por ? (
+                        <div>
+                          <div className="flex items-center gap-1 font-medium text-foreground"><UserCheck className="size-3" /> {e.retirado_por}</div>
+                          {e.retirado_em && <div className="text-muted-foreground">{formatDateTime(e.retirado_em)}</div>}
+                        </div>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
                     <TableCell><StatusBadge status={e.status} /></TableCell>
                     <TableCell className="text-right whitespace-nowrap">
                       {tab === "pendente" && (
@@ -170,12 +179,19 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                     </TableCell>
                   </TableRow>
                 ))}
-                {list.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-12">Nenhum empréstimo.</TableCell></TableRow>}
+                {list.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Nenhum empréstimo.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </div>
         </TabsContent>
       </Tabs>
+
+      <ArquivarRetiradaDialog
+        open={!!arquivarId}
+        onOpenChange={(v) => !v && setArquivarId(null)}
+        tipo="emprestimo"
+        onConfirm={confirmarArquivar}
+      />
     </div>
   );
 }

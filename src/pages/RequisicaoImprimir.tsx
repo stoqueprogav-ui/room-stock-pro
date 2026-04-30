@@ -11,6 +11,8 @@ type Req = {
   observacao: string | null;
   created_at: string;
   decidido_em: string | null;
+  retirado_por: string | null;
+  retirado_em: string | null;
   sala: { nome: string };
   usuario: { nome: string; email: string } | null;
   itens: { quantidade: number; produto: { nome: string; unidade: string } }[];
@@ -26,7 +28,7 @@ export default function RequisicaoImprimir() {
     (async () => {
       const { data } = await supabase
         .from("solicitacoes")
-        .select(`id, status, observacao, created_at, decidido_em,
+        .select(`id, status, observacao, created_at, decidido_em, retirado_por, retirado_em,
                  sala:salas(nome),
                  usuario:profiles!solicitacoes_usuario_id_fkey(nome, email),
                  itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade))`)
@@ -76,6 +78,13 @@ export default function RequisicaoImprimir() {
             <div className="text-xs uppercase tracking-wide opacity-70">Aprovada em</div>
             <div>{req.decidido_em ? formatDateTime(req.decidido_em) : "—"}</div>
           </div>
+          {req.retirado_por && (
+            <div className="col-span-2 mt-2 p-3 border-2 border-black rounded">
+              <div className="text-xs uppercase tracking-wide opacity-70">Retirada confirmada</div>
+              <div className="font-semibold">Retirado por: {req.retirado_por}</div>
+              {req.retirado_em && <div className="text-xs">Em: {formatDateTime(req.retirado_em)}</div>}
+            </div>
+          )}
         </div>
 
         <table className="w-full border-collapse mb-6">
