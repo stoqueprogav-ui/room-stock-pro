@@ -9,9 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useNotifications } from "@/contexts/NotificationsContext";
 import type { Sala } from "@/lib/types";
 
 export default function SalasPage() {
+  const { perSalaCount } = useNotifications();
   const [salas, setSalas] = useState<Sala[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Sala | null>(null);
@@ -65,7 +68,16 @@ export default function SalasPage() {
           <TableBody>
             {salas.map((s) => (
               <TableRow key={s.id} className="table-row-hover">
-                <TableCell className="font-medium">{s.nome}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    <span>{s.nome}</span>
+                    {perSalaCount[s.id] > 0 && (
+                      <Badge className="bg-destructive text-destructive-foreground border-transparent h-5 px-1.5 text-[10px] animate-pulse">
+                        {perSalaCount[s.id]}
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-muted-foreground">{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="size-4" /></Button>
