@@ -59,7 +59,7 @@ export default function EstoquePage() {
   const load = async () => {
     const [{ data: s }, { data: e }, { data: c }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos(*, categoria:categorias(id, nome)), salas(*)"),
+      supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
       supabase.from("categorias").select("*").order("nome"),
     ]);
     setSalas((s as Sala[]) ?? []);
