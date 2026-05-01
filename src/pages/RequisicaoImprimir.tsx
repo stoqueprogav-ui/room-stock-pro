@@ -87,24 +87,40 @@ export default function RequisicaoImprimir() {
           )}
         </div>
 
-        <table className="w-full border-collapse mb-6">
-          <thead>
-            <tr className="border-b-2 border-black">
-              <th className="text-left py-2 text-sm uppercase tracking-wide">Produto</th>
-              <th className="text-right py-2 text-sm uppercase tracking-wide w-32">Quantidade</th>
-              <th className="text-left py-2 text-sm uppercase tracking-wide w-24 pl-4">Unidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            {req.itens.map((it, i) => (
-              <tr key={i} className="border-b border-gray-300">
-                <td className="py-3">{it.produto.nome}</td>
-                <td className="py-3 text-right font-mono">{it.quantidade}</td>
-                <td className="py-3 pl-4">{it.produto.unidade}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {(() => {
+          const groups = new Map<string, typeof req.itens>();
+          for (const it of req.itens) {
+            const key = it.produto.categoria?.nome ?? "Sem categoria";
+            if (!groups.has(key)) groups.set(key, [] as any);
+            groups.get(key)!.push(it);
+          }
+          const ordered = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+          return ordered.map(([cat, itens]) => (
+            <div key={cat} className="mb-6">
+              <div className="bg-black text-white px-3 py-1.5 text-xs uppercase tracking-widest font-bold">
+                {cat} <span className="opacity-70 ml-1">({itens.length})</span>
+              </div>
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-black">
+                    <th className="text-left py-1.5 text-xs uppercase tracking-wide">Produto</th>
+                    <th className="text-right py-1.5 text-xs uppercase tracking-wide w-32">Quantidade</th>
+                    <th className="text-left py-1.5 text-xs uppercase tracking-wide w-24 pl-4">Unidade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itens.map((it, i) => (
+                    <tr key={i} className="border-b border-gray-300">
+                      <td className="py-2.5">{it.produto.nome}</td>
+                      <td className="py-2.5 text-right font-mono">{it.quantidade}</td>
+                      <td className="py-2.5 pl-4">{it.produto.unidade}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ));
+        })()}
 
         {req.observacao && (
           <div className="mb-6 text-sm">
