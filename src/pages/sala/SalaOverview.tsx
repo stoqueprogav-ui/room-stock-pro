@@ -11,27 +11,33 @@ export default function SalaOverview() {
   const { profile, role } = useAuth();
   const [s, setS] = useState<any>(null);
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     if (!profile?.sala_id) return;
-    (async () => {
-      const sala = profile.sala_id!;
-      const [est, sol, emp, div] = await Promise.all([
-        supabase.from("estoque").select("quantidade, produtos!inner(estoque_minimo, nome)").eq("sala_id", sala),
-        supabase.from("solicitacoes").select("id", { count: "exact", head: true }).eq("sala_id", sala).eq("status", "pendente"),
-        supabase.from("emprestimos").select("id, sala_origem_id, status").or(`sala_origem_id.eq.${sala},sala_destino_id.eq.${sala}`).eq("status", "pendente"),
-        supabase.from("dividas").select("id", { count: "exact", head: true }).or(`sala_devedora_id.eq.${sala},sala_credora_id.eq.${sala}`),
-      ]);
-      const baixo = (est.data ?? []).filter((r: any) => r.quantidade <= r.produtos.estoque_minimo).length;
-      const aprovar = (emp.data ?? []).filter((e: any) => e.sala_origem_id === sala).length;
-      setS({
-        produtos: (est.data ?? []).length,
-        baixo,
-        solicitacoesPendentes: sol.count ?? 0,
-        emprestimosAprovar: aprovar,
-        dividas: div.count ?? 0,
-      });
-    })();
-  }, [profile]);
+    const sala = profile.sala_id;
+    const [est, sol, emp, div] = await Promise.all([
+      supabase.from("estoque").select("quantidade, produtos!inner(estoque_minimo, nome, ativo)").eq("sala_id", sala).eq("produtos.ativo", true),
+      supabase.from("solicitacoes").select("id", { count: "exact", head: true }).eq("sala_id", sala).eq("status", "pendente"),
+      supabase.from("emprestimos").select("id, sala_origem_id, status").or(`sala_origem_id.eq.${sala},sala_destino_id.eq.${sala}`).eq("status", "pendente"),
+      supabase.from("dividas").select("id", { count: "exact", head: true }).or(`sala_devedora_id.eq.${sala},sala_credora_id.eq.${sala}`),
+    ]);
+    const baixo = (est.data ?? []).filter((r: any) => r.quantidade <= r.produtos.estoque_minimo).length;
+    const aprovar = (emp.data ?? []).filter((e: any) => e.sala_origem_id === sala).length;
+    setS({
+      produtos: (est.data ?? []).length,
+      baixo,
+      solicitacoesPendentes: sol.count ?? 0,
+      emprestimosAprovar: aprovar,
+      dividas: div.count ?? 0,
+    });
+  }, [profile?.sala_id]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  useRealtimeSync(
+    ["estoque", "produtos", "solicitacoes", "emprestimos", "dividas", "movimentacoes"],
+    reload,
+    { debounceMs: 300 }
+  );
 
   if (!profile?.sala_id) return <div className="text-muted-foreground">Sua conta não tem sala vinculada.</div>;
 
