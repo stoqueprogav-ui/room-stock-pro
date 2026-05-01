@@ -77,6 +77,9 @@ export default function EstoquePage() {
 
   useEffect(() => { load(); }, []);
 
+  // Sincronização em tempo real — fonte única de verdade (estoque/produtos/movimentações)
+  useRealtimeSync(["estoque", "produtos", "movimentacoes", "salas", "categorias"], () => { load(); }, { debounceMs: 250 });
+
   // Para admin/analista, fixa o filtro na própria sala
   useEffect(() => {
     if (!isMaster && profile?.sala_id) setSalaFilterUI(profile.sala_id);
