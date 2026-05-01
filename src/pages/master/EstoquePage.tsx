@@ -14,6 +14,7 @@ import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 type Row = { produto_id: string; sala_id: string; quantidade: number; produto: Produto; sala: Sala };
 type StatusKind = "ok" | "baixo" | "critico";
