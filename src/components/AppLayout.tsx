@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; badgeKey?: "requisicoes" | "emprestimosAprovar" };
 
