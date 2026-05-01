@@ -1,12 +1,15 @@
-import { Bell, BellOff, Volume2, VolumeX, Inbox, ArrowLeftRight, CheckCircle2 } from "lucide-react";
+import { Bell, BellOff, Volume2, VolumeX, Inbox, ArrowLeftRight, CheckCircle2, Check, X, RotateCcw, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useNotifications } from "@/contexts/NotificationsContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -19,14 +22,74 @@ function timeAgo(iso: string) {
   return `${d}d atrás`;
 }
 
+type Alert = {
+  id: string;
+  kind: "requisicao" | "emprestimo_pendente" | "emprestimo_aprovado";
+  title: string;
+  subtitle: string;
+  created_at: string;
+  go: () => void;
+};
+
 export default function NotificationsBell() {
   const { role } = useAuth();
-  const { requisicoes, emprestimosPendentes, emprestimosAprovados, totalCount, soundEnabled, toggleSound } = useNotifications();
+  const {
+    requisicoes, emprestimosPendentes, emprestimosAprovados,
+    totalCount, soundEnabled, toggleSound,
+    isRead, isDismissed, markRead, markUnread, dismiss, restore,
+    markAllRead,
+  } = useNotifications();
   const navigate = useNavigate();
+  const [tab, setTab] = useState<"ativos" | "historico">("ativos");
 
   const goRequisicoes = () => navigate("/app/requisicoes");
   const goEmprestimosMaster = () => navigate("/app/emprestimos");
   const goAprovar = () => navigate("/app/aprovar-emprestimos");
+
+  const alerts: Alert[] = useMemo(() => {
+    const arr: Alert[] = [];
+    if (role === "master") {
+      for (const r of requisicoes) {
+        arr.push({
+          id: r.id, kind: "requisicao",
+          title: `Requisição · ${r.sala_nome}`,
+          subtitle: `Por ${r.usuario_nome} · ${timeAgo(r.created_at)}`,
+          created_at: r.created_at, go: goRequisicoes,
+        });
+      }
+    }
+    for (const e of emprestimosPendentes) {
+      arr.push({
+        id: e.id, kind: "emprestimo_pendente",
+        title: `Empréstimo · ${e.sala_destino_nome} → ${e.sala_origem_nome}`,
+        subtitle: `Por ${e.solicitante_nome} · ${timeAgo(e.created_at)}`,
+        created_at: e.created_at,
+        go: role === "master" ? goEmprestimosMaster : goAprovar,
+      });
+    }
+    if (role === "master") {
+      for (const e of emprestimosAprovados) {
+        arr.push({
+          id: e.id, kind: "emprestimo_aprovado",
+          title: `Aprovado · ${e.sala_origem_nome} → ${e.sala_destino_nome}`,
+          subtitle: `Aguardando arquivamento · ${timeAgo(e.created_at)}`,
+          created_at: e.created_at, go: goEmprestimosMaster,
+        });
+      }
+    }
+    arr.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, requisicoes, emprestimosPendentes, emprestimosAprovados]);
+
+  const ativos = alerts.filter((a) => !isDismissed(a.id));
+  const historico = alerts; // tudo (inclui fechados) — pendência segue listada
+
+  const iconFor = (k: Alert["kind"]) => {
+    if (k === "requisicao") return <Inbox className="size-4 text-destructive" />;
+    if (k === "emprestimo_pendente") return <ArrowLeftRight className="size-4 text-warning" />;
+    return <CheckCircle2 className="size-4 text-success" />;
+  };
 
   return (
     <Popover>
@@ -40,110 +103,154 @@ export default function NotificationsBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[360px] p-0">
+      <PopoverContent align="end" className="w-[400px] p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="font-display font-semibold">Notificações</div>
-          <Button variant="ghost" size="icon" onClick={toggleSound} title={soundEnabled ? "Desativar som" : "Ativar som"}>
-            {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4 text-muted-foreground" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            {alerts.some((a) => !isRead(a.id)) && (
+              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead} title="Marcar todos como lidos">
+                <Check className="size-3.5" /> Tudo lido
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={toggleSound} title={soundEnabled ? "Desativar som" : "Ativar som"}>
+              {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4 text-muted-foreground" />}
+            </Button>
+          </div>
         </div>
 
-        <ScrollArea className="max-h-[420px]">
-          {totalCount === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-              <BellOff className="size-6 mx-auto mb-2 opacity-50" />
-              Nenhuma pendência no momento
-            </div>
-          ) : (
-            <div className="py-2">
-              {role === "master" && requisicoes.length > 0 && (
-                <Section
-                  title="Requisições pendentes"
-                  count={requisicoes.length}
-                  icon={<Inbox className="size-4 text-destructive" />}
-                  onSeeAll={goRequisicoes}
-                >
-                  {requisicoes.slice(0, 5).map((r) => (
-                    <Item
-                      key={r.id}
-                      title={`Sala: ${r.sala_nome}`}
-                      subtitle={`Por ${r.usuario_nome} · ${timeAgo(r.created_at)}`}
-                      onClick={goRequisicoes}
-                    />
-                  ))}
-                </Section>
-              )}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+          <div className="px-3 pt-2">
+            <TabsList className="grid grid-cols-2 w-full h-8">
+              <TabsTrigger value="ativos" className="text-xs h-6">
+                Ativos {ativos.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[9px]">{ativos.length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="historico" className="text-xs h-6">
+                <History className="size-3 mr-1" /> Histórico {historico.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[9px]">{historico.length}</Badge>}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-              {emprestimosPendentes.length > 0 && (
-                <Section
-                  title={role === "master" ? "Empréstimos pendentes" : "Pedidos de empréstimo recebidos"}
-                  count={emprestimosPendentes.length}
-                  icon={<ArrowLeftRight className="size-4 text-warning" />}
-                  onSeeAll={role === "master" ? goEmprestimosMaster : goAprovar}
-                >
-                  {emprestimosPendentes.slice(0, 5).map((e) => (
+          <TabsContent value="ativos" className="m-0">
+            <ScrollArea className="max-h-[420px]">
+              {ativos.length === 0 ? (
+                <Empty />
+              ) : (
+                <div className="py-1">
+                  {ativos.map((a) => (
                     <Item
-                      key={e.id}
-                      title={`${e.sala_destino_nome} → ${e.sala_origem_nome}`}
-                      subtitle={`Por ${e.solicitante_nome} · ${timeAgo(e.created_at)}`}
-                      onClick={role === "master" ? goEmprestimosMaster : goAprovar}
+                      key={a.id}
+                      icon={iconFor(a.kind)}
+                      title={a.title}
+                      subtitle={a.subtitle}
+                      read={isRead(a.id)}
+                      onOpen={() => { markRead(a.id); a.go(); }}
+                      onMarkRead={() => markRead(a.id)}
+                      onMarkUnread={() => markUnread(a.id)}
+                      onDismiss={() => dismiss(a.id)}
                     />
                   ))}
-                </Section>
+                  <Separator className="my-1" />
+                </div>
               )}
+            </ScrollArea>
+          </TabsContent>
 
-              {role === "master" && emprestimosAprovados.length > 0 && (
-                <Section
-                  title="Empréstimos aprovados (aguardando arquivamento)"
-                  count={emprestimosAprovados.length}
-                  icon={<CheckCircle2 className="size-4 text-success" />}
-                  onSeeAll={goEmprestimosMaster}
-                >
-                  {emprestimosAprovados.slice(0, 5).map((e) => (
-                    <Item
-                      key={e.id}
-                      title={`${e.sala_origem_nome} → ${e.sala_destino_nome}`}
-                      subtitle={`Por ${e.solicitante_nome} · ${timeAgo(e.created_at)}`}
-                      onClick={goEmprestimosMaster}
-                    />
-                  ))}
-                </Section>
+          <TabsContent value="historico" className="m-0">
+            <ScrollArea className="max-h-[420px]">
+              {historico.length === 0 ? (
+                <Empty />
+              ) : (
+                <div className="py-1">
+                  {historico.map((a) => {
+                    const dismissed = isDismissed(a.id);
+                    return (
+                      <Item
+                        key={a.id}
+                        icon={iconFor(a.kind)}
+                        title={a.title}
+                        subtitle={`${a.subtitle}${dismissed ? " · fechado" : ""}`}
+                        read={isRead(a.id)}
+                        muted={dismissed}
+                        onOpen={() => { markRead(a.id); a.go(); }}
+                        onMarkRead={() => markRead(a.id)}
+                        onMarkUnread={() => markUnread(a.id)}
+                        onDismiss={dismissed ? undefined : () => dismiss(a.id)}
+                        onRestore={dismissed ? () => restore(a.id) : undefined}
+                      />
+                    );
+                  })}
+                </div>
               )}
-            </div>
-          )}
-        </ScrollArea>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </PopoverContent>
     </Popover>
   );
 }
 
-function Section({
-  title, count, icon, children, onSeeAll,
-}: { title: string; count: number; icon: React.ReactNode; children: React.ReactNode; onSeeAll: () => void }) {
+function Empty() {
   return (
-    <div className="mb-1">
-      <div className="px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          {icon}
-          <span>{title}</span>
-          <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{count}</Badge>
-        </div>
-        <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onSeeAll}>Ver agora</Button>
-      </div>
-      <div>{children}</div>
-      <Separator className="my-1" />
+    <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+      <BellOff className="size-6 mx-auto mb-2 opacity-50" />
+      Nada por aqui
     </div>
   );
 }
 
-function Item({ title, subtitle, onClick }: { title: string; subtitle: string; onClick: () => void }) {
+function Item({
+  icon, title, subtitle, read, muted,
+  onOpen, onMarkRead, onMarkUnread, onDismiss, onRestore,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  read: boolean;
+  muted?: boolean;
+  onOpen: () => void;
+  onMarkRead: () => void;
+  onMarkUnread: () => void;
+  onDismiss?: () => void;
+  onRestore?: () => void;
+}) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left px-4 py-2 hover:bg-muted/60 transition-colors"
+    <div
+      className={cn(
+        "group px-3 py-2 flex items-start gap-2 hover:bg-muted/60 transition-colors border-l-2",
+        !read && !muted ? "border-l-destructive bg-destructive/5" :
+        read && !muted ? "border-l-warning/40" :
+        "border-l-transparent opacity-60"
+      )}
     >
-      <div className="text-sm font-medium truncate">{title}</div>
-      <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
-    </button>
+      <div className="mt-0.5 shrink-0">{icon}</div>
+      <button onClick={onOpen} className="flex-1 text-left min-w-0">
+        <div className={cn("text-sm truncate", !read && !muted ? "font-semibold" : "font-medium")}>
+          {!read && !muted && <span className="inline-block size-1.5 rounded-full bg-destructive mr-1.5 align-middle" />}
+          {title}
+        </div>
+        <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
+      </button>
+      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        {!read ? (
+          <Button size="icon" variant="ghost" className="size-7" onClick={onMarkRead} title="Marcar como lido">
+            <Check className="size-3.5" />
+          </Button>
+        ) : (
+          <Button size="icon" variant="ghost" className="size-7" onClick={onMarkUnread} title="Marcar como não lido">
+            <RotateCcw className="size-3.5" />
+          </Button>
+        )}
+        {onDismiss && (
+          <Button size="icon" variant="ghost" className="size-7" onClick={onDismiss} title="Fechar (manter no histórico)">
+            <X className="size-3.5" />
+          </Button>
+        )}
+        {onRestore && (
+          <Button size="icon" variant="ghost" className="size-7" onClick={onRestore} title="Reabrir alerta">
+            <RotateCcw className="size-3.5" />
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

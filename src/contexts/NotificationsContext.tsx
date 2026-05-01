@@ -26,8 +26,19 @@ type Ctx = {
   requisicoes: PendingRequisicao[];
   emprestimosPendentes: PendingEmprestimo[];
   emprestimosAprovados: PendingEmprestimo[];
-  totalCount: number;
+  // contadores derivados (apenas alertas ativos / não lidos)
+  totalCount: number;       // não lidos (badge vermelho do sino)
+  activeCount: number;      // ativos (não fechados) — usado nos banners
   perSalaCount: Record<string, number>;
+  // status por alerta
+  isRead: (id: string) => boolean;
+  isDismissed: (id: string) => boolean;
+  markRead: (id: string) => void;
+  markUnread: (id: string) => void;
+  dismiss: (id: string) => void;
+  restore: (id: string) => void;
+  markAllRead: () => void;
+  dismissAll: () => void;
   soundEnabled: boolean;
   toggleSound: () => void;
   refresh: () => Promise<void>;
@@ -36,6 +47,20 @@ type Ctx = {
 const NotificationsContext = createContext<Ctx | undefined>(undefined);
 
 const SOUND_KEY = "notif_sound_enabled";
+const READ_KEY = "notif_read_ids";
+const DISMISS_KEY = "notif_dismissed_ids";
+
+function loadSet(key: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch { return new Set(); }
+}
+function saveSet(key: string, s: Set<string>) {
+  try { localStorage.setItem(key, JSON.stringify([...s])); } catch {}
+}
 
 // pequeno beep gerado via WebAudio (sem precisar de arquivo)
 function playBeep(kind: "info" | "warn" = "info") {
@@ -275,26 +300,95 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => { supabase.removeChannel(channel); };
   }, [user, role, profile?.sala_id, soundEnabled, refresh]);
 
-  const totalCount = requisicoes.length + emprestimosPendentes.length + emprestimosAprovados.length;
+  // ===== Estado de leitura / fechamento (persistente em localStorage) =====
+  const [readIds, setReadIds] = useState<Set<string>>(() => loadSet(READ_KEY));
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadSet(DISMISS_KEY));
+
+  // Auto-limpeza: alertas resolvidos (sumiram da lista ativa) saem do storage
+  useEffect(() => {
+    const liveIds = new Set<string>([
+      ...requisicoes.map((r) => r.id),
+      ...emprestimosPendentes.map((e) => e.id),
+      ...emprestimosAprovados.map((e) => e.id),
+    ]);
+    let changedR = false, changedD = false;
+    const nextR = new Set<string>();
+    readIds.forEach((id) => { if (liveIds.has(id)) nextR.add(id); else changedR = true; });
+    const nextD = new Set<string>();
+    dismissedIds.forEach((id) => { if (liveIds.has(id)) nextD.add(id); else changedD = true; });
+    if (changedR) { setReadIds(nextR); saveSet(READ_KEY, nextR); }
+    if (changedD) { setDismissedIds(nextD); saveSet(DISMISS_KEY, nextD); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requisicoes, emprestimosPendentes, emprestimosAprovados]);
+
+  const isRead = useCallback((id: string) => readIds.has(id), [readIds]);
+  const isDismissed = useCallback((id: string) => dismissedIds.has(id), [dismissedIds]);
+
+  const markRead = useCallback((id: string) => {
+    setReadIds((s) => { const n = new Set(s); n.add(id); saveSet(READ_KEY, n); return n; });
+  }, []);
+  const markUnread = useCallback((id: string) => {
+    setReadIds((s) => { const n = new Set(s); n.delete(id); saveSet(READ_KEY, n); return n; });
+  }, []);
+  const dismiss = useCallback((id: string) => {
+    setDismissedIds((s) => { const n = new Set(s); n.add(id); saveSet(DISMISS_KEY, n); return n; });
+    setReadIds((s) => { const n = new Set(s); n.add(id); saveSet(READ_KEY, n); return n; });
+  }, []);
+  const restore = useCallback((id: string) => {
+    setDismissedIds((s) => { const n = new Set(s); n.delete(id); saveSet(DISMISS_KEY, n); return n; });
+  }, []);
+
+  const allIds = useMemo(
+    () => [
+      ...requisicoes.map((r) => r.id),
+      ...emprestimosPendentes.map((e) => e.id),
+      ...emprestimosAprovados.map((e) => e.id),
+    ],
+    [requisicoes, emprestimosPendentes, emprestimosAprovados]
+  );
+
+  const markAllRead = useCallback(() => {
+    const all = new Set<string>(allIds);
+    setReadIds(all); saveSet(READ_KEY, all);
+  }, [allIds]);
+  const dismissAll = useCallback(() => {
+    const all = new Set<string>(allIds);
+    setDismissedIds(all); saveSet(DISMISS_KEY, all);
+    setReadIds(all); saveSet(READ_KEY, all);
+  }, [allIds]);
+
+  // não lidos = sino vermelho. Pendência fechada continua aparecendo no sino (mas marcada como lida).
+  const totalCount = allIds.filter((id) => !readIds.has(id)).length;
+  // ativos = não fechados. Usado para banners do dashboard.
+  const activeCount = allIds.filter((id) => !dismissedIds.has(id)).length;
 
   const perSalaCount = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const r of requisicoes) map[r.sala_id] = (map[r.sala_id] ?? 0) + 1;
+    for (const r of requisicoes) {
+      if (readIds.has(r.id)) continue;
+      map[r.sala_id] = (map[r.sala_id] ?? 0) + 1;
+    }
     for (const e of emprestimosPendentes) {
+      if (readIds.has(e.id)) continue;
       map[e.sala_origem_id] = (map[e.sala_origem_id] ?? 0) + 1;
     }
     for (const e of emprestimosAprovados) {
+      if (readIds.has(e.id)) continue;
       map[e.sala_origem_id] = (map[e.sala_origem_id] ?? 0) + 1;
     }
     return map;
-  }, [requisicoes, emprestimosPendentes, emprestimosAprovados]);
+  }, [requisicoes, emprestimosPendentes, emprestimosAprovados, readIds]);
 
   const value: Ctx = {
     requisicoes,
     emprestimosPendentes,
     emprestimosAprovados,
     totalCount,
+    activeCount,
     perSalaCount,
+    isRead, isDismissed,
+    markRead, markUnread, dismiss, restore,
+    markAllRead, dismissAll,
     soundEnabled,
     toggleSound,
     refresh,
