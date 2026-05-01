@@ -31,7 +31,7 @@ export default function RequisicaoImprimir() {
         .select(`id, status, observacao, created_at, decidido_em, retirado_por, retirado_em,
                  sala:salas(nome),
                  usuario:profiles!solicitacoes_usuario_id_fkey(nome, email),
-                 itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade))`)
+                 itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade, categoria:categorias(nome)))`)
         .eq("id", id)
         .maybeSingle();
       setReq(data as any);
