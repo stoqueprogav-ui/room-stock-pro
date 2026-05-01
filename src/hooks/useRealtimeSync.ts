@@ -26,8 +26,7 @@ export function useRealtimeSync(
     let channel = supabase.channel(name);
     for (const t of tables) {
       channel = channel.on(
-        // @ts-expect-error - postgres_changes typing
-        "postgres_changes",
+        "postgres_changes" as any,
         { event: "*", schema: "public", table: t },
         () => trigger()
       );
