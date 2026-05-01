@@ -15,7 +15,7 @@ type Req = {
   retirado_em: string | null;
   sala: { nome: string };
   usuario: { nome: string; email: string } | null;
-  itens: { quantidade: number; produto: { nome: string; unidade: string } }[];
+  itens: { quantidade: number; produto: { nome: string; unidade: string; categoria: { nome: string } | null } }[];
 };
 
 export default function RequisicaoImprimir() {
