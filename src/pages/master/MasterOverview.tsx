@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { PageHeader } from "@/components/AppLayout";
 import WelcomeAlerts from "@/components/WelcomeAlerts";
 import { Card } from "@/components/ui/card";
