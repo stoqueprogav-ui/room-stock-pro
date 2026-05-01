@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { PageHeader } from "@/components/AppLayout";
 import WelcomeAlerts from "@/components/WelcomeAlerts";
 import { Card } from "@/components/ui/card";
@@ -23,42 +24,48 @@ export default function MasterOverview() {
   const [s, setS] = useState<Stats | null>(null);
   const [salaNome, setSalaNome] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      if (scopeSalaId) {
-        const { data } = await supabase.from("salas").select("nome").eq("id", scopeSalaId).maybeSingle();
-        setSalaNome((data as Sala | null)?.nome ?? null);
-      } else {
-        setSalaNome(null);
-      }
+  const reload = useCallback(async () => {
+    if (scopeSalaId) {
+      const { data } = await supabase.from("salas").select("nome").eq("id", scopeSalaId).maybeSingle();
+      setSalaNome((data as Sala | null)?.nome ?? null);
+    } else {
+      setSalaNome(null);
+    }
 
-      // Helpers para aplicar filtro por sala quando definido
-      const applySala = (q: any, col = "sala_id") => scopeSalaId ? q.eq(col, scopeSalaId) : q;
-      const applySalaEmprestimo = (q: any) => scopeSalaId ? q.or(`sala_origem_id.eq.${scopeSalaId},sala_destino_id.eq.${scopeSalaId}`) : q;
-      const applySalaDivida = (q: any) => scopeSalaId ? q.or(`sala_devedora_id.eq.${scopeSalaId},sala_credora_id.eq.${scopeSalaId}`) : q;
+    const applySala = (q: any, col = "sala_id") => scopeSalaId ? q.eq(col, scopeSalaId) : q;
+    const applySalaEmprestimo = (q: any) => scopeSalaId ? q.or(`sala_origem_id.eq.${scopeSalaId},sala_destino_id.eq.${scopeSalaId}`) : q;
+    const applySalaDivida = (q: any) => scopeSalaId ? q.or(`sala_devedora_id.eq.${scopeSalaId},sala_credora_id.eq.${scopeSalaId}`) : q;
 
-      const [salas, prods, solP, empP, dividas, low] = await Promise.all([
-        supabase.from("salas").select("id", { count: "exact", head: true }),
-        supabase.from("produtos").select("id", { count: "exact", head: true }),
-        applySala(supabase.from("solicitacoes").select("id", { count: "exact", head: true }).eq("status", "pendente")),
-        applySalaEmprestimo(supabase.from("emprestimos").select("id", { count: "exact", head: true }).eq("status", "pendente")),
-        applySalaDivida(supabase.from("dividas").select("id", { count: "exact", head: true })),
-        applySala(supabase.from("estoque").select("quantidade, produtos!inner(estoque_minimo, estoque_critico)")),
-      ]);
-      const lowCount = (low.data ?? []).filter((r: any) => {
-        const min = r.produtos.estoque_minimo ?? 0;
-        return r.quantidade <= min;
-      }).length;
-      setS({
-        salas: salas.count ?? 0,
-        produtos: prods.count ?? 0,
-        solicitacoesPendentes: solP.count ?? 0,
-        emprestimosPendentes: empP.count ?? 0,
-        alertasEstoque: lowCount,
-        dividas: dividas.count ?? 0,
-      });
-    })();
+    const [salas, prods, solP, empP, dividas, low] = await Promise.all([
+      supabase.from("salas").select("id", { count: "exact", head: true }),
+      supabase.from("produtos").select("id", { count: "exact", head: true }).eq("ativo", true),
+      applySala(supabase.from("solicitacoes").select("id", { count: "exact", head: true }).eq("status", "pendente")),
+      applySalaEmprestimo(supabase.from("emprestimos").select("id", { count: "exact", head: true }).eq("status", "pendente")),
+      applySalaDivida(supabase.from("dividas").select("id", { count: "exact", head: true })),
+      applySala(supabase.from("estoque").select("quantidade, produtos!inner(estoque_minimo, estoque_critico, ativo)").eq("produtos.ativo", true)),
+    ]);
+    const lowCount = (low.data ?? []).filter((r: any) => {
+      const min = r.produtos.estoque_minimo ?? 0;
+      return r.quantidade <= min;
+    }).length;
+    setS({
+      salas: salas.count ?? 0,
+      produtos: prods.count ?? 0,
+      solicitacoesPendentes: solP.count ?? 0,
+      emprestimosPendentes: empP.count ?? 0,
+      alertasEstoque: lowCount,
+      dividas: dividas.count ?? 0,
+    });
   }, [scopeSalaId]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  // Sincronização em tempo real: qualquer alteração relevante recarrega o dashboard
+  useRealtimeSync(
+    ["estoque", "produtos", "solicitacoes", "emprestimos", "dividas", "salas", "movimentacoes"],
+    reload,
+    { debounceMs: 300 }
+  );
 
   const isGlobal = scopeSalaId === null;
 

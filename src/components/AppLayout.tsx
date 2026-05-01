@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; badgeKey?: "requisicoes" | "emprestimosAprovar" };
 
@@ -97,8 +98,10 @@ function AppLayoutInner() {
 
   useEffect(() => {
     loadCounts();
-    // Recarrega ao trocar de rota (ações podem ter alterado pendências)
   }, [loadCounts, location.pathname]);
+
+  // Atualização em tempo real dos badges do menu
+  useRealtimeSync(["solicitacoes", "emprestimos"], loadCounts, { debounceMs: 250 });
 
   if (loading) {
     return (
