@@ -26,7 +26,7 @@ export default function NovaRequisicao() {
   const { profile } = useAuth();
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [catFilter, setCatFilter] = useState<string>("");
+  const [catFilter, setCatFilter] = useState<string>(""); // "" = nenhum (tela inicial), "all" = todas, ou id
   const [obs, setObs] = useState("");
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
   const [busca, setBusca] = useState("");
