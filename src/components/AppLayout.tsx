@@ -98,8 +98,10 @@ function AppLayoutInner() {
 
   useEffect(() => {
     loadCounts();
-    // Recarrega ao trocar de rota (ações podem ter alterado pendências)
   }, [loadCounts, location.pathname]);
+
+  // Atualização em tempo real dos badges do menu
+  useRealtimeSync(["solicitacoes", "emprestimos"], loadCounts, { debounceMs: 250 });
 
   if (loading) {
     return (
