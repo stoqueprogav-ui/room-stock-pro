@@ -26,8 +26,19 @@ type Ctx = {
   requisicoes: PendingRequisicao[];
   emprestimosPendentes: PendingEmprestimo[];
   emprestimosAprovados: PendingEmprestimo[];
-  totalCount: number;
+  // contadores derivados (apenas alertas ativos / não lidos)
+  totalCount: number;       // não lidos (badge vermelho do sino)
+  activeCount: number;      // ativos (não fechados) — usado nos banners
   perSalaCount: Record<string, number>;
+  // status por alerta
+  isRead: (id: string) => boolean;
+  isDismissed: (id: string) => boolean;
+  markRead: (id: string) => void;
+  markUnread: (id: string) => void;
+  dismiss: (id: string) => void;
+  restore: (id: string) => void;
+  markAllRead: () => void;
+  dismissAll: () => void;
   soundEnabled: boolean;
   toggleSound: () => void;
   refresh: () => Promise<void>;
@@ -36,6 +47,20 @@ type Ctx = {
 const NotificationsContext = createContext<Ctx | undefined>(undefined);
 
 const SOUND_KEY = "notif_sound_enabled";
+const READ_KEY = "notif_read_ids";
+const DISMISS_KEY = "notif_dismissed_ids";
+
+function loadSet(key: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch { return new Set(); }
+}
+function saveSet(key: string, s: Set<string>) {
+  try { localStorage.setItem(key, JSON.stringify([...s])); } catch {}
+}
 
 // pequeno beep gerado via WebAudio (sem precisar de arquivo)
 function playBeep(kind: "info" | "warn" = "info") {
