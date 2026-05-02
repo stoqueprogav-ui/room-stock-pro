@@ -227,3 +227,99 @@ export function PageHeader({ title, description, actions }: { title: string; des
     </div>
   );
 }
+
+function NavItemRender({
+  item, pendCounts, currentPath,
+}: {
+  item: NavItem;
+  pendCounts: Record<BadgeKey, number>;
+  currentPath: string;
+}) {
+  const Icon = item.icon;
+  const childPaths = (item.children ?? []).map((c) => c.to).filter(Boolean) as string[];
+  const isInGroup = childPaths.some((p) => currentPath === p || currentPath.startsWith(p + "/"));
+  const [open, setOpen] = useState(isInGroup);
+  useEffect(() => { if (isInGroup) setOpen(true); }, [isInGroup]);
+
+  if (!item.children) {
+    const count = item.badgeKey ? pendCounts[item.badgeKey] : 0;
+    return (
+      <NavLink
+        to={item.to!}
+        end={item.to === "/app"}
+        className={({ isActive }) =>
+          cn(
+            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+            isActive
+              ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+              : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+          )
+        }
+      >
+        <Icon className="size-4" />
+        <span className="flex-1">{item.label}</span>
+        {count > 0 && (
+          <Badge className="bg-warning text-warning-foreground hover:bg-warning border-transparent h-5 min-w-5 px-1.5 text-[10px]">
+            {count}
+          </Badge>
+        )}
+      </NavLink>
+    );
+  }
+
+  const groupCount = (item.children ?? []).reduce((sum, c) => sum + (c.badgeKey ? pendCounts[c.badgeKey] : 0), 0);
+
+  return (
+    <div className="space-y-0.5">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+          isInGroup
+            ? "bg-sidebar-accent/40 text-sidebar-accent-foreground font-medium"
+            : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+        )}
+      >
+        <Icon className="size-4" />
+        <span className="flex-1 text-left">{item.label}</span>
+        {groupCount > 0 && !open && (
+          <Badge className="bg-warning text-warning-foreground hover:bg-warning border-transparent h-5 min-w-5 px-1.5 text-[10px]">
+            {groupCount}
+          </Badge>
+        )}
+        <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="ml-4 pl-3 border-l border-sidebar-border space-y-0.5">
+          {item.children!.map((child) => {
+            const ChildIcon = child.icon;
+            const count = child.badgeKey ? pendCounts[child.badgeKey] : 0;
+            return (
+              <NavLink
+                key={child.to}
+                to={child.to!}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                  )
+                }
+              >
+                <ChildIcon className="size-3.5" />
+                <span className="flex-1">{child.label}</span>
+                {count > 0 && (
+                  <Badge className="bg-warning text-warning-foreground hover:bg-warning border-transparent h-5 min-w-5 px-1.5 text-[10px]">
+                    {count}
+                  </Badge>
+                )}
+              </NavLink>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
