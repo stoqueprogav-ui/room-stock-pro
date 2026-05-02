@@ -35,6 +35,7 @@ export default function RequisicoesPage() {
   const [rows, setRows] = useState<Requisicao[]>([]);
   const [loading, setLoading] = useState(false);
   const [arquivarId, setArquivarId] = useState<string | null>(null);
+  const [revisarId, setRevisarId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
