@@ -194,6 +194,18 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         tipo="emprestimo"
         onConfirm={confirmarArquivar}
       />
+
+      <RevisarPedidoDialog
+        open={!!revisarId}
+        onOpenChange={(v) => !v && setRevisarId(null)}
+        kind="emprestimo"
+        id={revisarId}
+        canDecide={!!revisarId && (rows.find((r) => r.id === revisarId)?.status === "pendente") && (() => {
+          const e = rows.find((r) => r.id === revisarId);
+          return !!e && role === "admin" && profile?.sala_id === e.sala_origem_id;
+        })()}
+        onDecidir={async (id, ap) => { await decidir(id, ap); }}
+      />
     </div>
   );
 }
