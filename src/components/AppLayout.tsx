@@ -175,32 +175,9 @@ function AppLayoutInner() {
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {items.map(({ to, label, icon: Icon, badgeKey }) => {
-            const count = badgeKey ? pendCounts[badgeKey] : 0;
-            return (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === "/app"}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-                  )
-                }
-              >
-                <Icon className="size-4" />
-                <span className="flex-1">{label}</span>
-                {count > 0 && (
-                  <Badge className="bg-warning text-warning-foreground hover:bg-warning border-transparent h-5 min-w-5 px-1.5 text-[10px]">
-                    {count}
-                  </Badge>
-                )}
-              </NavLink>
-            );
-          })}
+          {items.map((item) => (
+            <NavItemRender key={item.to ?? item.label} item={item} pendCounts={pendCounts} currentPath={location.pathname} />
+          ))}
         </nav>
         <div className="p-3 border-t border-sidebar-border space-y-2">
           <div className="px-2">
