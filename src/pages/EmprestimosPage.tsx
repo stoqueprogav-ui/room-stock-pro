@@ -152,12 +152,12 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                     <TableCell className="text-right whitespace-nowrap">
                       {tab === "pendente" && (
                         podeDecidir(e) ? (
-                          <>
-                            <Button size="sm" variant="outline" className="mr-2" onClick={() => decidir(e.id, false)}><X className="size-4" /> Rejeitar</Button>
-                            <Button size="sm" onClick={() => decidir(e.id, true)}><Check className="size-4" /> Aprovar</Button>
-                          </>
+                          <Button size="sm" onClick={() => setRevisarId(e.id)}><Eye className="size-4" /> Revisar e decidir</Button>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Aguardando admin da origem</span>
+                          <>
+                            <Button size="sm" variant="outline" className="mr-2" onClick={() => setRevisarId(e.id)}><Eye className="size-4" /> Visualizar</Button>
+                            <span className="text-xs text-muted-foreground">Aguardando admin da origem</span>
+                          </>
                         )
                       )}
                       {tab === "aprovado" && (
