@@ -37,8 +37,13 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
       { to: "/app/produtos", label: "Produtos", icon: Package },
       { to: "/app/estoque", label: "Estoque", icon: Boxes },
       { to: "/app/requisicoes", label: "Requisições", icon: Inbox, badgeKey: "requisicoes" },
-      { to: "/app/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
-      { to: "/app/dividas", label: "Dívidas", icon: Wallet },
+      {
+        label: "Empréstimos", icon: ArrowLeftRight,
+        children: [
+          { to: "/app/emprestimos", label: "Todos os empréstimos", icon: ArrowLeftRight },
+          { to: "/app/dividas", label: "Dívidas", icon: Wallet },
+        ],
+      },
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
       { to: "/app/movimentacoes", label: "Movimentações", icon: History },
@@ -47,20 +52,25 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
     return items;
   }
   // admin & analista
+  const emprestimosChildren: NavItem[] = [
+    { to: "/app/novo-emprestimo", label: "Pedir empréstimo", icon: Send },
+  ];
+  if (role === "admin") {
+    emprestimosChildren.push({ to: "/app/aprovar-emprestimos", label: "Aprovar empréstimos", icon: ShieldCheck, badgeKey: "emprestimosAprovar" });
+  }
+  emprestimosChildren.push(
+    { to: "/app/emprestimos", label: "Histórico", icon: History },
+    { to: "/app/dividas", label: "Dívidas da sala", icon: Wallet },
+  );
   const base: NavItem[] = [
     { to: "/app", label: "Visão geral", icon: LayoutDashboard },
     { to: "/app/meu-estoque", label: "Meu estoque", icon: Boxes },
     { to: "/app/nova-requisicao", label: "Realizar requisição", icon: Send },
     { to: "/app/minhas-requisicoes", label: "Minhas requisições", icon: ClipboardList },
-    { to: "/app/novo-emprestimo", label: "Pedir empréstimo", icon: ArrowLeftRight },
-    { to: "/app/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
-    { to: "/app/dividas", label: "Dívidas da sala", icon: Wallet },
+    { label: "Empréstimos", icon: ArrowLeftRight, children: emprestimosChildren },
     { to: "/app/movimentacoes", label: "Movimentações", icon: History },
     { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
   ];
-  if (role === "admin") {
-    base.splice(5, 0, { to: "/app/aprovar-emprestimos", label: "Aprovar empréstimos", icon: ShieldCheck, badgeKey: "emprestimosAprovar" });
-  }
   return base;
 }
 
