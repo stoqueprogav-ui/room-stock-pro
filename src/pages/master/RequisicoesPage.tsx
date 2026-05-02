@@ -114,7 +114,7 @@ export default function RequisicoesPage() {
               <TableBody>
                 {list.map((s) => (
                   <ReqRow key={s.id} s={s} role={role} tab={tab}
-                    onDecidir={decidir}
+                    onRevisar={(id) => setRevisarId(id)}
                     onArquivarRejeitada={arquivarRejeitada}
                     onArquivarAprovada={(id) => setArquivarId(id)}
                     onImprimir={imprimir} />
@@ -131,6 +131,15 @@ export default function RequisicoesPage() {
         onOpenChange={(v) => !v && setArquivarId(null)}
         tipo="requisicao"
         onConfirm={confirmarArquivar}
+      />
+
+      <RevisarPedidoDialog
+        open={!!revisarId}
+        onOpenChange={(v) => !v && setRevisarId(null)}
+        kind="requisicao"
+        id={revisarId}
+        canDecide={role === "master" && tab === "pendente"}
+        onDecidir={async (id, ap) => { await decidir(id, ap); }}
       />
     </div>
   );
