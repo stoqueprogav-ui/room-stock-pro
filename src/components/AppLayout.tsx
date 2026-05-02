@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
-  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag,
+  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
@@ -15,7 +15,14 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; badgeKey?: "requisicoes" | "emprestimosAprovar" };
+type BadgeKey = "requisicoes" | "emprestimosAprovar";
+type NavItem = {
+  to?: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badgeKey?: BadgeKey;
+  children?: NavItem[];
+};
 
 function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
   if (role === "master") {
@@ -30,8 +37,13 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
       { to: "/app/produtos", label: "Produtos", icon: Package },
       { to: "/app/estoque", label: "Estoque", icon: Boxes },
       { to: "/app/requisicoes", label: "Requisições", icon: Inbox, badgeKey: "requisicoes" },
-      { to: "/app/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
-      { to: "/app/dividas", label: "Dívidas", icon: Wallet },
+      {
+        label: "Empréstimos", icon: ArrowLeftRight,
+        children: [
+          { to: "/app/emprestimos", label: "Todos os empréstimos", icon: ArrowLeftRight },
+          { to: "/app/dividas", label: "Dívidas", icon: Wallet },
+        ],
+      },
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
       { to: "/app/movimentacoes", label: "Movimentações", icon: History },
@@ -40,20 +52,25 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
     return items;
   }
   // admin & analista
+  const emprestimosChildren: NavItem[] = [
+    { to: "/app/novo-emprestimo", label: "Pedir empréstimo", icon: Send },
+  ];
+  if (role === "admin") {
+    emprestimosChildren.push({ to: "/app/aprovar-emprestimos", label: "Aprovar empréstimos", icon: ShieldCheck, badgeKey: "emprestimosAprovar" });
+  }
+  emprestimosChildren.push(
+    { to: "/app/emprestimos", label: "Histórico", icon: History },
+    { to: "/app/dividas", label: "Dívidas da sala", icon: Wallet },
+  );
   const base: NavItem[] = [
     { to: "/app", label: "Visão geral", icon: LayoutDashboard },
     { to: "/app/meu-estoque", label: "Meu estoque", icon: Boxes },
     { to: "/app/nova-requisicao", label: "Realizar requisição", icon: Send },
     { to: "/app/minhas-requisicoes", label: "Minhas requisições", icon: ClipboardList },
-    { to: "/app/novo-emprestimo", label: "Pedir empréstimo", icon: ArrowLeftRight },
-    { to: "/app/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
-    { to: "/app/dividas", label: "Dívidas da sala", icon: Wallet },
+    { label: "Empréstimos", icon: ArrowLeftRight, children: emprestimosChildren },
     { to: "/app/movimentacoes", label: "Movimentações", icon: History },
     { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
   ];
-  if (role === "admin") {
-    base.splice(5, 0, { to: "/app/aprovar-emprestimos", label: "Aprovar empréstimos", icon: ShieldCheck, badgeKey: "emprestimosAprovar" });
-  }
   return base;
 }
 
@@ -158,32 +175,9 @@ function AppLayoutInner() {
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {items.map(({ to, label, icon: Icon, badgeKey }) => {
-            const count = badgeKey ? pendCounts[badgeKey] : 0;
-            return (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === "/app"}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-                  )
-                }
-              >
-                <Icon className="size-4" />
-                <span className="flex-1">{label}</span>
-                {count > 0 && (
-                  <Badge className="bg-warning text-warning-foreground hover:bg-warning border-transparent h-5 min-w-5 px-1.5 text-[10px]">
-                    {count}
-                  </Badge>
-                )}
-              </NavLink>
-            );
-          })}
+          {items.map((item) => (
+            <NavItemRender key={item.to ?? item.label} item={item} pendCounts={pendCounts} currentPath={location.pathname} />
+          ))}
         </nav>
         <div className="p-3 border-t border-sidebar-border space-y-2">
           <div className="px-2">
@@ -230,6 +224,102 @@ export function PageHeader({ title, description, actions }: { title: string; des
         {description && <p className="text-muted-foreground mt-1 text-sm">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+function NavItemRender({
+  item, pendCounts, currentPath,
+}: {
+  item: NavItem;
+  pendCounts: Record<BadgeKey, number>;
+  currentPath: string;
+}) {
+  const Icon = item.icon;
+  const childPaths = (item.children ?? []).map((c) => c.to).filter(Boolean) as string[];
+  const isInGroup = childPaths.some((p) => currentPath === p || currentPath.startsWith(p + "/"));
+  const [open, setOpen] = useState(isInGroup);
+  useEffect(() => { if (isInGroup) setOpen(true); }, [isInGroup]);
+
+  if (!item.children) {
+    const count = item.badgeKey ? pendCounts[item.badgeKey] : 0;
+    return (
+      <NavLink
+        to={item.to!}
+        end={item.to === "/app"}
+        className={({ isActive }) =>
+          cn(
+            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+            isActive
+              ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+              : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+          )
+        }
+      >
+        <Icon className="size-4" />
+        <span className="flex-1">{item.label}</span>
+        {count > 0 && (
+          <Badge className="bg-warning text-warning-foreground hover:bg-warning border-transparent h-5 min-w-5 px-1.5 text-[10px]">
+            {count}
+          </Badge>
+        )}
+      </NavLink>
+    );
+  }
+
+  const groupCount = (item.children ?? []).reduce((sum, c) => sum + (c.badgeKey ? pendCounts[c.badgeKey] : 0), 0);
+
+  return (
+    <div className="space-y-0.5">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+          isInGroup
+            ? "bg-sidebar-accent/40 text-sidebar-accent-foreground font-medium"
+            : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+        )}
+      >
+        <Icon className="size-4" />
+        <span className="flex-1 text-left">{item.label}</span>
+        {groupCount > 0 && !open && (
+          <Badge className="bg-warning text-warning-foreground hover:bg-warning border-transparent h-5 min-w-5 px-1.5 text-[10px]">
+            {groupCount}
+          </Badge>
+        )}
+        <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="ml-4 pl-3 border-l border-sidebar-border space-y-0.5">
+          {item.children!.map((child) => {
+            const ChildIcon = child.icon;
+            const count = child.badgeKey ? pendCounts[child.badgeKey] : 0;
+            return (
+              <NavLink
+                key={child.to}
+                to={child.to!}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                  )
+                }
+              >
+                <ChildIcon className="size-3.5" />
+                <span className="flex-1">{child.label}</span>
+                {count > 0 && (
+                  <Badge className="bg-warning text-warning-foreground hover:bg-warning border-transparent h-5 min-w-5 px-1.5 text-[10px]">
+                    {count}
+                  </Badge>
+                )}
+              </NavLink>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

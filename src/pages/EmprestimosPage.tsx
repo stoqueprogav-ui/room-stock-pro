@@ -6,11 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ArrowRight, Archive, Printer, UserCheck } from "lucide-react";
+import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
 import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
+import RevisarPedidoDialog from "@/components/RevisarPedidoDialog";
 
 type Emp = {
   id: string;
@@ -33,6 +34,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
   const [arquivarId, setArquivarId] = useState<string | null>(null);
+  const [revisarId, setRevisarId] = useState<string | null>(null);
 
   const load = async () => {
     let q = supabase
@@ -150,12 +152,12 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                     <TableCell className="text-right whitespace-nowrap">
                       {tab === "pendente" && (
                         podeDecidir(e) ? (
-                          <>
-                            <Button size="sm" variant="outline" className="mr-2" onClick={() => decidir(e.id, false)}><X className="size-4" /> Rejeitar</Button>
-                            <Button size="sm" onClick={() => decidir(e.id, true)}><Check className="size-4" /> Aprovar</Button>
-                          </>
+                          <Button size="sm" onClick={() => setRevisarId(e.id)}><Eye className="size-4" /> Revisar e decidir</Button>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Aguardando admin da origem</span>
+                          <>
+                            <Button size="sm" variant="outline" className="mr-2" onClick={() => setRevisarId(e.id)}><Eye className="size-4" /> Visualizar</Button>
+                            <span className="text-xs text-muted-foreground">Aguardando admin da origem</span>
+                          </>
                         )
                       )}
                       {tab === "aprovado" && (
@@ -191,6 +193,18 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         onOpenChange={(v) => !v && setArquivarId(null)}
         tipo="emprestimo"
         onConfirm={confirmarArquivar}
+      />
+
+      <RevisarPedidoDialog
+        open={!!revisarId}
+        onOpenChange={(v) => !v && setRevisarId(null)}
+        kind="emprestimo"
+        id={revisarId}
+        canDecide={!!revisarId && (rows.find((r) => r.id === revisarId)?.status === "pendente") && (() => {
+          const e = rows.find((r) => r.id === revisarId);
+          return !!e && role === "admin" && profile?.sala_id === e.sala_origem_id;
+        })()}
+        onDecidir={async (id, ap) => { await decidir(id, ap); }}
       />
     </div>
   );

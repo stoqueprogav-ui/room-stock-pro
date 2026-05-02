@@ -12,6 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
 import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
+import RevisarPedidoDialog from "@/components/RevisarPedidoDialog";
+import { Eye } from "lucide-react";
 
 type Requisicao = {
   id: string;
@@ -33,6 +35,7 @@ export default function RequisicoesPage() {
   const [rows, setRows] = useState<Requisicao[]>([]);
   const [loading, setLoading] = useState(false);
   const [arquivarId, setArquivarId] = useState<string | null>(null);
+  const [revisarId, setRevisarId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -111,7 +114,7 @@ export default function RequisicoesPage() {
               <TableBody>
                 {list.map((s) => (
                   <ReqRow key={s.id} s={s} role={role} tab={tab}
-                    onDecidir={decidir}
+                    onRevisar={(id) => setRevisarId(id)}
                     onArquivarRejeitada={arquivarRejeitada}
                     onArquivarAprovada={(id) => setArquivarId(id)}
                     onImprimir={imprimir} />
@@ -129,15 +132,24 @@ export default function RequisicoesPage() {
         tipo="requisicao"
         onConfirm={confirmarArquivar}
       />
+
+      <RevisarPedidoDialog
+        open={!!revisarId}
+        onOpenChange={(v) => !v && setRevisarId(null)}
+        kind="requisicao"
+        id={revisarId}
+        canDecide={role === "master" && tab === "pendente"}
+        onDecidir={async (id, ap) => { await decidir(id, ap); }}
+      />
     </div>
   );
 }
 
 function ReqRow({
-  s, role, tab, onDecidir, onArquivarRejeitada, onArquivarAprovada, onImprimir,
+  s, role, tab, onRevisar, onArquivarRejeitada, onArquivarAprovada, onImprimir,
 }: {
   s: Requisicao; role: string | null; tab: string;
-  onDecidir: (id: string, ap: boolean) => void;
+  onRevisar: (id: string) => void;
   onArquivarRejeitada: (id: string) => void;
   onArquivarAprovada: (id: string) => void;
   onImprimir: (id: string) => void;
@@ -172,10 +184,7 @@ function ReqRow({
         {role === "master" && (
           <TableCell className="text-right whitespace-nowrap">
             {tab === "pendente" && (
-              <>
-                <Button size="sm" variant="outline" className="mr-2" onClick={() => onDecidir(s.id, false)}><X className="size-4" /> Rejeitar</Button>
-                <Button size="sm" onClick={() => onDecidir(s.id, true)}><Check className="size-4" /> Aprovar</Button>
-              </>
+              <Button size="sm" onClick={() => onRevisar(s.id)}><Eye className="size-4" /> Revisar e decidir</Button>
             )}
             {tab === "aprovado" && (
               <>
