@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Printer, Loader2, ArrowRight } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Emp = {
   id: string;
@@ -17,13 +19,15 @@ type Emp = {
   destino: { nome: string };
   solicitante: { nome: string; email: string } | null;
   aprovador: { nome: string; email: string } | null;
-  itens: { quantidade: number; produto: { nome: string; unidade: string } }[];
+  itens: { quantidade: number; produto: { nome: string; unidade: string; categoria: { nome: string } | null } }[];
 };
 
 export default function EmprestimoImprimir() {
   const { id } = useParams();
+  const { profile, role } = useAuth();
   const [emp, setEmp] = useState<Emp | null>(null);
   const [loading, setLoading] = useState(true);
+  const [entreguePor, setEntreguePor] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -35,7 +39,7 @@ export default function EmprestimoImprimir() {
                  destino:salas!emprestimos_sala_destino_id_fkey(nome),
                  solicitante:profiles!emprestimos_solicitante_id_fkey(nome, email),
                  aprovador:profiles!emprestimos_decidido_por_fkey(nome, email),
-                 itens:emprestimo_itens(quantidade, produto:produtos(nome, unidade))`)
+                 itens:emprestimo_itens(quantidade, produto:produtos(nome, unidade, categoria:categorias(nome)))`)
         .eq("id", id)
         .maybeSingle();
       setEmp(data as any);
@@ -43,120 +47,155 @@ export default function EmprestimoImprimir() {
     })();
   }, [id]);
 
+  useEffect(() => {
+    if (!entreguePor && profile?.nome) {
+      // Master ou admin (origem) — usar nome real do logado
+      setEntreguePor(profile.nome);
+    }
+  }, [profile?.nome, role, entreguePor]);
+
   if (loading) {
-    return <div className="min-h-screen grid place-items-center"><Loader2 className="size-6 animate-spin text-primary" /></div>;
+    return <div className="min-h-screen grid place-items-center"><Loader2 className="size-6 animate-spin text-black" /></div>;
   }
   if (!emp) {
-    return <div className="min-h-screen grid place-items-center text-muted-foreground">Empréstimo não encontrado.</div>;
+    return <div className="min-h-screen grid place-items-center text-black">Empréstimo não encontrado.</div>;
   }
   if (emp.status !== "aprovado" && emp.status !== "arquivado") {
     return (
-      <div className="min-h-screen grid place-items-center p-8 text-center">
+      <div className="min-h-screen grid place-items-center p-8 text-center text-black">
         <div>
-          <p className="text-muted-foreground">O documento só pode ser gerado após a aprovação do empréstimo.</p>
-          <p className="text-xs mt-2 text-muted-foreground">Status atual: {emp.status}</p>
+          <p>O documento só pode ser gerado após a aprovação do empréstimo.</p>
+          <p className="text-xs mt-2 opacity-70">Status atual: {emp.status}</p>
         </div>
       </div>
     );
   }
 
+  const groupedItens = (() => {
+    const m = new Map<string, typeof emp.itens>();
+    for (const it of emp.itens) {
+      const k = it.produto.categoria?.nome ?? "Sem categoria";
+      if (!m.has(k)) m.set(k, [] as any);
+      m.get(k)!.push(it);
+    }
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  })();
+
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-white text-black print-doc">
       <div className="max-w-3xl mx-auto p-8 print:p-0">
-        <div className="flex items-center justify-between mb-6 print:hidden">
-          <div className="text-sm text-muted-foreground">Pré-visualização de impressão</div>
-          <Button onClick={() => window.print()}><Printer className="size-4" /> Imprimir / Salvar PDF</Button>
+        <div className="flex items-center justify-between mb-6 print:hidden gap-3">
+          <div className="text-sm text-black/70">Pré-visualização de impressão</div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-black/70">Entregue por:</label>
+            <Input
+              value={entreguePor}
+              onChange={(e) => setEntreguePor(e.target.value)}
+              className="h-9 w-56 bg-white border-black text-black"
+            />
+            <Button onClick={() => window.print()} className="bg-black text-white hover:bg-black/90">
+              <Printer className="size-4" /> Imprimir
+            </Button>
+          </div>
         </div>
 
-        <div className="border-b-2 border-black pb-4 mb-6">
-          <div className="text-xs uppercase tracking-widest">Estoque Pro</div>
-          <h1 className="text-3xl font-bold mt-1">Empréstimo entre salas</h1>
-          <div className="text-sm mt-2">Nº <span className="font-mono">{emp.id.slice(0, 8).toUpperCase()}</span></div>
+        <div className="border-b border-black pb-3 mb-5">
+          <div className="text-[10px] uppercase tracking-widest">Estoque Pro</div>
+          <h1 className="text-2xl font-bold mt-1">Empréstimo entre salas</h1>
+          <div className="text-xs mt-1">Nº <span className="font-mono">{emp.id.slice(0, 8).toUpperCase()}</span></div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+        <div className="grid grid-cols-2 gap-3 mb-5 text-sm">
           <div className="col-span-2">
-            <div className="text-xs uppercase tracking-wide opacity-70">Trajeto</div>
-            <div className="font-semibold text-base flex items-center gap-2">
-              {emp.origem.nome} <ArrowRight className="size-4" /> {emp.destino.nome}
+            <div className="text-[11px] uppercase tracking-wide opacity-70">Trajeto</div>
+            <div className="font-semibold flex items-center gap-2">
+              {emp.origem.nome} <ArrowRight className="size-3.5" /> {emp.destino.nome}
             </div>
-            <div className="text-xs opacity-70 mt-1">Sala que emprestou → Sala que recebeu</div>
           </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide opacity-70">Solicitante (sala destino)</div>
-            <div className="font-semibold">{emp.solicitante?.nome ?? "—"}</div>
-            <div className="text-xs opacity-70">{emp.solicitante?.email}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide opacity-70">Aprovado por (sala origem)</div>
-            <div className="font-semibold">{emp.aprovador?.nome ?? "—"}</div>
-            <div className="text-xs opacity-70">{emp.aprovador?.email}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide opacity-70">Solicitado em</div>
-            <div>{formatDateTime(emp.created_at)}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide opacity-70">Aprovado em</div>
-            <div>{emp.decidido_em ? formatDateTime(emp.decidido_em) : "—"}</div>
-          </div>
+          <Field label="Solicitante (sala destino)">
+            {emp.solicitante?.nome ?? "—"}
+            <div className="text-[11px] opacity-60">{emp.solicitante?.email}</div>
+          </Field>
+          <Field label="Aprovado por (sala origem)">
+            {emp.aprovador?.nome ?? "—"}
+            <div className="text-[11px] opacity-60">{emp.aprovador?.email}</div>
+          </Field>
+          <Field label="Solicitado em">{formatDateTime(emp.created_at)}</Field>
+          <Field label="Aprovado em">{emp.decidido_em ? formatDateTime(emp.decidido_em) : "—"}</Field>
           {emp.retirado_por && (
-            <div className="col-span-2 mt-2 p-3 border-2 border-black rounded">
-              <div className="text-xs uppercase tracking-wide opacity-70">Retirada confirmada</div>
-              <div className="font-semibold">Retirado por: {emp.retirado_por}</div>
-              {emp.retirado_em && <div className="text-xs">Em: {formatDateTime(emp.retirado_em)}</div>}
+            <div className="col-span-2 mt-1 border border-black/40 rounded p-2 text-xs">
+              <span className="font-semibold">Retirada:</span> {emp.retirado_por}
+              {emp.retirado_em && <> · {formatDateTime(emp.retirado_em)}</>}
             </div>
           )}
         </div>
 
-        <table className="w-full border-collapse mb-6">
-          <thead>
-            <tr className="border-b-2 border-black">
-              <th className="text-left py-2 text-sm uppercase tracking-wide">Produto</th>
-              <th className="text-right py-2 text-sm uppercase tracking-wide w-32">Quantidade</th>
-              <th className="text-left py-2 text-sm uppercase tracking-wide w-24 pl-4">Unidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            {emp.itens.map((it, i) => (
-              <tr key={i} className="border-b border-gray-300">
-                <td className="py-3">{it.produto.nome}</td>
-                <td className="py-3 text-right font-mono">{it.quantidade}</td>
-                <td className="py-3 pl-4">{it.produto.unidade}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {groupedItens.map(([cat, itens]) => (
+          <div key={cat} className="mb-4">
+            <div className="text-[11px] uppercase tracking-widest font-bold border-b border-black pb-0.5 mb-1">
+              {cat} <span className="font-normal opacity-70">({itens.length})</span>
+            </div>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-black/40">
+                  <th className="text-left py-1 text-[11px] uppercase tracking-wide font-medium">Produto</th>
+                  <th className="text-right py-1 text-[11px] uppercase tracking-wide font-medium w-28">Qtd</th>
+                  <th className="text-left py-1 text-[11px] uppercase tracking-wide font-medium w-20 pl-3">Un.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itens.map((it, i) => (
+                  <tr key={i} className="border-b border-black/20">
+                    <td className="py-1.5">{it.produto.nome}</td>
+                    <td className="py-1.5 text-right font-mono">{it.quantidade}</td>
+                    <td className="py-1.5 pl-3">{it.produto.unidade}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
 
         {emp.observacao && (
-          <div className="mb-6 text-sm">
-            <div className="text-xs uppercase tracking-wide opacity-70">Observação</div>
-            <div className="mt-1 italic">"{emp.observacao}"</div>
+          <div className="mb-5 text-xs">
+            <div className="text-[11px] uppercase tracking-wide opacity-70">Observação</div>
+            <div className="mt-0.5">{emp.observacao}</div>
           </div>
         )}
 
-        <div className="mb-8 text-sm">
-          <span className="inline-block px-3 py-1 border-2 border-black font-semibold uppercase tracking-wide text-xs">
-            Status: {emp.status}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-12 mt-16 text-center text-sm">
+        <div className="grid grid-cols-2 gap-12 mt-12 text-xs">
           <div>
-            <div className="border-t border-black pt-2">Entregue por (sala origem)</div>
+            <div className="border-t border-black pt-1 text-center">
+              {entreguePor ? <span className="font-medium">{entreguePor}</span> : <span>&nbsp;</span>}
+              <div className="text-[10px] uppercase tracking-widest mt-0.5">Entregue por (sala origem)</div>
+            </div>
           </div>
           <div>
-            <div className="border-t border-black pt-2">Recebido por (sala destino)</div>
+            <div className="border-t border-black pt-1 text-center">
+              <div>&nbsp;</div>
+              <div className="text-[10px] uppercase tracking-widest mt-0.5">Recebido por (sala destino)</div>
+            </div>
           </div>
         </div>
       </div>
 
       <style>{`
         @media print {
-          @page { margin: 1.5cm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { margin: 1.2cm; }
+          body { background: #fff !important; -webkit-print-color-adjust: economy; print-color-adjust: economy; }
+          .print-doc { background: #fff !important; color: #000 !important; }
+          .print-doc * { color: #000 !important; background: transparent !important; box-shadow: none !important; }
         }
       `}</style>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-wide opacity-70">{label}</div>
+      <div className="font-medium">{children}</div>
     </div>
   );
 }
