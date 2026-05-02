@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
-  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag,
+  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
@@ -15,7 +15,14 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; badgeKey?: "requisicoes" | "emprestimosAprovar" };
+type BadgeKey = "requisicoes" | "emprestimosAprovar";
+type NavItem = {
+  to?: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badgeKey?: BadgeKey;
+  children?: NavItem[];
+};
 
 function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
   if (role === "master") {
