@@ -146,10 +146,10 @@ export default function RequisicoesPage() {
 }
 
 function ReqRow({
-  s, role, tab, onDecidir, onArquivarRejeitada, onArquivarAprovada, onImprimir,
+  s, role, tab, onRevisar, onArquivarRejeitada, onArquivarAprovada, onImprimir,
 }: {
   s: Requisicao; role: string | null; tab: string;
-  onDecidir: (id: string, ap: boolean) => void;
+  onRevisar: (id: string) => void;
   onArquivarRejeitada: (id: string) => void;
   onArquivarAprovada: (id: string) => void;
   onImprimir: (id: string) => void;
@@ -184,10 +184,7 @@ function ReqRow({
         {role === "master" && (
           <TableCell className="text-right whitespace-nowrap">
             {tab === "pendente" && (
-              <>
-                <Button size="sm" variant="outline" className="mr-2" onClick={() => onDecidir(s.id, false)}><X className="size-4" /> Rejeitar</Button>
-                <Button size="sm" onClick={() => onDecidir(s.id, true)}><Check className="size-4" /> Aprovar</Button>
-              </>
+              <Button size="sm" onClick={() => onRevisar(s.id)}><Eye className="size-4" /> Revisar e decidir</Button>
             )}
             {tab === "aprovado" && (
               <>
