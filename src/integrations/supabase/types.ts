@@ -578,6 +578,15 @@ export type Database = {
         Args: { _aprovar: boolean; _solic: string }
         Returns: undefined
       }
+      disponibilidade_produtos: {
+        Args: { _produto_ids: string[] }
+        Returns: {
+          nivel: string
+          produto_id: string
+          sala_id: string
+          sala_nome: string
+        }[]
+      }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
       get_user_sala: { Args: { _user_id: string }; Returns: string }
       has_role: {
