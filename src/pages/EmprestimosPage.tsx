@@ -167,6 +167,11 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                           <Button size="sm" variant="outline" className="mr-2" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
                             <Printer className="size-4" /> Imprimir
                           </Button>
+                          {(role === "master" || profile?.sala_id === e.sala_destino_id) && (
+                            <Button size="sm" variant="secondary" className="mr-2" onClick={() => setDevolverId(e.id)}>
+                              <Undo2 className="size-4" /> Devolver
+                            </Button>
+                          )}
                           {role === "master" && (
                             <Button size="sm" variant="ghost" onClick={() => setArquivarId(e.id)}><Archive className="size-4" /> Arquivar</Button>
                           )}
