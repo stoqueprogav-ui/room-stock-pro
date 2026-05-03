@@ -213,6 +213,13 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         })()}
         onDecidir={async (id, ap) => { await decidir(id, ap); }}
       />
+
+      <DevolverEmprestimoDialog
+        open={!!devolverId}
+        onOpenChange={(v) => !v && setDevolverId(null)}
+        emprestimoId={devolverId}
+        onDone={load}
+      />
     </div>
   );
 }
