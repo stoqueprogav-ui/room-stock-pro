@@ -6,12 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye } from "lucide-react";
+import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
 import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
 import RevisarPedidoDialog from "@/components/RevisarPedidoDialog";
+import DevolverEmprestimoDialog from "@/components/DevolverEmprestimoDialog";
 
 type Emp = {
   id: string;
@@ -35,6 +36,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const [rows, setRows] = useState<Emp[]>([]);
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
+  const [devolverId, setDevolverId] = useState<string | null>(null);
 
   const load = async () => {
     let q = supabase
@@ -165,6 +167,11 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                           <Button size="sm" variant="outline" className="mr-2" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
                             <Printer className="size-4" /> Imprimir
                           </Button>
+                          {(role === "master" || profile?.sala_id === e.sala_destino_id) && (
+                            <Button size="sm" variant="secondary" className="mr-2" onClick={() => setDevolverId(e.id)}>
+                              <Undo2 className="size-4" /> Devolver
+                            </Button>
+                          )}
                           {role === "master" && (
                             <Button size="sm" variant="ghost" onClick={() => setArquivarId(e.id)}><Archive className="size-4" /> Arquivar</Button>
                           )}
@@ -205,6 +212,13 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
           return !!e && role === "admin" && profile?.sala_id === e.sala_origem_id;
         })()}
         onDecidir={async (id, ap) => { await decidir(id, ap); }}
+      />
+
+      <DevolverEmprestimoDialog
+        open={!!devolverId}
+        onOpenChange={(v) => !v && setDevolverId(null)}
+        emprestimoId={devolverId}
+        onDone={load}
       />
     </div>
   );
