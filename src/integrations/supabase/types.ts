@@ -35,6 +35,77 @@ export type Database = {
         }
         Relationships: []
       }
+      devolucao_itens: {
+        Row: {
+          devolucao_id: string
+          emprestimo_item_id: string
+          id: string
+          produto_id: string
+          quantidade: number
+        }
+        Insert: {
+          devolucao_id: string
+          emprestimo_item_id: string
+          id?: string
+          produto_id: string
+          quantidade: number
+        }
+        Update: {
+          devolucao_id?: string
+          emprestimo_item_id?: string
+          id?: string
+          produto_id?: string
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devolucao_itens_devolucao_id_fkey"
+            columns: ["devolucao_id"]
+            isOneToOne: false
+            referencedRelation: "devolucoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devolucao_itens_emprestimo_item_id_fkey"
+            columns: ["emprestimo_item_id"]
+            isOneToOne: false
+            referencedRelation: "emprestimo_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devolucoes: {
+        Row: {
+          created_at: string
+          emprestimo_id: string
+          id: string
+          observacao: string | null
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          emprestimo_id: string
+          id?: string
+          observacao?: string | null
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          emprestimo_id?: string
+          id?: string
+          observacao?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devolucoes_emprestimo_id_fkey"
+            columns: ["emprestimo_id"]
+            isOneToOne: false
+            referencedRelation: "emprestimos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dividas: {
         Row: {
           id: string
@@ -90,18 +161,21 @@ export type Database = {
           id: string
           produto_id: string
           quantidade: number
+          quantidade_devolvida: number
         }
         Insert: {
           emprestimo_id: string
           id?: string
           produto_id: string
           quantidade: number
+          quantidade_devolvida?: number
         }
         Update: {
           emprestimo_id?: string
           id?: string
           produto_id?: string
           quantidade?: number
+          quantidade_devolvida?: number
         }
         Relationships: [
           {
@@ -602,6 +676,10 @@ export type Database = {
         Returns: undefined
       }
       reativar_produto: { Args: { _produto: string }; Returns: undefined }
+      registrar_devolucao: {
+        Args: { _emp: string; _itens: Json; _observacao?: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "master" | "admin" | "analista"
