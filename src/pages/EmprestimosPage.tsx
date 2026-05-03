@@ -36,6 +36,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const [rows, setRows] = useState<Emp[]>([]);
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
+  const [devolverId, setDevolverId] = useState<string | null>(null);
 
   const load = async () => {
     let q = supabase
