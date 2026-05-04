@@ -91,7 +91,7 @@ function AppLayoutInner() {
   const { scopeReady, scopeSalaId } = useMasterScope();
   const navigate = useNavigate();
   const location = useLocation();
-  const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0 });
+  const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0, chat: 0 });
 
   const items = useMemo(() => navForRole(role, scopeSalaId === null), [role, scopeSalaId]);
 
@@ -111,6 +111,12 @@ function AppLayoutInner() {
         .eq("sala_origem_id", profile.sala_id);
       setPendCounts((p) => ({ ...p, emprestimosAprovar: count ?? 0 }));
     }
+    // contagem global de mensagens não lidas em conversas
+    try {
+      const { data } = await supabase.rpc("list_my_conversations");
+      const total = (data ?? []).reduce((s: number, c: any) => s + (c.unread_count ?? 0), 0);
+      setPendCounts((p) => ({ ...p, chat: total }));
+    } catch { /* noop */ }
   }, [role, scopeSalaId, profile?.sala_id]);
 
   useEffect(() => {
@@ -118,7 +124,7 @@ function AppLayoutInner() {
   }, [loadCounts, location.pathname]);
 
   // Atualização em tempo real dos badges do menu
-  useRealtimeSync(["solicitacoes", "emprestimos"], loadCounts, { debounceMs: 250 });
+  useRealtimeSync(["solicitacoes", "emprestimos", "messages"], loadCounts, { debounceMs: 250 });
 
   if (loading) {
     return (
