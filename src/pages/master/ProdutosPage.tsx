@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw, FileSpreadsheet } from "lucide-react";
 import type { Produto, Sala, Categoria } from "@/lib/types";
+import ImportarProdutosDialog from "@/components/ImportarProdutosDialog";
 
 type SalaQty = { sala_id: string; selected: boolean; quantidade: number };
 type Escopo = "global" | "sala";
@@ -37,6 +38,7 @@ export default function ProdutosPage() {
   // Confirmação de exclusão
   const [confirmDel, setConfirmDel] = useState<Produto | null>(null);
   const [delLoading, setDelLoading] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = async () => {
     const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
@@ -179,7 +181,12 @@ export default function ProdutosPage() {
       <PageHeader
         title="Produtos"
         description="Catálogo. Produtos podem ser globais (todas as salas) ou exclusivos de uma sala."
-        actions={<Button onClick={openNew}><Plus className="size-4" /> Novo produto</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="size-4" /> Importar</Button>
+            <Button onClick={openNew}><Plus className="size-4" /> Novo produto</Button>
+          </div>
+        }
       />
 
       <div className="flex flex-wrap gap-2 items-center">
@@ -379,6 +386,15 @@ export default function ProdutosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportarProdutosDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        salas={salas}
+        categorias={categorias}
+        produtos={produtos}
+        onDone={load}
+      />
     </div>
   );
 }
