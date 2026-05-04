@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       categorias: {
         Row: {
           created_at: string
@@ -34,6 +52,105 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      conversation_participants: {
+        Row: {
+          added_at: string
+          conversation_id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          conversation_id: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          conversation_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_reads: {
+        Row: {
+          conversation_id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_reads_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          owner_user_id: string | null
+          related_emprestimo_id: string | null
+          related_requisicao_id: string | null
+          sala_id: string | null
+          title: string | null
+          type: Database["public"]["Enums"]["conversation_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          owner_user_id?: string | null
+          related_emprestimo_id?: string | null
+          related_requisicao_id?: string | null
+          sala_id?: string | null
+          title?: string | null
+          type: Database["public"]["Enums"]["conversation_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          owner_user_id?: string | null
+          related_emprestimo_id?: string | null
+          related_requisicao_id?: string | null
+          sala_id?: string | null
+          title?: string | null
+          type?: Database["public"]["Enums"]["conversation_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       devolucao_itens: {
         Row: {
@@ -300,6 +417,47 @@ export type Database = {
             columns: ["sala_id"]
             isOneToOne: false
             referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          attachment_name: string | null
+          attachment_path: string | null
+          attachment_type: string | null
+          body: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          attachment_name?: string | null
+          attachment_path?: string | null
+          attachment_type?: string | null
+          body?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          attachment_name?: string | null
+          attachment_path?: string | null
+          attachment_type?: string | null
+          body?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -636,6 +794,10 @@ export type Database = {
             }
             Returns: undefined
           }
+      can_access_conversation: {
+        Args: { _conv: string; _user: string }
+        Returns: boolean
+      }
       criar_emprestimo: {
         Args: { _itens: Json; _observacao: string; _sala_origem: string }
         Returns: string
@@ -662,6 +824,18 @@ export type Database = {
         }[]
       }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
+      get_or_create_direct_conversation: {
+        Args: { _other: string }
+        Returns: string
+      }
+      get_or_create_master_conversation: {
+        Args: { _owner?: string }
+        Returns: string
+      }
+      get_or_create_sala_conversation: {
+        Args: { _sala: string }
+        Returns: string
+      }
       get_user_sala: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -670,7 +844,25 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_my_conversations: {
+        Args: never
+        Returns: {
+          id: string
+          last_message_at: string
+          last_message_body: string
+          last_sender_id: string
+          owner_user_id: string
+          related_emprestimo_id: string
+          related_requisicao_id: string
+          sala_id: string
+          title: string
+          type: Database["public"]["Enums"]["conversation_type"]
+          unread_count: number
+          updated_at: string
+        }[]
+      }
       marcar_senha_trocada: { Args: never; Returns: undefined }
+      mark_conversation_read: { Args: { _conv: string }; Returns: undefined }
       quitar_divida: {
         Args: { _divida: string; _quantidade: number }
         Returns: undefined
@@ -680,9 +872,20 @@ export type Database = {
         Args: { _emp: string; _itens: Json; _observacao?: string }
         Returns: string
       }
+      send_message: {
+        Args: {
+          _attachment_name?: string
+          _attachment_path?: string
+          _attachment_type?: string
+          _body: string
+          _conv: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "master" | "admin" | "analista"
+      conversation_type: "direct" | "sala" | "master"
       emprestimo_status: "pendente" | "aprovado" | "rejeitado" | "arquivado"
       movimentacao_tipo:
         | "entrada"
@@ -821,6 +1024,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["master", "admin", "analista"],
+      conversation_type: ["direct", "sala", "master"],
       emprestimo_status: ["pendente", "aprovado", "rejeitado", "arquivado"],
       movimentacao_tipo: [
         "entrada",
