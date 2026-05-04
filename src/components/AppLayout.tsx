@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-type BadgeKey = "requisicoes" | "emprestimosAprovar";
+type BadgeKey = "requisicoes" | "emprestimosAprovar" | "chat";
 type NavItem = {
   to?: string;
   label: string;
