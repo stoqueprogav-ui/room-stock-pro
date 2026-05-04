@@ -181,7 +181,12 @@ export default function ProdutosPage() {
       <PageHeader
         title="Produtos"
         description="Catálogo. Produtos podem ser globais (todas as salas) ou exclusivos de uma sala."
-        actions={<Button onClick={openNew}><Plus className="size-4" /> Novo produto</Button>}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="size-4" /> Importar</Button>
+            <Button onClick={openNew}><Plus className="size-4" /> Novo produto</Button>
+          </div>
+        }
       />
 
       <div className="flex flex-wrap gap-2 items-center">
