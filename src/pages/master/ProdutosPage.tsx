@@ -38,6 +38,7 @@ export default function ProdutosPage() {
   // Confirmação de exclusão
   const [confirmDel, setConfirmDel] = useState<Produto | null>(null);
   const [delLoading, setDelLoading] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = async () => {
     const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
