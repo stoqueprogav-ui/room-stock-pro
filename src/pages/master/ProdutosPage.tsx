@@ -386,6 +386,15 @@ export default function ProdutosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportarProdutosDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        salas={salas}
+        categorias={categorias}
+        produtos={produtos}
+        onDone={load}
+      />
     </div>
   );
 }
