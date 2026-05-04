@@ -25,6 +25,7 @@ import EscolherSala from "./pages/master/EscolherSala";
 import RequisicaoImprimir from "./pages/RequisicaoImprimir";
 import EmprestimoImprimir from "./pages/EmprestimoImprimir";
 import MeuPerfil from "./pages/MeuPerfil";
+import ChatPage from "./pages/ChatPage";
 import TrocarSenhaObrigatoria from "./pages/TrocarSenhaObrigatoria";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="minhas-solicitacoes" element={<Navigate to="/app/minhas-requisicoes" replace />} />
               <Route path="novo-emprestimo" element={<NovoEmprestimo />} />
               <Route path="meu-perfil" element={<MeuPerfil />} />
+              <Route path="chat" element={<ChatPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

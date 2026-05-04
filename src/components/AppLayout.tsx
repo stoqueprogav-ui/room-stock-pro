@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
-  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown,
+  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-type BadgeKey = "requisicoes" | "emprestimosAprovar";
+type BadgeKey = "requisicoes" | "emprestimosAprovar" | "chat";
 type NavItem = {
   to?: string;
   label: string;
@@ -47,6 +47,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
       { to: "/app/movimentacoes", label: "Movimentações", icon: History },
+      { to: "/app/chat", label: "Chat", icon: MessageCircle, badgeKey: "chat" },
       { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
     );
     return items;
@@ -69,6 +70,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
     { to: "/app/minhas-requisicoes", label: "Minhas requisições", icon: ClipboardList },
     { label: "Empréstimos", icon: ArrowLeftRight, children: emprestimosChildren },
     { to: "/app/movimentacoes", label: "Movimentações", icon: History },
+    { to: "/app/chat", label: "Chat", icon: MessageCircle, badgeKey: "chat" },
     { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
   ];
   return base;
@@ -91,7 +93,7 @@ function AppLayoutInner() {
   const { scopeReady, scopeSalaId } = useMasterScope();
   const navigate = useNavigate();
   const location = useLocation();
-  const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0 });
+  const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0, chat: 0 });
 
   const items = useMemo(() => navForRole(role, scopeSalaId === null), [role, scopeSalaId]);
 
@@ -111,6 +113,12 @@ function AppLayoutInner() {
         .eq("sala_origem_id", profile.sala_id);
       setPendCounts((p) => ({ ...p, emprestimosAprovar: count ?? 0 }));
     }
+    // contagem global de mensagens não lidas em conversas
+    try {
+      const { data } = await supabase.rpc("list_my_conversations");
+      const total = (data ?? []).reduce((s: number, c: any) => s + (c.unread_count ?? 0), 0);
+      setPendCounts((p) => ({ ...p, chat: total }));
+    } catch { /* noop */ }
   }, [role, scopeSalaId, profile?.sala_id]);
 
   useEffect(() => {
@@ -118,7 +126,7 @@ function AppLayoutInner() {
   }, [loadCounts, location.pathname]);
 
   // Atualização em tempo real dos badges do menu
-  useRealtimeSync(["solicitacoes", "emprestimos"], loadCounts, { debounceMs: 250 });
+  useRealtimeSync(["solicitacoes", "emprestimos", "messages"], loadCounts, { debounceMs: 250 });
 
   if (loading) {
     return (
