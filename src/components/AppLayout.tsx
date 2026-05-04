@@ -47,6 +47,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
       { to: "/app/movimentacoes", label: "Movimentações", icon: History },
+      { to: "/app/chat", label: "Chat", icon: MessageCircle, badgeKey: "chat" },
       { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
     );
     return items;
@@ -69,6 +70,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
     { to: "/app/minhas-requisicoes", label: "Minhas requisições", icon: ClipboardList },
     { label: "Empréstimos", icon: ArrowLeftRight, children: emprestimosChildren },
     { to: "/app/movimentacoes", label: "Movimentações", icon: History },
+    { to: "/app/chat", label: "Chat", icon: MessageCircle, badgeKey: "chat" },
     { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
   ];
   return base;
