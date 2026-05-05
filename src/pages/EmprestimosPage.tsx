@@ -32,6 +32,7 @@ type Emp = {
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
   const { role, profile } = useAuth();
+  const navigate = useNavigate();
   const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
