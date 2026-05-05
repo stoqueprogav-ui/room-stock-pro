@@ -84,6 +84,12 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     load();
   };
 
+  const abrirChat = async (id: string) => {
+    const { data, error } = await supabase.rpc("get_or_create_pedido_conversation", { _kind: "emprestimo", _id: id });
+    if (error) return toast.error(error.message);
+    navigate(`/app/chat?c=${data}`);
+  };
+
   // Apenas admin da sala ORIGEM aprova
   const podeDecidir = (e: Emp) =>
     role === "admin" && profile?.sala_id === e.sala_origem_id;
