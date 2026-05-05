@@ -92,13 +92,42 @@ export default function ChatPage() {
   useEffect(() => { loadConvs(); }, [loadConvs]);
   useEffect(() => { if (activeId) loadMessages(activeId); else setMessages([]); }, [activeId, loadMessages]);
 
-  // Realtime
-  useRealtimeSync(["messages", "conversations"], () => {
-    loadConvs();
-    if (activeId) loadMessages(activeId);
-  }, { debounceMs: 200 });
+  // Realtime + notificação de novas mensagens
+  const lastNotifiedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("chat-incoming")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload: any) => {
+        const m = payload.new as Msg;
+        loadConvs();
+        if (m.conversation_id === activeId) {
+          loadMessages(activeId);
+          return;
+        }
+        if (m.sender_id === user.id) return;
+        if (lastNotifiedRef.current === m.id) return;
+        lastNotifiedRef.current = m.id;
+        // Buscar nome do remetente
+        let nome = profilesMap[m.sender_id]?.nome;
+        if (!nome) {
+          const { data } = await supabase.from("profiles").select("nome").eq("id", m.sender_id).maybeSingle();
+          nome = data?.nome ?? "Nova mensagem";
+        }
+        toast.message(`💬 ${nome}`, {
+          description: m.body ?? (m.attachment_name ? `📎 ${m.attachment_name}` : "Nova mensagem"),
+          action: { label: "Abrir", onClick: () => setActive(m.conversation_id) },
+        });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => loadConvs())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, activeId, loadConvs, loadMessages]);
 
-  const active = convs.find(c => c.id === activeId);
+  // Conversa ativa: tenta achar na lista; se não achou (recém-criada), cria placeholder
+  const [activeFallback, setActiveFallback] = useState<ConvRow | null>(null);
+  const active = convs.find(c => c.id === activeId) ?? (activeFallback?.id === activeId ? activeFallback : null);
 
   const convLabel = (c: ConvRow): { name: string; icon: JSX.Element; sub?: string } => {
     if (c.type === "sala") return { name: c.title || "Sala", icon: <Building2 className="size-4" /> };
@@ -184,14 +213,39 @@ export default function ChatPage() {
 
   const setActive = (id: string) => { setActiveId(id); setParams({ c: id }, { replace: true }); };
 
+  const handleCreated = (id: string, fb?: { type?: ConvRow["type"]; title?: string | null; sala_id?: string | null; owner_user_id?: string | null; otherUserId?: string; otherUserName?: string }) => {
+    if (fb) {
+      setActiveFallback({
+        id,
+        type: fb.type ?? "direct",
+        sala_id: fb.sala_id ?? null,
+        owner_user_id: fb.owner_user_id ?? null,
+        title: fb.title ?? null,
+        related_requisicao_id: null,
+        related_emprestimo_id: null,
+        updated_at: new Date().toISOString(),
+        last_message_body: null,
+        last_message_at: null,
+        last_sender_id: null,
+        unread_count: 0,
+      });
+      if (fb.otherUserId) {
+        setDirectOthers(p => ({ ...p, [id]: fb.otherUserId! }));
+        if (fb.otherUserName) setProfilesMap(p => ({ ...p, [fb.otherUserId!]: { nome: fb.otherUserName!, email: "" } }));
+      }
+    }
+    setActive(id);
+    loadConvs();
+  };
+
   return (
     <div>
       <PageHeader
         title="Chat"
-        description="Conversas com usuários, salas e Master."
+        description="Converse livremente com qualquer usuário, sala ou com o Master."
         actions={
           <div className="flex gap-2">
-            <NewConversationDialog onCreated={(id) => { loadConvs(); setActive(id); }} />
+            <NewConversationDialog onCreated={handleCreated} />
             {role === "master" && <MasterSettingsDialog />}
           </div>
         }
@@ -318,37 +372,51 @@ export default function ChatPage() {
   );
 }
 
-function NewConversationDialog({ onCreated }: { onCreated: (id: string) => void }) {
+type CreatedFallback = { type?: ConvRow["type"]; title?: string | null; sala_id?: string | null; owner_user_id?: string | null; otherUserId?: string; otherUserName?: string };
+
+function NewConversationDialog({ onCreated }: { onCreated: (id: string, fb?: CreatedFallback) => void }) {
   const { user, role, profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<{ id: string; nome: string; email: string; sala_id: string | null }[]>([]);
   const [salas, setSalas] = useState<{ id: string; nome: string }[]>([]);
+  const [roles, setRoles] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    supabase.from("profiles").select("id, nome, email, sala_id").then(({ data }) => setUsers(data ?? []));
+    supabase.from("profiles").select("id, nome, email, sala_id").order("nome").then(({ data }) => setUsers(data ?? []));
     supabase.from("salas").select("id, nome").order("nome").then(({ data }) => setSalas(data ?? []));
+    supabase.from("user_roles").select("user_id, role").then(({ data }) => {
+      if (!data) return;
+      setRoles(Object.fromEntries(data.map((r: any) => [r.user_id, r.role])));
+    });
   }, [open]);
 
-  const startDirect = async (otherId: string) => {
-    const { data, error } = await supabase.rpc("get_or_create_direct_conversation", { _other: otherId });
+  const salaName = (sid: string | null) => sid ? salas.find(s => s.id === sid)?.nome ?? "—" : "Sem sala";
+  const roleLabel = (r?: string) => r === "master" ? "Master" : r === "admin" ? "Administrador" : r === "analista" ? "Analista" : "Usuário";
+
+  const startDirect = async (other: { id: string; nome: string }) => {
+    const { data, error } = await supabase.rpc("get_or_create_direct_conversation", { _other: other.id });
     if (error) { toast.error(error.message); return; }
-    onCreated(data as string); setOpen(false);
+    onCreated(data as string, { type: "direct", title: other.nome, otherUserId: other.id, otherUserName: other.nome });
+    setOpen(false);
   };
-  const startSala = async (sid: string) => {
-    const { data, error } = await supabase.rpc("get_or_create_sala_conversation", { _sala: sid });
+  const startSala = async (s: { id: string; nome: string }) => {
+    const { data, error } = await supabase.rpc("get_or_create_sala_conversation", { _sala: s.id });
     if (error) { toast.error(error.message); return; }
-    onCreated(data as string); setOpen(false);
+    onCreated(data as string, { type: "sala", title: s.nome, sala_id: s.id });
+    setOpen(false);
   };
   const startMaster = async () => {
     const { data, error } = await supabase.rpc("get_or_create_master_conversation", {});
     if (error) { toast.error(error.message); return; }
-    onCreated(data as string); setOpen(false);
+    onCreated(data as string, { type: "master", title: "Master", owner_user_id: user?.id ?? null });
+    setOpen(false);
   };
 
-  const filteredUsers = users.filter(u => u.id !== user?.id && (u.nome.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())));
-  const filteredSalas = salas.filter(s => s.nome.toLowerCase().includes(search.toLowerCase()));
+  const q = search.toLowerCase();
+  const filteredUsers = users.filter(u => u.id !== user?.id && (u.nome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || salaName(u.sala_id).toLowerCase().includes(q)));
+  const filteredSalas = salas.filter(s => s.nome.toLowerCase().includes(q));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -357,7 +425,7 @@ function NewConversationDialog({ onCreated }: { onCreated: (id: string) => void 
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>Iniciar conversa</DialogTitle></DialogHeader>
-        <Input placeholder="Buscar usuário ou sala..." value={search} onChange={e => setSearch(e.target.value)} />
+        <Input placeholder="Buscar usuário, email ou sala..." value={search} onChange={e => setSearch(e.target.value)} />
         <Tabs defaultValue="users">
           <TabsList className="grid grid-cols-3">
             <TabsTrigger value="users">Usuários</TabsTrigger>
@@ -366,19 +434,25 @@ function NewConversationDialog({ onCreated }: { onCreated: (id: string) => void 
           </TabsList>
           <TabsContent value="users">
             <ScrollArea className="h-72">
-              {filteredUsers.map(u => (
-                <button key={u.id} onClick={() => startDirect(u.id)} className="w-full text-left px-3 py-2 hover:bg-accent rounded flex items-center gap-2">
-                  <UserIcon className="size-4" />
-                  <div className="flex-1"><div className="font-medium">{u.nome}</div><div className="text-xs text-muted-foreground">{u.email}</div></div>
-                </button>
-              ))}
+              {filteredUsers.map(u => {
+                const r = roles[u.id];
+                return (
+                  <button key={u.id} onClick={() => startDirect(u)} className="w-full text-left px-3 py-2 hover:bg-accent rounded flex items-center gap-2">
+                    {r === "master" ? <Crown className="size-4 text-amber-500" /> : <UserIcon className="size-4" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{u.nome}</div>
+                      <div className="text-xs text-muted-foreground truncate">{roleLabel(r)} · {salaName(u.sala_id)}</div>
+                    </div>
+                  </button>
+                );
+              })}
               {filteredUsers.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">Nenhum usuário</div>}
             </ScrollArea>
           </TabsContent>
           <TabsContent value="salas">
             <ScrollArea className="h-72">
               {filteredSalas.map(s => (
-                <button key={s.id} onClick={() => startSala(s.id)} className="w-full text-left px-3 py-2 hover:bg-accent rounded flex items-center gap-2">
+                <button key={s.id} onClick={() => startSala(s)} className="w-full text-left px-3 py-2 hover:bg-accent rounded flex items-center gap-2">
                   <Building2 className="size-4" /> <span>{s.nome}</span>
                   {profile?.sala_id === s.id && <Badge variant="secondary" className="ml-auto">Minha sala</Badge>}
                 </button>
