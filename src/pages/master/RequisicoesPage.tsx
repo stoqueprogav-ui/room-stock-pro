@@ -125,7 +125,8 @@ export default function RequisicoesPage() {
                     onRevisar={(id) => setRevisarId(id)}
                     onArquivarRejeitada={arquivarRejeitada}
                     onArquivarAprovada={(id) => setArquivarId(id)}
-                    onImprimir={imprimir} />
+                    onImprimir={imprimir}
+                    onChat={abrirChat} />
                 ))}
                 {list.length === 0 && !loading && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Nenhuma requisição.</TableCell></TableRow>}
               </TableBody>
