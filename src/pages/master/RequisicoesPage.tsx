@@ -191,25 +191,30 @@ function ReqRow({
           ) : <span className="text-muted-foreground">—</span>}
         </TableCell>
         <TableCell><StatusBadge status={s.status} /></TableCell>
-        {role === "master" && (
-          <TableCell className="text-right whitespace-nowrap">
-            {tab === "pendente" && (
-              <Button size="sm" onClick={() => onRevisar(s.id)}><Eye className="size-4" /> Revisar e decidir</Button>
-            )}
-            {tab === "aprovado" && (
-              <>
-                <Button size="sm" variant="outline" className="mr-2" onClick={() => onImprimir(s.id)}><Printer className="size-4" /> Imprimir</Button>
-                <Button size="sm" variant="ghost" onClick={() => onArquivarAprovada(s.id)}><Archive className="size-4" /> Arquivar</Button>
-              </>
-            )}
-            {tab === "rejeitado" && (
-              <Button size="sm" variant="ghost" onClick={() => onArquivarRejeitada(s.id)}><Archive className="size-4" /> Arquivar</Button>
-            )}
-            {tab === "arquivado" && (
-              <Button size="sm" variant="outline" onClick={() => onImprimir(s.id)}><Printer className="size-4" /> Imprimir</Button>
-            )}
-          </TableCell>
-        )}
+        <TableCell className="text-right whitespace-nowrap">
+          <Button size="sm" variant="ghost" className="mr-2" onClick={() => onChat(s.id)} title="Conversar sobre este pedido">
+            <MessageCircle className="size-4" />
+          </Button>
+          {role === "master" && (
+            <>
+              {tab === "pendente" && (
+                <Button size="sm" onClick={() => onRevisar(s.id)}><Eye className="size-4" /> Revisar e decidir</Button>
+              )}
+              {tab === "aprovado" && (
+                <>
+                  <Button size="sm" variant="outline" className="mr-2" onClick={() => onImprimir(s.id)}><Printer className="size-4" /> Imprimir</Button>
+                  <Button size="sm" variant="ghost" onClick={() => onArquivarAprovada(s.id)}><Archive className="size-4" /> Arquivar</Button>
+                </>
+              )}
+              {tab === "rejeitado" && (
+                <Button size="sm" variant="ghost" onClick={() => onArquivarRejeitada(s.id)}><Archive className="size-4" /> Arquivar</Button>
+              )}
+              {tab === "arquivado" && (
+                <Button size="sm" variant="outline" onClick={() => onImprimir(s.id)}><Printer className="size-4" /> Imprimir</Button>
+              )}
+            </>
+          )}
+        </TableCell>
       </TableRow>
       {open && (
         <TableRow>
