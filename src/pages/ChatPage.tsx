@@ -213,14 +213,39 @@ export default function ChatPage() {
 
   const setActive = (id: string) => { setActiveId(id); setParams({ c: id }, { replace: true }); };
 
+  const handleCreated = (id: string, fb?: { type?: ConvRow["type"]; title?: string | null; sala_id?: string | null; owner_user_id?: string | null; otherUserId?: string; otherUserName?: string }) => {
+    if (fb) {
+      setActiveFallback({
+        id,
+        type: fb.type ?? "direct",
+        sala_id: fb.sala_id ?? null,
+        owner_user_id: fb.owner_user_id ?? null,
+        title: fb.title ?? null,
+        related_requisicao_id: null,
+        related_emprestimo_id: null,
+        updated_at: new Date().toISOString(),
+        last_message_body: null,
+        last_message_at: null,
+        last_sender_id: null,
+        unread_count: 0,
+      });
+      if (fb.otherUserId) {
+        setDirectOthers(p => ({ ...p, [id]: fb.otherUserId! }));
+        if (fb.otherUserName) setProfilesMap(p => ({ ...p, [fb.otherUserId!]: { nome: fb.otherUserName!, email: "" } }));
+      }
+    }
+    setActive(id);
+    loadConvs();
+  };
+
   return (
     <div>
       <PageHeader
         title="Chat"
-        description="Conversas com usuários, salas e Master."
+        description="Converse livremente com qualquer usuário, sala ou com o Master."
         actions={
           <div className="flex gap-2">
-            <NewConversationDialog onCreated={(id) => { loadConvs(); setActive(id); }} />
+            <NewConversationDialog onCreated={handleCreated} />
             {role === "master" && <MasterSettingsDialog />}
           </div>
         }
