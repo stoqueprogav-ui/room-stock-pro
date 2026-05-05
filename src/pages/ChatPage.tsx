@@ -372,37 +372,51 @@ export default function ChatPage() {
   );
 }
 
-function NewConversationDialog({ onCreated }: { onCreated: (id: string) => void }) {
+type CreatedFallback = { type?: ConvRow["type"]; title?: string | null; sala_id?: string | null; owner_user_id?: string | null; otherUserId?: string; otherUserName?: string };
+
+function NewConversationDialog({ onCreated }: { onCreated: (id: string, fb?: CreatedFallback) => void }) {
   const { user, role, profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<{ id: string; nome: string; email: string; sala_id: string | null }[]>([]);
   const [salas, setSalas] = useState<{ id: string; nome: string }[]>([]);
+  const [roles, setRoles] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    supabase.from("profiles").select("id, nome, email, sala_id").then(({ data }) => setUsers(data ?? []));
+    supabase.from("profiles").select("id, nome, email, sala_id").order("nome").then(({ data }) => setUsers(data ?? []));
     supabase.from("salas").select("id, nome").order("nome").then(({ data }) => setSalas(data ?? []));
+    supabase.from("user_roles").select("user_id, role").then(({ data }) => {
+      if (!data) return;
+      setRoles(Object.fromEntries(data.map((r: any) => [r.user_id, r.role])));
+    });
   }, [open]);
 
-  const startDirect = async (otherId: string) => {
-    const { data, error } = await supabase.rpc("get_or_create_direct_conversation", { _other: otherId });
+  const salaName = (sid: string | null) => sid ? salas.find(s => s.id === sid)?.nome ?? "—" : "Sem sala";
+  const roleLabel = (r?: string) => r === "master" ? "Master" : r === "admin" ? "Administrador" : r === "analista" ? "Analista" : "Usuário";
+
+  const startDirect = async (other: { id: string; nome: string }) => {
+    const { data, error } = await supabase.rpc("get_or_create_direct_conversation", { _other: other.id });
     if (error) { toast.error(error.message); return; }
-    onCreated(data as string); setOpen(false);
+    onCreated(data as string, { type: "direct", title: other.nome, otherUserId: other.id, otherUserName: other.nome });
+    setOpen(false);
   };
-  const startSala = async (sid: string) => {
-    const { data, error } = await supabase.rpc("get_or_create_sala_conversation", { _sala: sid });
+  const startSala = async (s: { id: string; nome: string }) => {
+    const { data, error } = await supabase.rpc("get_or_create_sala_conversation", { _sala: s.id });
     if (error) { toast.error(error.message); return; }
-    onCreated(data as string); setOpen(false);
+    onCreated(data as string, { type: "sala", title: s.nome, sala_id: s.id });
+    setOpen(false);
   };
   const startMaster = async () => {
     const { data, error } = await supabase.rpc("get_or_create_master_conversation", {});
     if (error) { toast.error(error.message); return; }
-    onCreated(data as string); setOpen(false);
+    onCreated(data as string, { type: "master", title: "Master", owner_user_id: user?.id ?? null });
+    setOpen(false);
   };
 
-  const filteredUsers = users.filter(u => u.id !== user?.id && (u.nome.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())));
-  const filteredSalas = salas.filter(s => s.nome.toLowerCase().includes(search.toLowerCase()));
+  const q = search.toLowerCase();
+  const filteredUsers = users.filter(u => u.id !== user?.id && (u.nome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || salaName(u.sala_id).toLowerCase().includes(q)));
+  const filteredSalas = salas.filter(s => s.nome.toLowerCase().includes(q));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -411,7 +425,7 @@ function NewConversationDialog({ onCreated }: { onCreated: (id: string) => void 
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>Iniciar conversa</DialogTitle></DialogHeader>
-        <Input placeholder="Buscar usuário ou sala..." value={search} onChange={e => setSearch(e.target.value)} />
+        <Input placeholder="Buscar usuário, email ou sala..." value={search} onChange={e => setSearch(e.target.value)} />
         <Tabs defaultValue="users">
           <TabsList className="grid grid-cols-3">
             <TabsTrigger value="users">Usuários</TabsTrigger>
@@ -420,19 +434,25 @@ function NewConversationDialog({ onCreated }: { onCreated: (id: string) => void 
           </TabsList>
           <TabsContent value="users">
             <ScrollArea className="h-72">
-              {filteredUsers.map(u => (
-                <button key={u.id} onClick={() => startDirect(u.id)} className="w-full text-left px-3 py-2 hover:bg-accent rounded flex items-center gap-2">
-                  <UserIcon className="size-4" />
-                  <div className="flex-1"><div className="font-medium">{u.nome}</div><div className="text-xs text-muted-foreground">{u.email}</div></div>
-                </button>
-              ))}
+              {filteredUsers.map(u => {
+                const r = roles[u.id];
+                return (
+                  <button key={u.id} onClick={() => startDirect(u)} className="w-full text-left px-3 py-2 hover:bg-accent rounded flex items-center gap-2">
+                    {r === "master" ? <Crown className="size-4 text-amber-500" /> : <UserIcon className="size-4" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{u.nome}</div>
+                      <div className="text-xs text-muted-foreground truncate">{roleLabel(r)} · {salaName(u.sala_id)}</div>
+                    </div>
+                  </button>
+                );
+              })}
               {filteredUsers.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">Nenhum usuário</div>}
             </ScrollArea>
           </TabsContent>
           <TabsContent value="salas">
             <ScrollArea className="h-72">
               {filteredSalas.map(s => (
-                <button key={s.id} onClick={() => startSala(s.id)} className="w-full text-left px-3 py-2 hover:bg-accent rounded flex items-center gap-2">
+                <button key={s.id} onClick={() => startSala(s)} className="w-full text-left px-3 py-2 hover:bg-accent rounded flex items-center gap-2">
                   <Building2 className="size-4" /> <span>{s.nome}</span>
                   {profile?.sala_id === s.id && <Badge variant="secondary" className="ml-auto">Minha sala</Badge>}
                 </button>
