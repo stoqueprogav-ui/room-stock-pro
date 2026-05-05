@@ -92,13 +92,42 @@ export default function ChatPage() {
   useEffect(() => { loadConvs(); }, [loadConvs]);
   useEffect(() => { if (activeId) loadMessages(activeId); else setMessages([]); }, [activeId, loadMessages]);
 
-  // Realtime
-  useRealtimeSync(["messages", "conversations"], () => {
-    loadConvs();
-    if (activeId) loadMessages(activeId);
-  }, { debounceMs: 200 });
+  // Realtime + notificação de novas mensagens
+  const lastNotifiedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("chat-incoming")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload: any) => {
+        const m = payload.new as Msg;
+        loadConvs();
+        if (m.conversation_id === activeId) {
+          loadMessages(activeId);
+          return;
+        }
+        if (m.sender_id === user.id) return;
+        if (lastNotifiedRef.current === m.id) return;
+        lastNotifiedRef.current = m.id;
+        // Buscar nome do remetente
+        let nome = profilesMap[m.sender_id]?.nome;
+        if (!nome) {
+          const { data } = await supabase.from("profiles").select("nome").eq("id", m.sender_id).maybeSingle();
+          nome = data?.nome ?? "Nova mensagem";
+        }
+        toast.message(`💬 ${nome}`, {
+          description: m.body ?? (m.attachment_name ? `📎 ${m.attachment_name}` : "Nova mensagem"),
+          action: { label: "Abrir", onClick: () => setActive(m.conversation_id) },
+        });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => loadConvs())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, activeId, loadConvs, loadMessages]);
 
-  const active = convs.find(c => c.id === activeId);
+  // Conversa ativa: tenta achar na lista; se não achou (recém-criada), cria placeholder
+  const [activeFallback, setActiveFallback] = useState<ConvRow | null>(null);
+  const active = convs.find(c => c.id === activeId) ?? (activeFallback?.id === activeId ? activeFallback : null);
 
   const convLabel = (c: ConvRow): { name: string; icon: JSX.Element; sub?: string } => {
     if (c.type === "sala") return { name: c.title || "Sala", icon: <Building2 className="size-4" /> };
