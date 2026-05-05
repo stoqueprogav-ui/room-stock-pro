@@ -31,6 +31,7 @@ type Requisicao = {
 
 export default function RequisicoesPage() {
   const { role } = useAuth();
+  const navigate = useNavigate();
   const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Requisicao[]>([]);
