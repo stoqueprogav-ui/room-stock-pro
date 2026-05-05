@@ -86,6 +86,12 @@ export default function RequisicoesPage() {
     window.open(`/app/requisicoes/${id}/imprimir`, "_blank");
   };
 
+  const abrirChat = async (id: string) => {
+    const { data, error } = await supabase.rpc("get_or_create_pedido_conversation", { _kind: "requisicao", _id: id });
+    if (error) return toast.error(error.message);
+    navigate(`/app/chat?c=${data}`);
+  };
+
   const list = rows.filter((r) => r.status === tab);
 
   return (
