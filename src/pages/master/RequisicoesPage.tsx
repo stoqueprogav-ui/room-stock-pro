@@ -116,7 +116,7 @@ export default function RequisicoesPage() {
                   <TableHead className="w-[170px]">Criada em</TableHead>
                   <TableHead className="w-[160px]">Retirada</TableHead>
                   <TableHead className="w-[120px]">Status</TableHead>
-                  {role === "master" && <TableHead className="text-right w-[260px]">Ações</TableHead>}
+                  <TableHead className="text-right w-[300px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
