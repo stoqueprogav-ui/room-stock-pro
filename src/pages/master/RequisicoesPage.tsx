@@ -7,7 +7,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ChevronDown, Archive, Printer, UserCheck } from "lucide-react";
+import { Check, X, ChevronDown, Archive, Printer, UserCheck, MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
@@ -30,6 +31,7 @@ type Requisicao = {
 
 export default function RequisicoesPage() {
   const { role } = useAuth();
+  const navigate = useNavigate();
   const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Requisicao[]>([]);
@@ -84,6 +86,12 @@ export default function RequisicoesPage() {
     window.open(`/app/requisicoes/${id}/imprimir`, "_blank");
   };
 
+  const abrirChat = async (id: string) => {
+    const { data, error } = await supabase.rpc("get_or_create_pedido_conversation", { _kind: "requisicao", _id: id });
+    if (error) return toast.error(error.message);
+    navigate(`/app/chat?c=${data}`);
+  };
+
   const list = rows.filter((r) => r.status === tab);
 
   return (
@@ -108,7 +116,7 @@ export default function RequisicoesPage() {
                   <TableHead className="w-[170px]">Criada em</TableHead>
                   <TableHead className="w-[160px]">Retirada</TableHead>
                   <TableHead className="w-[120px]">Status</TableHead>
-                  {role === "master" && <TableHead className="text-right w-[260px]">Ações</TableHead>}
+                  <TableHead className="text-right w-[300px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -117,7 +125,8 @@ export default function RequisicoesPage() {
                     onRevisar={(id) => setRevisarId(id)}
                     onArquivarRejeitada={arquivarRejeitada}
                     onArquivarAprovada={(id) => setArquivarId(id)}
-                    onImprimir={imprimir} />
+                    onImprimir={imprimir}
+                    onChat={abrirChat} />
                 ))}
                 {list.length === 0 && !loading && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Nenhuma requisição.</TableCell></TableRow>}
               </TableBody>
@@ -146,13 +155,14 @@ export default function RequisicoesPage() {
 }
 
 function ReqRow({
-  s, role, tab, onRevisar, onArquivarRejeitada, onArquivarAprovada, onImprimir,
+  s, role, tab, onRevisar, onArquivarRejeitada, onArquivarAprovada, onImprimir, onChat,
 }: {
   s: Requisicao; role: string | null; tab: string;
   onRevisar: (id: string) => void;
   onArquivarRejeitada: (id: string) => void;
   onArquivarAprovada: (id: string) => void;
   onImprimir: (id: string) => void;
+  onChat: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -181,25 +191,30 @@ function ReqRow({
           ) : <span className="text-muted-foreground">—</span>}
         </TableCell>
         <TableCell><StatusBadge status={s.status} /></TableCell>
-        {role === "master" && (
-          <TableCell className="text-right whitespace-nowrap">
-            {tab === "pendente" && (
-              <Button size="sm" onClick={() => onRevisar(s.id)}><Eye className="size-4" /> Revisar e decidir</Button>
-            )}
-            {tab === "aprovado" && (
-              <>
-                <Button size="sm" variant="outline" className="mr-2" onClick={() => onImprimir(s.id)}><Printer className="size-4" /> Imprimir</Button>
-                <Button size="sm" variant="ghost" onClick={() => onArquivarAprovada(s.id)}><Archive className="size-4" /> Arquivar</Button>
-              </>
-            )}
-            {tab === "rejeitado" && (
-              <Button size="sm" variant="ghost" onClick={() => onArquivarRejeitada(s.id)}><Archive className="size-4" /> Arquivar</Button>
-            )}
-            {tab === "arquivado" && (
-              <Button size="sm" variant="outline" onClick={() => onImprimir(s.id)}><Printer className="size-4" /> Imprimir</Button>
-            )}
-          </TableCell>
-        )}
+        <TableCell className="text-right whitespace-nowrap">
+          <Button size="sm" variant="ghost" className="mr-2" onClick={() => onChat(s.id)} title="Conversar sobre este pedido">
+            <MessageCircle className="size-4" />
+          </Button>
+          {role === "master" && (
+            <>
+              {tab === "pendente" && (
+                <Button size="sm" onClick={() => onRevisar(s.id)}><Eye className="size-4" /> Revisar e decidir</Button>
+              )}
+              {tab === "aprovado" && (
+                <>
+                  <Button size="sm" variant="outline" className="mr-2" onClick={() => onImprimir(s.id)}><Printer className="size-4" /> Imprimir</Button>
+                  <Button size="sm" variant="ghost" onClick={() => onArquivarAprovada(s.id)}><Archive className="size-4" /> Arquivar</Button>
+                </>
+              )}
+              {tab === "rejeitado" && (
+                <Button size="sm" variant="ghost" onClick={() => onArquivarRejeitada(s.id)}><Archive className="size-4" /> Arquivar</Button>
+              )}
+              {tab === "arquivado" && (
+                <Button size="sm" variant="outline" onClick={() => onImprimir(s.id)}><Printer className="size-4" /> Imprimir</Button>
+              )}
+            </>
+          )}
+        </TableCell>
       </TableRow>
       {open && (
         <TableRow>

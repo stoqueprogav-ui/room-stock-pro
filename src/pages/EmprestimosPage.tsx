@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2 } from "lucide-react";
+import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2, MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
@@ -31,6 +32,7 @@ type Emp = {
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
   const { role, profile } = useAuth();
+  const navigate = useNavigate();
   const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
@@ -80,6 +82,12 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     toast.success("Empréstimo arquivado com retirada registrada");
     setArquivarId(null);
     load();
+  };
+
+  const abrirChat = async (id: string) => {
+    const { data, error } = await supabase.rpc("get_or_create_pedido_conversation", { _kind: "emprestimo", _id: id });
+    if (error) return toast.error(error.message);
+    navigate(`/app/chat?c=${data}`);
   };
 
   // Apenas admin da sala ORIGEM aprova
@@ -152,6 +160,9 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                     </TableCell>
                     <TableCell><StatusBadge status={e.status} /></TableCell>
                     <TableCell className="text-right whitespace-nowrap">
+                      <Button size="sm" variant="ghost" className="mr-2" onClick={() => abrirChat(e.id)} title="Conversar sobre este pedido">
+                        <MessageCircle className="size-4" />
+                      </Button>
                       {tab === "pendente" && (
                         podeDecidir(e) ? (
                           <Button size="sm" onClick={() => setRevisarId(e.id)}><Eye className="size-4" /> Revisar e decidir</Button>
