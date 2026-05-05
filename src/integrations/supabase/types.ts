@@ -832,6 +832,10 @@ export type Database = {
         Args: { _owner?: string }
         Returns: string
       }
+      get_or_create_pedido_conversation: {
+        Args: { _id: string; _kind: string }
+        Returns: string
+      }
       get_or_create_sala_conversation: {
         Args: { _sala: string }
         Returns: string
