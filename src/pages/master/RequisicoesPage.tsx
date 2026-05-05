@@ -155,13 +155,14 @@ export default function RequisicoesPage() {
 }
 
 function ReqRow({
-  s, role, tab, onRevisar, onArquivarRejeitada, onArquivarAprovada, onImprimir,
+  s, role, tab, onRevisar, onArquivarRejeitada, onArquivarAprovada, onImprimir, onChat,
 }: {
   s: Requisicao; role: string | null; tab: string;
   onRevisar: (id: string) => void;
   onArquivarRejeitada: (id: string) => void;
   onArquivarAprovada: (id: string) => void;
   onImprimir: (id: string) => void;
+  onChat: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
