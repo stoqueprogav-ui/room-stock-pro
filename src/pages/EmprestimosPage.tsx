@@ -160,6 +160,9 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                     </TableCell>
                     <TableCell><StatusBadge status={e.status} /></TableCell>
                     <TableCell className="text-right whitespace-nowrap">
+                      <Button size="sm" variant="ghost" className="mr-2" onClick={() => abrirChat(e.id)} title="Conversar sobre este pedido">
+                        <MessageCircle className="size-4" />
+                      </Button>
                       {tab === "pendente" && (
                         podeDecidir(e) ? (
                           <Button size="sm" onClick={() => setRevisarId(e.id)}><Eye className="size-4" /> Revisar e decidir</Button>
