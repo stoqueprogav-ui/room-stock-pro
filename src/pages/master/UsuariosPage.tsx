@@ -14,6 +14,7 @@ import { RoleBadge } from "@/components/StatusBadge";
 import type { Sala, AppRole } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
+import CompanyLogoUploader from "@/components/CompanyLogoUploader";
 
 type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null };
 
