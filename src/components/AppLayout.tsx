@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { useCompanyLogo } from "@/hooks/useCompanyLogo";
 
 type BadgeKey = "requisicoes" | "emprestimosAprovar" | "chat";
 type NavItem = {
@@ -93,6 +94,7 @@ function AppLayoutInner() {
   const { scopeReady, scopeSalaId } = useMasterScope();
   const navigate = useNavigate();
   const location = useLocation();
+  const { logoUrl } = useCompanyLogo();
   const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0, chat: 0 });
 
   const items = useMemo(() => navForRole(role, scopeSalaId === null), [role, scopeSalaId]);
@@ -174,8 +176,8 @@ function AppLayoutInner() {
     <div className="min-h-screen flex bg-background">
       <aside className="hidden md:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
         <div className="px-5 py-5 flex items-center gap-3 border-b border-sidebar-border">
-          <div className="size-9 rounded-md bg-gradient-primary grid place-items-center text-primary-foreground">
-            <Boxes className="size-5" />
+          <div className="size-9 rounded-md bg-gradient-primary grid place-items-center text-primary-foreground overflow-hidden">
+            {logoUrl ? <img src={logoUrl} alt="Logo" className="size-full object-contain" /> : <Boxes className="size-5" />}
           </div>
           <div>
             <div className="font-display font-bold text-sidebar-accent-foreground">Estoque Pro</div>
@@ -201,8 +203,8 @@ function AppLayoutInner() {
       <main className="flex-1 flex flex-col min-w-0">
         <header className="h-14 border-b border-border bg-card/60 backdrop-blur flex items-center justify-between px-4 md:px-8 gap-3">
           <div className="md:hidden flex items-center gap-2">
-            <div className="size-8 rounded-md bg-gradient-primary grid place-items-center text-primary-foreground">
-              <Boxes className="size-4" />
+            <div className="size-8 rounded-md bg-gradient-primary grid place-items-center text-primary-foreground overflow-hidden">
+              {logoUrl ? <img src={logoUrl} alt="Logo" className="size-full object-contain" /> : <Boxes className="size-4" />}
             </div>
             <span className="font-display font-bold">Estoque Pro</span>
           </div>
