@@ -98,10 +98,11 @@ export default function UsuariosPage() {
   };
 
   const remover = async (u: UserRow) => {
-    // Remove role + profile (cascade não chega no auth.users sem service-role, então mantemos auth user mas sem acesso)
-    await supabase.from("user_roles").delete().eq("user_id", u.id);
-    await supabase.from("profiles").update({ sala_id: null }).eq("id", u.id);
-    toast.success("Acesso revogado (perfil sem sala e sem role)");
+    const { error } = await supabase.functions.invoke("admin-delete-user", {
+      body: { target_user_id: u.id },
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Usuário excluído permanentemente");
     load();
   };
 
@@ -140,6 +141,7 @@ export default function UsuariosPage() {
           ? <><Globe2 className="size-3.5 text-primary" /> Modo global — você vê todos os usuários do sistema.</>
           : <><Building2 className="size-3.5 text-primary" /> Sala em foco — apenas usuários vinculados a esta sala.</>}
       </div>
+      {isGlobal && <CompanyLogoUploader />}
       <div className="panel overflow-x-auto">
         <Table>
           <TableHeader>
@@ -201,12 +203,12 @@ export default function UsuariosPage() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Revogar acesso de {u.nome}?</AlertDialogTitle>
-                            <AlertDialogDescription>O usuário ficará sem perfil e sem sala. Para excluir definitivamente do banco de autenticação, use o painel Cloud.</AlertDialogDescription>
+                            <AlertDialogTitle>Excluir permanentemente {u.nome}?</AlertDialogTitle>
+                            <AlertDialogDescription>O usuário será removido do sistema, perderá o login e o acesso. O histórico de movimentações é preservado para auditoria. Esta ação é irreversível.</AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => remover(u)}>Revogar</AlertDialogAction>
+                            <AlertDialogAction onClick={() => remover(u)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir definitivamente</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
