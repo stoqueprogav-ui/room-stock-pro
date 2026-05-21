@@ -326,6 +326,32 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           await refresh();
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        async (payload) => {
+          const row: any = payload.new;
+          if (row.sender_id === user.id) return;
+          // Ignora se a página de chat estiver aberta nessa conversa
+          if (typeof window !== "undefined") {
+            const p = window.location.pathname;
+            const url = new URL(window.location.href);
+            const c = url.searchParams.get("c");
+            if (p.startsWith("/app/chat") && c === row.conversation_id) {
+              await refresh();
+              return;
+            }
+          }
+          const { data: prof } = await supabase.from("profiles").select("nome").eq("id", row.sender_id).maybeSingle();
+          notify(
+            `💬 ${prof?.nome ?? "Nova mensagem"}`,
+            row.body ?? (row.attachment_name ? `📎 ${row.attachment_name}` : "Nova mensagem"),
+            "info",
+            () => { window.location.href = `/app/chat?c=${row.conversation_id}`; }
+          );
+          await refresh();
+        }
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
