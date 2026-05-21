@@ -291,6 +291,23 @@ export default function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!createdInfo} onOpenChange={(o) => !o && setCreatedInfo(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Usuário criado com sucesso</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">Sua sessão Master não foi alterada. Envie estas credenciais ao novo usuário — ele deverá trocar a senha no primeiro login.</p>
+            <div className="rounded-md border bg-muted/30 p-3 space-y-1 font-mono text-xs">
+              <div><span className="text-muted-foreground">Nome:</span> {createdInfo?.nome}</div>
+              <div><span className="text-muted-foreground">Login:</span> {createdInfo?.email}</div>
+              <div><span className="text-muted-foreground">Senha provisória:</span> {createdInfo?.password}</div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setCreatedInfo(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
