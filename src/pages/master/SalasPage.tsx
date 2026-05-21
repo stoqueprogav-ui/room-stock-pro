@@ -43,10 +43,28 @@ export default function SalasPage() {
     setOpen(false); load();
   };
 
-  const remove = async (s: Sala) => {
-    const { error } = await supabase.from("salas").delete().eq("id", s.id);
+  const [deps, setDeps] = useState<{ sala: Sala; info: any } | null>(null);
+  const [forcing, setForcing] = useState(false);
+
+  const remove = async (s: Sala, force = false) => {
+    const { data, error } = await supabase.rpc("excluir_sala", { _sala: s.id, _force: force });
     if (error) return toast.error(error.message);
-    toast.success("Sala removida"); load();
+    const res = (data as any) ?? {};
+    if (res.has_deps) {
+      setDeps({ sala: s, info: res });
+      return;
+    }
+    toast.success("Sala excluída"); setDeps(null); load();
+  };
+
+  const confirmForce = async () => {
+    if (!deps) return;
+    setForcing(true);
+    const { error } = await supabase.rpc("excluir_sala", { _sala: deps.sala.id, _force: true });
+    setForcing(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Sala "${deps.sala.nome}" e dados vinculados removidos`);
+    setDeps(null); load();
   };
 
   return (
@@ -87,12 +105,12 @@ export default function SalasPage() {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir sala?</AlertDialogTitle>
-                        <AlertDialogDescription>Todos os estoques, movimentações e dívidas vinculadas serão removidos.</AlertDialogDescription>
+                        <AlertDialogTitle>Excluir sala "{s.nome}"?</AlertDialogTitle>
+                        <AlertDialogDescription>O sistema verificará se há dados vinculados antes de excluir.</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => remove(s)}>Excluir</AlertDialogAction>
+                        <AlertDialogAction onClick={() => remove(s, false)}>Verificar e excluir</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -117,6 +135,37 @@ export default function SalasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deps} onOpenChange={(o) => !o && setDeps(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sala "{deps?.sala.nome}" possui dados vinculados</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <div>Antes de excluir, transfira ou trate estes itens. Se confirmar a exclusão forçada, <strong>tudo será removido</strong> e os usuários ficarão sem sala.</div>
+                <ul className="list-disc pl-5 text-foreground">
+                  {deps?.info?.usuarios > 0 && <li>{deps.info.usuarios} usuário(s) vinculado(s) — ficarão sem sala</li>}
+                  {deps?.info?.estoque > 0 && <li>{deps.info.estoque} produto(s) com estoque positivo</li>}
+                  {deps?.info?.solicitacoes_pendentes > 0 && <li>{deps.info.solicitacoes_pendentes} requisição(ões) pendente(s)</li>}
+                  {deps?.info?.emprestimos_pendentes > 0 && <li>{deps.info.emprestimos_pendentes} empréstimo(s) pendente(s)</li>}
+                  {deps?.info?.emprestimos_total > 0 && <li>{deps.info.emprestimos_total} empréstimo(s) no histórico</li>}
+                  {deps?.info?.movimentacoes > 0 && <li>{deps.info.movimentacoes} movimentação(ões) — serão apagadas</li>}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmForce}
+              disabled={forcing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {forcing ? "Excluindo…" : "Excluir tudo mesmo assim"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
