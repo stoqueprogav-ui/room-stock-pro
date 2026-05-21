@@ -12,8 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/AppLayout";
-import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import { MessageCircle, Send, Paperclip, Plus, Search, Building2, Crown, User as UserIcon, Settings, Download } from "lucide-react";
+import { MessageCircle, Send, Paperclip, Plus, Search, Building2, Crown, User as UserIcon, Settings, Download, Check, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -42,6 +41,7 @@ type Msg = {
   attachment_name: string | null;
   attachment_type: string | null;
   created_at: string;
+  _pending?: boolean;
 };
 
 export default function ChatPage() {
@@ -49,6 +49,8 @@ export default function ChatPage() {
   const [params, setParams] = useSearchParams();
   const [convs, setConvs] = useState<ConvRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(params.get("c"));
+  const activeIdRef = useRef<string | null>(activeId);
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
@@ -56,6 +58,13 @@ export default function ChatPage() {
   const [filter, setFilter] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback((smooth = false) => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
+    }, 30);
+  }, []);
 
   const loadConvs = useCallback(async () => {
     const { data, error } = await supabase.rpc("list_my_conversations");
@@ -73,8 +82,8 @@ export default function ChatPage() {
     setMessages((data ?? []) as Msg[]);
     await supabase.rpc("mark_conversation_read", { _conv: convId });
     loadConvs();
-    setTimeout(() => scrollRef.current?.scrollTo({ top: 999999 }), 50);
-  }, [loadConvs]);
+    scrollToBottom();
+  }, [loadConvs, scrollToBottom]);
 
   // Carrega nomes dos usuários relevantes
   useEffect(() => {
@@ -92,50 +101,41 @@ export default function ChatPage() {
   useEffect(() => { loadConvs(); }, [loadConvs]);
   useEffect(() => { if (activeId) loadMessages(activeId); else setMessages([]); }, [activeId, loadMessages]);
 
-  // Realtime + notificação de novas mensagens
-  const lastNotifiedRef = useRef<string | null>(null);
+  // Realtime: insere msg direto na conversa ativa (sem refetch) + atualiza lista
   useEffect(() => {
     if (!user) return;
     const channel = supabase
       .channel("chat-incoming")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload: any) => {
         const m = payload.new as Msg;
+        const isActive = m.conversation_id === activeIdRef.current;
+        if (isActive) {
+          setMessages(prev => {
+            // remover pending equivalente (mesma origem + body) e dedupe por id
+            if (prev.some(x => x.id === m.id)) return prev;
+            const withoutPending = prev.filter(x => !(x._pending && x.sender_id === m.sender_id && (x.body ?? "") === (m.body ?? "")));
+            return [...withoutPending, m];
+          });
+          supabase.rpc("mark_conversation_read", { _conv: m.conversation_id });
+          scrollToBottom(true);
+        }
         loadConvs();
-        if (m.conversation_id === activeId) {
-          loadMessages(activeId);
-          return;
-        }
-        if (m.sender_id === user.id) return;
-        if (lastNotifiedRef.current === m.id) return;
-        lastNotifiedRef.current = m.id;
-        // Buscar nome do remetente
-        let nome = profilesMap[m.sender_id]?.nome;
-        if (!nome) {
-          const { data } = await supabase.from("profiles").select("nome").eq("id", m.sender_id).maybeSingle();
-          nome = data?.nome ?? "Nova mensagem";
-        }
-        toast.message(`💬 ${nome}`, {
-          description: m.body ?? (m.attachment_name ? `📎 ${m.attachment_name}` : "Nova mensagem"),
-          action: { label: "Abrir", onClick: () => setActive(m.conversation_id) },
-        });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => loadConvs())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, activeId, loadConvs, loadMessages]);
+  }, [user, loadConvs, scrollToBottom]);
 
   // Conversa ativa: tenta achar na lista; se não achou (recém-criada), cria placeholder
   const [activeFallback, setActiveFallback] = useState<ConvRow | null>(null);
   const active = convs.find(c => c.id === activeId) ?? (activeFallback?.id === activeId ? activeFallback : null);
 
-  const convLabel = (c: ConvRow): { name: string; icon: JSX.Element; sub?: string } => {
+  const convLabel = (c: ConvRow): { name: string; icon: JSX.Element } => {
     if (c.type === "sala") return { name: c.title || "Sala", icon: <Building2 className="size-4" /> };
     if (c.type === "master") {
       const owner = c.owner_user_id ? profilesMap[c.owner_user_id]?.nome : null;
       return { name: role === "master" ? `Master · ${owner ?? "Usuário"}` : "Master", icon: <Crown className="size-4" /> };
     }
-    // direct: precisa do outro participante — buscamos sob demanda
     return { name: c.title || "Conversa direta", icon: <UserIcon className="size-4" /> };
   };
 
@@ -176,15 +176,35 @@ export default function ChatPage() {
   }, [convs, filter, directOthers, profilesMap]);
 
   const handleSend = async () => {
-    if (!activeId) return;
+    if (!activeId || !user) return;
     const text = body.trim();
     if (!text) return;
     setSending(true);
+    // Optimistic
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: Msg = {
+      id: tempId,
+      conversation_id: activeId,
+      sender_id: user.id,
+      body: text,
+      attachment_path: null,
+      attachment_name: null,
+      attachment_type: null,
+      created_at: new Date().toISOString(),
+      _pending: true,
+    };
+    setMessages(prev => [...prev, optimistic]);
+    setBody("");
+    scrollToBottom(true);
     const { error } = await supabase.rpc("send_message", { _conv: activeId, _body: text });
     setSending(false);
-    if (error) { toast.error(error.message); return; }
-    setBody("");
-    loadMessages(activeId);
+    if (error) {
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      toast.error(error.message);
+      setBody(text);
+      return;
+    }
+    // Confirmação chega via realtime e remove o pending
   };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,7 +221,6 @@ export default function ChatPage() {
     if (error) { toast.error(error.message); return; }
     setBody("");
     if (fileRef.current) fileRef.current.value = "";
-    loadMessages(activeId);
   };
 
   const downloadAttachment = async (m: Msg) => {
@@ -213,7 +232,7 @@ export default function ChatPage() {
 
   const setActive = (id: string) => { setActiveId(id); setParams({ c: id }, { replace: true }); };
 
-  const handleCreated = (id: string, fb?: { type?: ConvRow["type"]; title?: string | null; sala_id?: string | null; owner_user_id?: string | null; otherUserId?: string; otherUserName?: string }) => {
+  const handleCreated = (id: string, fb?: CreatedFallback) => {
     if (fb) {
       setActiveFallback({
         id,
@@ -279,14 +298,16 @@ export default function ChatPage() {
                     activeId === c.id && "bg-accent"
                   )}
                 >
-                  <div className="size-8 rounded-full bg-muted grid place-items-center shrink-0">{lbl.icon}</div>
+                  <div className="size-9 rounded-full bg-muted grid place-items-center shrink-0">{lbl.icon}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="font-medium truncate">{name}</div>
+                      <div className={cn("truncate", c.unread_count > 0 ? "font-semibold" : "font-medium")}>{name}</div>
                       {c.last_message_at && <span className="text-[10px] text-muted-foreground shrink-0">{formatDateTime(c.last_message_at)}</span>}
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <div className="text-xs text-muted-foreground truncate">{c.last_message_body ?? "—"}</div>
+                      <div className={cn("text-xs truncate", c.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground")}>
+                        {c.last_message_body ?? "—"}
+                      </div>
                       {c.unread_count > 0 && (
                         <Badge className="bg-destructive text-destructive-foreground h-5 min-w-5 px-1.5 text-[10px]">{c.unread_count}</Badge>
                       )}
@@ -304,7 +325,7 @@ export default function ChatPage() {
             <div className="flex-1 grid place-items-center text-muted-foreground">
               <div className="text-center">
                 <MessageCircle className="size-10 mx-auto mb-2 opacity-50" />
-                Selecione uma conversa
+                Selecione uma conversa ou comece uma nova
               </div>
             </div>
           ) : (
@@ -330,7 +351,11 @@ export default function ChatPage() {
                     const prof = profilesMap[m.sender_id];
                     return (
                       <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
-                        <div className={cn("max-w-[75%] rounded-lg px-3 py-2 text-sm", mine ? "bg-primary text-primary-foreground" : "bg-muted")}>
+                        <div className={cn(
+                          "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm",
+                          mine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted rounded-bl-sm",
+                          m._pending && "opacity-70"
+                        )}>
                           {!mine && <div className="text-[10px] font-semibold opacity-80 mb-0.5">{prof?.nome ?? "Usuário"}</div>}
                           {m.body && <div className="whitespace-pre-wrap break-words">{m.body}</div>}
                           {m.attachment_path && (
@@ -338,12 +363,16 @@ export default function ChatPage() {
                               <Download className="size-3" /> {m.attachment_name}
                             </button>
                           )}
-                          <div className={cn("text-[10px] mt-1 opacity-70", mine ? "text-right" : "")}>{formatDateTime(m.created_at)}</div>
+                          <div className={cn("text-[10px] mt-1 opacity-70 flex items-center gap-1", mine ? "justify-end" : "")}>
+                            <span>{formatDateTime(m.created_at)}</span>
+                            {mine && (m._pending ? <Check className="size-3" /> : <CheckCheck className="size-3" />)}
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                   {messages.length === 0 && <div className="text-center text-sm text-muted-foreground py-8">Sem mensagens. Diga olá 👋</div>}
+                  <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
 
