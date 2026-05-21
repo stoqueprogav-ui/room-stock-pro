@@ -84,8 +84,9 @@ export default function ChatPage() {
     setMessages((data ?? []) as Msg[]);
     await supabase.rpc("mark_conversation_read", { _conv: convId });
     loadConvs();
+    refreshNotifs();
     scrollToBottom();
-  }, [loadConvs, scrollToBottom]);
+  }, [loadConvs, scrollToBottom, refreshNotifs]);
 
   // Carrega nomes dos usuários relevantes
   useEffect(() => {
