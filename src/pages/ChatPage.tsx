@@ -47,6 +47,7 @@ type Msg = {
 
 export default function ChatPage() {
   const { user, role } = useAuth();
+  const { refresh: refreshNotifs } = useNotifications();
   const [params, setParams] = useSearchParams();
   const [convs, setConvs] = useState<ConvRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(params.get("c"));
