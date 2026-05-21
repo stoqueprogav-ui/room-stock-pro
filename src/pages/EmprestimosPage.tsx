@@ -27,7 +27,7 @@ type Emp = {
   origem: { nome: string };
   destino: { nome: string };
   solicitante: { nome: string } | null;
-  itens: { quantidade: number; produto: { nome: string; unidade: string } }[];
+  itens: { quantidade: number; quantidade_devolvida: number; produto: { nome: string; unidade: string } }[];
 };
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
@@ -36,6 +36,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
+  const [busca, setBusca] = useState("");
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
   const [devolverId, setDevolverId] = useState<string | null>(null);
