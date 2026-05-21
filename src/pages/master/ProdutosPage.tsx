@@ -61,7 +61,7 @@ export default function ProdutosPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, categoria_id: "" });
+    setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, categoria_id: "", ativo: true, sala_id: "" });
     setEscopo("global");
     setSalaUnica("");
     setQtdInicialSala(0);
@@ -76,6 +76,8 @@ export default function ProdutosPage() {
       unidade: p.unidade,
       estoque_minimo: p.estoque_minimo,
       categoria_id: p.categoria_id ?? "",
+      ativo: p.ativo !== false,
+      sala_id: p.sala_id ?? "",
     });
     setOpen(true);
   };
