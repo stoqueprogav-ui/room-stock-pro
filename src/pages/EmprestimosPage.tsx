@@ -164,11 +164,27 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {e.itens.map((it, i) => (
-                          <span key={i} className="rounded bg-muted px-2 py-0.5 text-xs font-mono">
-                            {it.produto.nome} · {it.quantidade}{it.produto.unidade}
-                          </span>
-                        ))}
+                        {e.itens.map((it, i) => {
+                          const pend = it.quantidade - (it.quantidade_devolvida ?? 0);
+                          const isAprov = e.status === "aprovado";
+                          return (
+                            <span
+                              key={i}
+                              className={`rounded px-2 py-0.5 text-xs font-mono ${
+                                isAprov && pend === 0
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                  : isAprov && pend < it.quantidade
+                                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                    : isAprov
+                                      ? "bg-destructive/15 text-destructive"
+                                      : "bg-muted"
+                              }`}
+                              title={isAprov ? `Emprestado ${it.quantidade}, devolvido ${it.quantidade_devolvida ?? 0}, pendente ${pend}` : undefined}
+                            >
+                              {it.produto.nome} · {isAprov ? `${pend}/${it.quantidade}` : it.quantidade}{it.produto.unidade}
+                            </span>
+                          );
+                        })}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDateTime(e.created_at)}</TableCell>
@@ -195,21 +211,32 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                           </>
                         )
                       )}
-                      {tab === "aprovado" && (
-                        <>
-                          <Button size="sm" variant="outline" className="mr-2" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
-                            <Printer className="size-4" /> Imprimir
-                          </Button>
-                          {(role === "master" || profile?.sala_id === e.sala_destino_id) && (
-                            <Button size="sm" variant="secondary" className="mr-2" onClick={() => setDevolverId(e.id)}>
-                              <Undo2 className="size-4" /> Devolver
+                      {tab === "aprovado" && (() => {
+                        const pend = pendenteTotal(e);
+                        return (
+                          <>
+                            <Button size="sm" variant="outline" className="mr-2" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
+                              <Printer className="size-4" /> Imprimir
                             </Button>
-                          )}
-                          {role === "master" && (
-                            <Button size="sm" variant="ghost" onClick={() => setArquivarId(e.id)}><Archive className="size-4" /> Arquivar</Button>
-                          )}
-                        </>
-                      )}
+                            {role === "master" && pend > 0 && (
+                              <Button size="sm" variant="secondary" className="mr-2" onClick={() => setDevolverId(e.id)}>
+                                <Undo2 className="size-4" /> Devolver ({pend})
+                              </Button>
+                            )}
+                            {role === "master" && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={pend > 0}
+                                title={pend > 0 ? `Devolva todos os itens antes de arquivar (${pend} pendente(s))` : "Arquivar"}
+                                onClick={() => setArquivarId(e.id)}
+                              >
+                                <Archive className="size-4" /> Arquivar
+                              </Button>
+                            )}
+                          </>
+                        );
+                      })()}
                       {tab === "rejeitado" && role === "master" && (
                         <Button size="sm" variant="ghost" onClick={() => arquivarRejeitado(e.id)}><Archive className="size-4" /> Arquivar</Button>
                       )}
