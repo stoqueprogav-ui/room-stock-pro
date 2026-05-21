@@ -48,7 +48,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                origem:salas!emprestimos_sala_origem_id_fkey(nome),
                destino:salas!emprestimos_sala_destino_id_fkey(nome),
                solicitante:profiles!emprestimos_solicitante_id_fkey(nome),
-               itens:emprestimo_itens(quantidade, produto:produtos(nome, unidade))`)
+               itens:emprestimo_itens(quantidade, quantidade_devolvida, produto:produtos(nome, unidade))`)
       .order("created_at", { ascending: false });
     if (role === "master" && scopeSalaId) {
       q = q.or(`sala_origem_id.eq.${scopeSalaId},sala_destino_id.eq.${scopeSalaId}`);
