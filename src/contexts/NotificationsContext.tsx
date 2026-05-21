@@ -94,6 +94,7 @@ function playBeep(kind: "info" | "warn" = "info") {
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user, role, profile } = useAuth();
+  const navigate = useNavigate();
   const [requisicoes, setRequisicoes] = useState<PendingRequisicao[]>([]);
   const [emprestimosPendentes, setEmprestimosPendentes] = useState<PendingEmprestimo[]>([]);
   const [emprestimosAprovados, setEmprestimosAprovados] = useState<PendingEmprestimo[]>([]);
