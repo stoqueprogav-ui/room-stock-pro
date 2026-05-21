@@ -192,6 +192,7 @@ export default function ChatPage() {
 
   const [activeFallback, setActiveFallback] = useState<ConvRow | null>(null);
   const active = convs.find(c => c.id === activeId) ?? (activeFallback?.id === activeId ? activeFallback : null);
+  // (mergedConvs definido mais abaixo, junto a filteredConvs)
 
   // Para DMs, buscar o outro participante
   const [directOthers, setDirectOthers] = useState<Record<string, string>>({});
@@ -244,17 +245,24 @@ export default function ChatPage() {
     };
   };
 
+  // Mescla fallback (conversa recém-criada ainda não retornada pelo RPC) à lista
+  const mergedConvs = useMemo(() => {
+    if (!activeFallback) return convs;
+    if (convs.some(c => c.id === activeFallback.id)) return convs;
+    return [activeFallback, ...convs];
+  }, [convs, activeFallback]);
+
   const filteredConvs = useMemo(() => {
-    if (!filter.trim()) return convs;
+    if (!filter.trim()) return mergedConvs;
     const q = filter.toLowerCase();
-    return convs.filter(c => {
+    return mergedConvs.filter(c => {
       const d = describeConv(c);
       return d.name.toLowerCase().includes(q) ||
         d.subtitle.toLowerCase().includes(q) ||
         (c.last_message_body ?? "").toLowerCase().includes(q);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [convs, filter, directOthers, profilesMap, rolesMap, salasMap]);
+  }, [mergedConvs, filter, directOthers, profilesMap, rolesMap, salasMap]);
 
   // Quem fala última msg na sidebar (pra prefixo "Você: ")
   const lastSenderLabel = (c: ConvRow) => {
@@ -287,6 +295,9 @@ export default function ChatPage() {
       setMessages(prev => prev.filter(m => m.id !== tempId));
       toast.error(error.message);
       setBody(text);
+    } else {
+      // garante que a conversa apareça/suba na sidebar mesmo se realtime atrasar
+      loadConvs();
     }
   };
 
@@ -359,7 +370,7 @@ export default function ChatPage() {
           </div>
         }
       />
-      <div className="grid grid-cols-1 md:grid-cols-[340px_1fr] gap-4 h-[calc(100vh-220px)]">
+      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 h-[calc(100vh-220px)]">
         {/* Sidebar */}
         <aside className="border rounded-xl flex flex-col bg-card overflow-hidden shadow-sm">
           <div className="p-3 border-b bg-muted/30">
