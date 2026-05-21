@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/AppLayout";
 import { MessageCircle, Send, Paperclip, Plus, Search, Building2, Crown, User as UserIcon, Settings, Download, Check, CheckCheck } from "lucide-react";
+import { useNotifications } from "@/contexts/NotificationsContext";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
