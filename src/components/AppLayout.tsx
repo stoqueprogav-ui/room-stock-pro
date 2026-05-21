@@ -223,7 +223,19 @@ function AppLayoutInner() {
             </div>
             <span className="font-display font-bold">Estoque Pro</span>
           </div>
-          <div className="hidden md:block text-sm text-muted-foreground">Painel · {ROLE_LABEL[role]}</div>
+          <div className="hidden md:flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Painel · {ROLE_LABEL[role]}</span>
+            <span className="text-muted-foreground/40">·</span>
+            {role === "master" && scopeSalaId === null ? (
+              <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
+                <Globe2 className="size-3" /> Visão Global
+              </Badge>
+            ) : (
+              <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
+                <MapPin className="size-3" /> Sala: {salaNome ?? "—"}
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-3 ml-auto">
             {role === "master" && <MasterScopeSwitcher />}
             <NotificationsBell />
