@@ -211,6 +211,27 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       }
       setEmprestimosPendentes(pend);
     }
+
+    // Chat: agrega conversas com unread_count > 0
+    try {
+      const { data: convs } = await supabase.rpc("list_my_conversations");
+      const unread = (convs ?? []).filter((c: any) => (c.unread_count ?? 0) > 0);
+      const senderIds = [...new Set(unread.map((c: any) => c.last_sender_id).filter(Boolean))];
+      let nameMap = new Map<string, string>();
+      if (senderIds.length > 0) {
+        const { data: ps } = await supabase.from("profiles").select("id, nome").in("id", senderIds);
+        nameMap = new Map((ps ?? []).map((p: any) => [p.id, p.nome]));
+      }
+      setChatAlerts(unread.map((c: any) => ({
+        id: `chat:${c.id}`,
+        conversation_id: c.id,
+        sender_id: c.last_sender_id ?? "",
+        sender_nome: c.last_sender_id ? (nameMap.get(c.last_sender_id) ?? "Usuário") : (c.title ?? "Conversa"),
+        preview: c.last_message_body ?? "Nova mensagem",
+        created_at: c.last_message_at ?? new Date().toISOString(),
+        unread_count: c.unread_count ?? 0,
+      })));
+    } catch { /* noop */ }
   }, [user, role, profile?.sala_id]);
 
   // initial load
