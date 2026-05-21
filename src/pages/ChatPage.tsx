@@ -295,6 +295,9 @@ export default function ChatPage() {
       setMessages(prev => prev.filter(m => m.id !== tempId));
       toast.error(error.message);
       setBody(text);
+    } else {
+      // garante que a conversa apareça/suba na sidebar mesmo se realtime atrasar
+      loadConvs();
     }
   };
 
