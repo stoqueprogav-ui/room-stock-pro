@@ -94,18 +94,36 @@ export default function RequisicoesPage() {
     navigate(`/app/chat?c=${data}`);
   };
 
-  const list = rows.filter((r) => r.status === tab);
+  const list = rows.filter((r) => r.status === tab).filter((s) => {
+    const t = busca.trim().toLowerCase();
+    if (!t) return true;
+    return (
+      s.sala.nome.toLowerCase().includes(t) ||
+      (s.usuario?.nome ?? "").toLowerCase().includes(t) ||
+      (s.usuario?.email ?? "").toLowerCase().includes(t) ||
+      (s.observacao ?? "").toLowerCase().includes(t) ||
+      (s.retirado_por ?? "").toLowerCase().includes(t) ||
+      s.id.toLowerCase().includes(t) ||
+      s.itens.some((it) => it.produto.nome.toLowerCase().includes(t))
+    );
+  });
 
   return (
     <div className="space-y-4">
       <PageHeader title="Requisições recebidas" description="Pedidos de produtos enviados pelas salas. A baixa no estoque ocorre apenas após sua aprovação." />
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList>
-          <TabsTrigger value="pendente">Pendentes</TabsTrigger>
-          <TabsTrigger value="aprovado">Aprovadas</TabsTrigger>
-          <TabsTrigger value="rejeitado">Rejeitadas</TabsTrigger>
-          <TabsTrigger value="arquivado">Arquivadas</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList>
+            <TabsTrigger value="pendente">Pendentes</TabsTrigger>
+            <TabsTrigger value="aprovado">Aprovadas</TabsTrigger>
+            <TabsTrigger value="rejeitado">Rejeitadas</TabsTrigger>
+            <TabsTrigger value="arquivado">Arquivadas</TabsTrigger>
+          </TabsList>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input placeholder="Buscar sala, produto, ID, retirado por..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-8" />
+          </div>
+        </div>
         <TabsContent value={tab} className="mt-4">
           <div className="panel overflow-x-auto">
             <Table>
