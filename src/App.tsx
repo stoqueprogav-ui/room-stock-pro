@@ -27,6 +27,7 @@ import EmprestimoImprimir from "./pages/EmprestimoImprimir";
 import MeuPerfil from "./pages/MeuPerfil";
 import ChatPage from "./pages/ChatPage";
 import TrocarSenhaObrigatoria from "./pages/TrocarSenhaObrigatoria";
+import ConfiguracoesPage from "./pages/master/ConfiguracoesPage";
 
 const queryClient = new QueryClient();
 
