@@ -96,6 +96,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [requisicoes, setRequisicoes] = useState<PendingRequisicao[]>([]);
   const [emprestimosPendentes, setEmprestimosPendentes] = useState<PendingEmprestimo[]>([]);
   const [emprestimosAprovados, setEmprestimosAprovados] = useState<PendingEmprestimo[]>([]);
+  const [chatAlerts, setChatAlerts] = useState<ChatAlert[]>([]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem(SOUND_KEY) !== "0"; } catch { return true; }
   });
