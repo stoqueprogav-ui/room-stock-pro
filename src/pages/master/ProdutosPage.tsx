@@ -12,8 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw, FileSpreadsheet } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import type { Produto, Sala, Categoria } from "@/lib/types";
 import ImportarProdutosDialog from "@/components/ImportarProdutosDialog";
+
+const UNIDADES_PRESET = ["Unidade", "Caixa", "Fardo", "Pacote", "Kit", "Litro", "Galão", "Rolo", "Par", "Metro"];
 
 type SalaQty = { sala_id: string; selected: boolean; quantidade: number };
 type Escopo = "global" | "sala";
