@@ -244,17 +244,24 @@ export default function ChatPage() {
     };
   };
 
+  // Mescla fallback (conversa recém-criada ainda não retornada pelo RPC) à lista
+  const mergedConvs = useMemo(() => {
+    if (!activeFallback) return convs;
+    if (convs.some(c => c.id === activeFallback.id)) return convs;
+    return [activeFallback, ...convs];
+  }, [convs, activeFallback]);
+
   const filteredConvs = useMemo(() => {
-    if (!filter.trim()) return convs;
+    if (!filter.trim()) return mergedConvs;
     const q = filter.toLowerCase();
-    return convs.filter(c => {
+    return mergedConvs.filter(c => {
       const d = describeConv(c);
       return d.name.toLowerCase().includes(q) ||
         d.subtitle.toLowerCase().includes(q) ||
         (c.last_message_body ?? "").toLowerCase().includes(q);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [convs, filter, directOthers, profilesMap, rolesMap, salasMap]);
+  }, [mergedConvs, filter, directOthers, profilesMap, rolesMap, salasMap]);
 
   // Quem fala última msg na sidebar (pra prefixo "Você: ")
   const lastSenderLabel = (c: ConvRow) => {
