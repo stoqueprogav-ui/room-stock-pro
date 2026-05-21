@@ -42,7 +42,7 @@ export default function MasterOverview() {
       applySala(supabase.from("solicitacoes").select("id", { count: "exact", head: true }).eq("status", "pendente")),
       applySalaEmprestimo(supabase.from("emprestimos").select("id", { count: "exact", head: true }).eq("status", "pendente")),
       applySalaDivida(supabase.from("dividas").select("id", { count: "exact", head: true })),
-      applySala(supabase.from("estoque").select("quantidade, produtos!inner(estoque_minimo, estoque_critico, ativo)").eq("produtos.ativo", true)),
+      applySala(supabase.from("estoque").select("quantidade, produtos!inner(estoque_minimo, ativo)").eq("produtos.ativo", true)),
     ]);
     const lowCount = (low.data ?? []).filter((r: any) => {
       const min = r.produtos.estoque_minimo ?? 0;

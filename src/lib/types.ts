@@ -26,7 +26,6 @@ export type Produto = {
   descricao: string | null;
   unidade: string;
   estoque_minimo: number;
-  estoque_critico: number;
   categoria_id: string | null;
   categoria?: { id: string; nome: string } | null;
   ativo?: boolean;
