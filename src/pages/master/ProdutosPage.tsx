@@ -89,13 +89,15 @@ export default function ProdutosPage() {
     const payload: any = {
       nome: form.nome.trim(),
       descricao: form.descricao || null,
-      unidade: form.unidade.trim() || "un",
+      unidade: (form.unidade || "Unidade").trim(),
       estoque_minimo: Number(form.estoque_minimo) || 0,
       categoria_id: form.categoria_id,
     };
 
     if (editing) {
-      // Edição: não altera escopo (sala_id) para evitar inconsistências de estoque
+      // Edição completa: pode alterar escopo e ativo. Mudança de unidade não toca estoque.
+      payload.ativo = form.ativo;
+      payload.sala_id = form.sala_id || null;
       const { error } = await supabase.from("produtos").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("Produto atualizado");
