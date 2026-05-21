@@ -771,26 +771,14 @@ export type Database = {
         }
         Returns: number
       }
-      arquivar_emprestimo:
-        | { Args: { _emp: string }; Returns: undefined }
-        | {
-            Args: {
-              _emp: string
-              _retirado_em?: string
-              _retirado_por?: string
-            }
-            Returns: undefined
-          }
-      arquivar_solicitacao:
-        | { Args: { _solic: string }; Returns: undefined }
-        | {
-            Args: {
-              _retirado_em?: string
-              _retirado_por?: string
-              _solic: string
-            }
-            Returns: undefined
-          }
+      arquivar_emprestimo: {
+        Args: { _emp: string; _retirado_em?: string; _retirado_por?: string }
+        Returns: undefined
+      }
+      arquivar_solicitacao: {
+        Args: { _retirado_em?: string; _retirado_por?: string; _solic: string }
+        Returns: undefined
+      }
       can_access_conversation: {
         Args: { _conv: string; _user: string }
         Returns: boolean
