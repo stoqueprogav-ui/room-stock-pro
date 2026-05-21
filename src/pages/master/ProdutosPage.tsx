@@ -24,7 +24,7 @@ export default function ProdutosPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Produto | null>(null);
-  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, estoque_critico: 0, categoria_id: "" });
+  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, categoria_id: "" });
 
   // Escopo do produto
   const [escopo, setEscopo] = useState<Escopo>("global");
@@ -58,7 +58,7 @@ export default function ProdutosPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, estoque_critico: 0, categoria_id: "" });
+    setForm({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, categoria_id: "" });
     setEscopo("global");
     setSalaUnica("");
     setQtdInicialSala(0);
@@ -72,7 +72,6 @@ export default function ProdutosPage() {
       descricao: p.descricao ?? "",
       unidade: p.unidade,
       estoque_minimo: p.estoque_minimo,
-      estoque_critico: p.estoque_critico ?? 0,
       categoria_id: p.categoria_id ?? "",
     });
     setOpen(true);
@@ -87,7 +86,6 @@ export default function ProdutosPage() {
       descricao: form.descricao || null,
       unidade: form.unidade.trim() || "un",
       estoque_minimo: Number(form.estoque_minimo) || 0,
-      estoque_critico: Number(form.estoque_critico) || 0,
       categoria_id: form.categoria_id,
     };
 
@@ -215,7 +213,6 @@ export default function ProdutosPage() {
               <TableHead>Descrição</TableHead>
               <TableHead className="w-[90px]">Unidade</TableHead>
               <TableHead className="w-[90px] text-right">Mínimo</TableHead>
-              <TableHead className="w-[90px] text-right">Crítico</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[140px] text-right">Ações</TableHead>
             </TableRow>
@@ -239,7 +236,6 @@ export default function ProdutosPage() {
                   <TableCell className="text-muted-foreground max-w-md truncate">{p.descricao ?? "—"}</TableCell>
                   <TableCell>{p.unidade}</TableCell>
                   <TableCell className="text-right font-mono text-warning">{p.estoque_minimo}</TableCell>
-                  <TableCell className="text-right font-mono text-destructive">{p.estoque_critico ?? 0}</TableCell>
                   <TableCell>
                     {inativo
                       ? <Badge className="bg-muted text-muted-foreground border">Inativo</Badge>
@@ -262,7 +258,7 @@ export default function ProdutosPage() {
                 </TableRow>
               );
             })}
-            {lista.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
+            {lista.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -286,10 +282,9 @@ export default function ProdutosPage() {
               )}
             </div>
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2"><Label>Unidade</Label><Input value={form.unidade} onChange={(e) => setForm({ ...form, unidade: e.target.value })} placeholder="un, kg, cx…" /></div>
               <div className="space-y-2"><Label>Estoque mínimo</Label><Input type="number" min={0} value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} /></div>
-              <div className="space-y-2"><Label>Estoque crítico</Label><Input type="number" min={0} value={form.estoque_critico} onChange={(e) => setForm({ ...form, estoque_critico: Number(e.target.value) })} /></div>
             </div>
 
             {!editing && (
