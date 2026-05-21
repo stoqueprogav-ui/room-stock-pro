@@ -50,6 +50,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
       { to: "/app/movimentacoes", label: "Movimentações", icon: History },
       { to: "/app/chat", label: "Chat", icon: MessageCircle, badgeKey: "chat" },
       { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
+      { to: "/app/configuracoes", label: "Configurações", icon: Settings },
     );
     return items;
   }
