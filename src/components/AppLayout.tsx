@@ -200,9 +200,14 @@ function AppLayoutInner() {
           ))}
         </nav>
         <div className="p-3 border-t border-sidebar-border space-y-2">
-          <div className="px-2">
+          <div className="px-2 space-y-1.5">
             <div className="text-sm font-medium text-sidebar-accent-foreground truncate">{profile?.nome}</div>
             <div className="text-xs text-sidebar-foreground/70 truncate">{profile?.email}</div>
+            <div className="flex items-center gap-1.5 text-[11px] font-medium rounded-md bg-primary/15 text-primary px-2 py-1 border border-primary/20">
+              {role === "master" && scopeSalaId === null
+                ? <><Globe2 className="size-3" /> {ROLE_LABEL[role]} · Visão Global</>
+                : <><MapPin className="size-3" /> {ROLE_LABEL[role]} · {salaNome ?? "Sem sala"}</>}
+            </div>
           </div>
           <Button variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground" onClick={handleSignOut}>
             <LogOut className="size-4" /> Sair
