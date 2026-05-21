@@ -97,8 +97,17 @@ function AppLayoutInner() {
   const location = useLocation();
   const { logoUrl } = useCompanyLogo();
   const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0, chat: 0 });
+  const [salaNome, setSalaNome] = useState<string | null>(null);
 
   const items = useMemo(() => navForRole(role, scopeSalaId === null), [role, scopeSalaId]);
+
+  // Carrega nome da sala em foco (master) ou da sala do usuário (admin/analista)
+  useEffect(() => {
+    const targetSala = role === "master" ? scopeSalaId : profile?.sala_id ?? null;
+    if (!targetSala) { setSalaNome(null); return; }
+    supabase.from("salas").select("nome").eq("id", targetSala).maybeSingle()
+      .then(({ data }) => setSalaNome((data as any)?.nome ?? null));
+  }, [role, scopeSalaId, profile?.sala_id]);
 
   // Carrega contadores de pendências para badges
   const loadCounts = useCallback(async () => {
