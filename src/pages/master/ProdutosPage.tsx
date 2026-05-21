@@ -27,7 +27,7 @@ export default function ProdutosPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Produto | null>(null);
-  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, categoria_id: "" });
+  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, categoria_id: "", ativo: true, sala_id: "" as string });
 
   // Escopo do produto
   const [escopo, setEscopo] = useState<Escopo>("global");
