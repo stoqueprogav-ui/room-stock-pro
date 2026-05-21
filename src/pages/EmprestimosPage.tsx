@@ -126,12 +126,18 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         }
       />
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList>
-          <TabsTrigger value="pendente">Pendentes</TabsTrigger>
-          <TabsTrigger value="aprovado">Aprovados</TabsTrigger>
-          <TabsTrigger value="rejeitado">Rejeitados</TabsTrigger>
-          <TabsTrigger value="arquivado">Arquivados</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList>
+            <TabsTrigger value="pendente">Pendentes</TabsTrigger>
+            <TabsTrigger value="aprovado">Aprovados</TabsTrigger>
+            <TabsTrigger value="rejeitado">Rejeitados</TabsTrigger>
+            <TabsTrigger value="arquivado">Arquivados</TabsTrigger>
+          </TabsList>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input placeholder="Buscar sala, produto, ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-8" />
+          </div>
+        </div>
         <TabsContent value={tab} className="mt-4">
           <div className="panel overflow-x-auto">
             <Table>
