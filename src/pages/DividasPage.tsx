@@ -73,8 +73,11 @@ export default function DividasPage() {
                   </div>
                 </TableCell>
                 <TableCell>{d.produto.nome}</TableCell>
-                <TableCell className="text-right font-mono">{d.saldo} {d.produto.unidade}</TableCell>
-                {role === "master" && (
+                <TableCell className="text-right font-mono">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-destructive/15 text-destructive px-2 py-0.5">
+                    {d.saldo} {d.produto.unidade}
+                  </span>
+                </TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => { setEditing(d); setQtd(d.saldo); }}><Wallet className="size-4" /> Quitar</Button>
                   </TableCell>
