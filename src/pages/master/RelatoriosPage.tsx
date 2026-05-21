@@ -24,7 +24,7 @@ type Mov = {
   usuario: { nome: string } | null;
 };
 type Sala = { id: string; nome: string };
-type Produto = { id: string; nome: string; estoque_critico: number };
+type Produto = { id: string; nome: string; estoque_minimo: number };
 
 const TIPO_LABEL: Record<string, { label: string; cls: string }> = {
   solicitacao: { label: "Requisição", cls: "bg-warning/15 text-warning border-warning/30" },
@@ -76,7 +76,7 @@ export default function RelatoriosPage() {
     (async () => {
       const [{ data: ss }, { data: pp }] = await Promise.all([
         supabase.from("salas").select("id, nome").order("nome"),
-        supabase.from("produtos").select("id, nome, estoque_critico").order("nome"),
+        supabase.from("produtos").select("id, nome, estoque_minimo").order("nome"),
       ]);
       setSalas((ss as Sala[]) ?? []);
       setProdutos((pp as Produto[]) ?? []);
@@ -116,15 +116,15 @@ export default function RelatoriosPage() {
       const { count: cEmp } = await qEmp;
       setTotalEmp(cEmp ?? 0);
 
-      // estoque crítico
+      // estoque baixo
       let qEst = supabase
         .from("estoque")
-        .select(`quantidade, produto:produtos(nome, estoque_critico), sala:salas(nome), produto_id, sala_id`);
+        .select(`quantidade, produto:produtos(nome, estoque_minimo), sala:salas(nome), produto_id, sala_id`);
       if (efetivaSala) qEst = qEst.eq("sala_id", efetivaSala);
       const { data: estData } = await qEst;
       const cr = ((estData as any[]) ?? [])
-        .filter((e) => e.produto && e.quantidade <= (e.produto.estoque_critico ?? 0))
-        .map((e) => ({ produto: e.produto.nome, sala: e.sala.nome, qtd: e.quantidade, min: e.produto.estoque_critico }));
+        .filter((e) => e.produto && e.quantidade <= (e.produto.estoque_minimo ?? 0))
+        .map((e) => ({ produto: e.produto.nome, sala: e.sala.nome, qtd: e.quantidade, min: e.produto.estoque_minimo }));
       setCriticos(cr);
 
       // dívidas
@@ -191,7 +191,7 @@ export default function RelatoriosPage() {
       <PageHeader
         title="Relatórios avançados"
         description={isGlobal
-          ? "Indicadores agregados de consumo, requisições, empréstimos e estoque crítico."
+          ? "Indicadores agregados de consumo, requisições, empréstimos e estoque baixo."
           : `Indicadores da sala em foco.`}
       />
 
@@ -246,7 +246,7 @@ export default function RelatoriosPage() {
         <KpiCard icon={Package} label="Consumo total (un.)" value={consumoTotal} accent="text-primary" />
         <KpiCard icon={Inbox} label="Requisições" value={totalReq} accent="text-warning" />
         <KpiCard icon={ArrowLeftRight} label="Empréstimos" value={totalEmp} accent="text-accent" />
-        <KpiCard icon={AlertTriangle} label="Itens em nível crítico" value={criticos.length} accent="text-destructive" />
+        <KpiCard icon={AlertTriangle} label="Itens em estoque baixo" value={criticos.length} accent="text-warning" />
       </div>
 
       {/* Tabs */}
@@ -256,7 +256,7 @@ export default function RelatoriosPage() {
           <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
           <TabsTrigger value="dividas">Empréstimos &amp; dívidas</TabsTrigger>
           <TabsTrigger value="movs">Histórico</TabsTrigger>
-          <TabsTrigger value="criticos">Estoque crítico</TabsTrigger>
+          <TabsTrigger value="criticos">Estoque baixo</TabsTrigger>
         </TabsList>
 
         <TabsContent value="consumo" className="mt-4 space-y-4">
@@ -377,14 +377,14 @@ export default function RelatoriosPage() {
 
         <TabsContent value="criticos" className="mt-4">
           <Card className="p-0 overflow-hidden">
-            <div className="p-4 text-sm font-medium border-b border-border">Produtos abaixo ou no nível crítico</div>
+            <div className="p-4 text-sm font-medium border-b border-border">Produtos no nível ou abaixo do estoque mínimo</div>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
                   <TableHead>Sala</TableHead>
                   <TableHead className="text-right w-[120px]">Atual</TableHead>
-                  <TableHead className="text-right w-[120px]">Crítico</TableHead>
+                  <TableHead className="text-right w-[120px]">Mínimo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -392,11 +392,11 @@ export default function RelatoriosPage() {
                   <TableRow key={i} className="table-row-hover">
                     <TableCell>{c.produto}</TableCell>
                     <TableCell>{c.sala}</TableCell>
-                    <TableCell className="text-right font-mono text-destructive">{c.qtd}</TableCell>
+                    <TableCell className="text-right font-mono text-warning">{c.qtd}</TableCell>
                     <TableCell className="text-right font-mono">{c.min}</TableCell>
                   </TableRow>
                 ))}
-                {criticos.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-12">Nenhum item em nível crítico.</TableCell></TableRow>}
+                {criticos.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-12">Nenhum item em estoque baixo.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </Card>

@@ -322,7 +322,7 @@ export type Database = {
           retirado_por: string | null
           sala_destino_id: string
           sala_origem_id: string
-          solicitante_id: string
+          solicitante_id: string | null
           status: Database["public"]["Enums"]["emprestimo_status"]
         }
         Insert: {
@@ -335,7 +335,7 @@ export type Database = {
           retirado_por?: string | null
           sala_destino_id: string
           sala_origem_id: string
-          solicitante_id: string
+          solicitante_id?: string | null
           status?: Database["public"]["Enums"]["emprestimo_status"]
         }
         Update: {
@@ -348,7 +348,7 @@ export type Database = {
           retirado_por?: string | null
           sala_destino_id?: string
           sala_origem_id?: string
-          solicitante_id?: string
+          solicitante_id?: string | null
           status?: Database["public"]["Enums"]["emprestimo_status"]
         }
         Relationships: [
@@ -532,7 +532,6 @@ export type Database = {
           categoria_id: string | null
           created_at: string
           descricao: string | null
-          estoque_critico: number
           estoque_minimo: number
           id: string
           nome: string
@@ -545,7 +544,6 @@ export type Database = {
           categoria_id?: string | null
           created_at?: string
           descricao?: string | null
-          estoque_critico?: number
           estoque_minimo?: number
           id?: string
           nome: string
@@ -558,7 +556,6 @@ export type Database = {
           categoria_id?: string | null
           created_at?: string
           descricao?: string | null
-          estoque_critico?: number
           estoque_minimo?: number
           id?: string
           nome?: string
@@ -687,7 +684,7 @@ export type Database = {
           retirado_por: string | null
           sala_id: string
           status: Database["public"]["Enums"]["solicitacao_status"]
-          usuario_id: string
+          usuario_id: string | null
         }
         Insert: {
           created_at?: string
@@ -700,7 +697,7 @@ export type Database = {
           retirado_por?: string | null
           sala_id: string
           status?: Database["public"]["Enums"]["solicitacao_status"]
-          usuario_id: string
+          usuario_id?: string | null
         }
         Update: {
           created_at?: string
@@ -713,7 +710,7 @@ export type Database = {
           retirado_por?: string | null
           sala_id?: string
           status?: Database["public"]["Enums"]["solicitacao_status"]
-          usuario_id?: string
+          usuario_id?: string | null
         }
         Relationships: [
           {
@@ -824,6 +821,7 @@ export type Database = {
         }[]
       }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
+      excluir_sala: { Args: { _force?: boolean; _sala: string }; Returns: Json }
       get_or_create_direct_conversation: {
         Args: { _other: string }
         Returns: string

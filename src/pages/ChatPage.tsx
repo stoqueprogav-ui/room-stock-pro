@@ -359,7 +359,7 @@ export default function ChatPage() {
                           mine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted rounded-bl-sm",
                           m._pending && "opacity-70"
                         )}>
-                          {!mine && <div className="text-[10px] font-semibold opacity-80 mb-0.5">{prof?.nome ?? "Usuário"}</div>}
+                          {!mine && <div className="text-[10px] font-semibold opacity-80 mb-0.5">{prof?.nome ?? "Usuário removido"}</div>}
                           {m.body && <div className="whitespace-pre-wrap break-words">{m.body}</div>}
                           {m.attachment_path && (
                             <button onClick={() => downloadAttachment(m)} className="mt-1 flex items-center gap-1.5 underline text-xs opacity-90 hover:opacity-100">

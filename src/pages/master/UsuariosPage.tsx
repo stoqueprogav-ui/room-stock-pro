@@ -27,6 +27,7 @@ export default function UsuariosPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, sala_id: "" });
   const [saving, setSaving] = useState(false);
+  const [createdInfo, setCreatedInfo] = useState<{ nome: string; email: string; password: string } | null>(null);
   const [resetOpen, setResetOpen] = useState<UserRow | null>(null);
   const [resetPwd, setResetPwd] = useState("");
   const [resetting, setResetting] = useState(false);
@@ -70,18 +71,24 @@ export default function UsuariosPage() {
     if (!form.email || !form.password || !form.nome) return toast.error("Preencha nome, email e senha");
     if (form.role !== "master" && !form.sala_id) return toast.error("Admin/Analista exige sala");
     setSaving(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email.trim(),
-      password: form.password,
-      options: { data: { nome: form.nome, role: form.role, sala_id: form.role === "master" ? "" : form.sala_id, must_change_password: "true" } },
+    const { data, error } = await supabase.functions.invoke("admin-create-user", {
+      body: {
+        nome: form.nome,
+        email: form.email.trim(),
+        password: form.password,
+        role: form.role,
+        sala_id: form.role === "master" ? null : form.sala_id,
+      },
     });
     setSaving(false);
-    if (error) return toast.error(error.message);
-    if (!data.user) return toast.error("Falha ao criar");
-    toast.success("Usuário criado");
+    if (error || (data as any)?.error) {
+      return toast.error((data as any)?.error ?? error?.message ?? "Falha ao criar");
+    }
+    // Master continua logado — não trocamos sessão
+    setCreatedInfo({ nome: form.nome, email: form.email.trim(), password: form.password });
     setOpen(false);
     setForm({ nome: "", email: "", password: "", role: "analista", sala_id: "" });
-    setTimeout(load, 600);
+    setTimeout(load, 400);
   };
 
   const updateRole = async (u: UserRow, newRole: AppRole) => {
@@ -281,6 +288,23 @@ export default function UsuariosPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetOpen(null)}>Cancelar</Button>
             <Button onClick={resetarSenha} disabled={resetting}>{resetting ? "Salvando…" : "Redefinir"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!createdInfo} onOpenChange={(o) => !o && setCreatedInfo(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Usuário criado com sucesso</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">Sua sessão Master não foi alterada. Envie estas credenciais ao novo usuário — ele deverá trocar a senha no primeiro login.</p>
+            <div className="rounded-md border bg-muted/30 p-3 space-y-1 font-mono text-xs">
+              <div><span className="text-muted-foreground">Nome:</span> {createdInfo?.nome}</div>
+              <div><span className="text-muted-foreground">Login:</span> {createdInfo?.email}</div>
+              <div><span className="text-muted-foreground">Senha provisória:</span> {createdInfo?.password}</div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setCreatedInfo(null)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
