@@ -192,6 +192,7 @@ export default function ChatPage() {
 
   const [activeFallback, setActiveFallback] = useState<ConvRow | null>(null);
   const active = convs.find(c => c.id === activeId) ?? (activeFallback?.id === activeId ? activeFallback : null);
+  // (mergedConvs definido mais abaixo, junto a filteredConvs)
 
   // Para DMs, buscar o outro participante
   const [directOthers, setDirectOthers] = useState<Record<string, string>>({});
