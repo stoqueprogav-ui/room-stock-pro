@@ -24,7 +24,7 @@ function timeAgo(iso: string) {
 
 type Alert = {
   id: string;
-  kind: "requisicao" | "emprestimo_pendente" | "emprestimo_aprovado";
+  kind: "requisicao" | "emprestimo_pendente" | "emprestimo_aprovado" | "chat";
   title: string;
   subtitle: string;
   created_at: string;
@@ -34,7 +34,7 @@ type Alert = {
 export default function NotificationsBell() {
   const { role } = useAuth();
   const {
-    requisicoes, emprestimosPendentes, emprestimosAprovados,
+    requisicoes, emprestimosPendentes, emprestimosAprovados, chatAlerts,
     totalCount, soundEnabled, toggleSound,
     isRead, isDismissed, markRead, markUnread, dismiss, restore,
     markAllRead,
