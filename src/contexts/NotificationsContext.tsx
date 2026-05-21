@@ -22,15 +22,24 @@ export type PendingEmprestimo = {
   created_at: string;
 };
 
+export type ChatAlert = {
+  id: string;                // conversation id (agrupado)
+  conversation_id: string;
+  sender_id: string;
+  sender_nome: string;
+  preview: string;
+  created_at: string;
+  unread_count: number;
+};
+
 type Ctx = {
   requisicoes: PendingRequisicao[];
   emprestimosPendentes: PendingEmprestimo[];
   emprestimosAprovados: PendingEmprestimo[];
-  // contadores derivados (apenas alertas ativos / não lidos)
-  totalCount: number;       // não lidos (badge vermelho do sino)
-  activeCount: number;      // ativos (não fechados) — usado nos banners
+  chatAlerts: ChatAlert[];
+  totalCount: number;
+  activeCount: number;
   perSalaCount: Record<string, number>;
-  // status por alerta
   isRead: (id: string) => boolean;
   isDismissed: (id: string) => boolean;
   markRead: (id: string) => void;
@@ -87,6 +96,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [requisicoes, setRequisicoes] = useState<PendingRequisicao[]>([]);
   const [emprestimosPendentes, setEmprestimosPendentes] = useState<PendingEmprestimo[]>([]);
   const [emprestimosAprovados, setEmprestimosAprovados] = useState<PendingEmprestimo[]>([]);
+  const [chatAlerts, setChatAlerts] = useState<ChatAlert[]>([]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem(SOUND_KEY) !== "0"; } catch { return true; }
   });
@@ -201,6 +211,27 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       }
       setEmprestimosPendentes(pend);
     }
+
+    // Chat: agrega conversas com unread_count > 0
+    try {
+      const { data: convs } = await supabase.rpc("list_my_conversations");
+      const unread = (convs ?? []).filter((c: any) => (c.unread_count ?? 0) > 0);
+      const senderIds = [...new Set(unread.map((c: any) => c.last_sender_id).filter(Boolean))];
+      let nameMap = new Map<string, string>();
+      if (senderIds.length > 0) {
+        const { data: ps } = await supabase.from("profiles").select("id, nome").in("id", senderIds);
+        nameMap = new Map((ps ?? []).map((p: any) => [p.id, p.nome]));
+      }
+      setChatAlerts(unread.map((c: any) => ({
+        id: `chat:${c.id}`,
+        conversation_id: c.id,
+        sender_id: c.last_sender_id ?? "",
+        sender_nome: c.last_sender_id ? (nameMap.get(c.last_sender_id) ?? "Usuário") : (c.title ?? "Conversa"),
+        preview: c.last_message_body ?? "Nova mensagem",
+        created_at: c.last_message_at ?? new Date().toISOString(),
+        unread_count: c.unread_count ?? 0,
+      })));
+    } catch { /* noop */ }
   }, [user, role, profile?.sala_id]);
 
   // initial load
@@ -295,6 +326,32 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           await refresh();
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        async (payload) => {
+          const row: any = payload.new;
+          if (row.sender_id === user.id) return;
+          // Ignora se a página de chat estiver aberta nessa conversa
+          if (typeof window !== "undefined") {
+            const p = window.location.pathname;
+            const url = new URL(window.location.href);
+            const c = url.searchParams.get("c");
+            if (p.startsWith("/app/chat") && c === row.conversation_id) {
+              await refresh();
+              return;
+            }
+          }
+          const { data: prof } = await supabase.from("profiles").select("nome").eq("id", row.sender_id).maybeSingle();
+          notify(
+            `💬 ${prof?.nome ?? "Nova mensagem"}`,
+            row.body ?? (row.attachment_name ? `📎 ${row.attachment_name}` : "Nova mensagem"),
+            "info",
+            () => { window.location.href = `/app/chat?c=${row.conversation_id}`; }
+          );
+          await refresh();
+        }
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -383,7 +440,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     requisicoes,
     emprestimosPendentes,
     emprestimosAprovados,
-    totalCount,
+    chatAlerts,
+    totalCount: totalCount + chatAlerts.reduce((s, c) => s + c.unread_count, 0),
     activeCount,
     perSalaCount,
     isRead, isDismissed,

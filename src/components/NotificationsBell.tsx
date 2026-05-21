@@ -1,4 +1,4 @@
-import { Bell, BellOff, Volume2, VolumeX, Inbox, ArrowLeftRight, CheckCircle2, Check, X, RotateCcw, History } from "lucide-react";
+import { Bell, BellOff, Volume2, VolumeX, Inbox, ArrowLeftRight, CheckCircle2, Check, X, RotateCcw, History, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ function timeAgo(iso: string) {
 
 type Alert = {
   id: string;
-  kind: "requisicao" | "emprestimo_pendente" | "emprestimo_aprovado";
+  kind: "requisicao" | "emprestimo_pendente" | "emprestimo_aprovado" | "chat";
   title: string;
   subtitle: string;
   created_at: string;
@@ -34,7 +34,7 @@ type Alert = {
 export default function NotificationsBell() {
   const { role } = useAuth();
   const {
-    requisicoes, emprestimosPendentes, emprestimosAprovados,
+    requisicoes, emprestimosPendentes, emprestimosAprovados, chatAlerts,
     totalCount, soundEnabled, toggleSound,
     isRead, isDismissed, markRead, markUnread, dismiss, restore,
     markAllRead,
@@ -77,10 +77,20 @@ export default function NotificationsBell() {
         });
       }
     }
+    for (const c of chatAlerts) {
+      arr.push({
+        id: c.id,
+        kind: "chat",
+        title: `💬 ${c.sender_nome}`,
+        subtitle: `${c.preview} · ${timeAgo(c.created_at)}${c.unread_count > 1 ? ` · ${c.unread_count} novas` : ""}`,
+        created_at: c.created_at,
+        go: () => navigate(`/app/chat?c=${c.conversation_id}`),
+      });
+    }
     arr.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, requisicoes, emprestimosPendentes, emprestimosAprovados]);
+  }, [role, requisicoes, emprestimosPendentes, emprestimosAprovados, chatAlerts]);
 
   const ativos = alerts.filter((a) => !isDismissed(a.id));
   const historico = alerts; // tudo (inclui fechados) — pendência segue listada
@@ -88,6 +98,7 @@ export default function NotificationsBell() {
   const iconFor = (k: Alert["kind"]) => {
     if (k === "requisicao") return <Inbox className="size-4 text-destructive" />;
     if (k === "emprestimo_pendente") return <ArrowLeftRight className="size-4 text-warning" />;
+    if (k === "chat") return <MessageCircle className="size-4 text-primary" />;
     return <CheckCircle2 className="size-4 text-success" />;
   };
 
