@@ -95,8 +95,22 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const podeDecidir = (e: Emp) =>
     role === "admin" && profile?.sala_id === e.sala_origem_id;
 
+  const pendenteTotal = (e: Emp) =>
+    (e.itens ?? []).reduce((s, it) => s + (it.quantidade - (it.quantidade_devolvida ?? 0)), 0);
+
   let list = rows.filter((r) => r.status === tab);
   if (approveOnly) list = list.filter((r) => r.sala_origem_id === profile?.sala_id);
+  if (busca.trim()) {
+    const t = busca.trim().toLowerCase();
+    list = list.filter((e) =>
+      e.origem.nome.toLowerCase().includes(t) ||
+      e.destino.nome.toLowerCase().includes(t) ||
+      (e.solicitante?.nome ?? "").toLowerCase().includes(t) ||
+      (e.observacao ?? "").toLowerCase().includes(t) ||
+      e.id.toLowerCase().includes(t) ||
+      e.itens.some((it) => it.produto.nome.toLowerCase().includes(t)),
+    );
+  }
 
   return (
     <div className="space-y-4">
