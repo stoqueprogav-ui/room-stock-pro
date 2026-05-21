@@ -21,9 +21,7 @@ type StatusKind = "ok" | "baixo" | "critico";
 type SortKey = "nome" | "quantidade" | "menor";
 
 function getStatus(q: number, p: Produto): StatusKind {
-  const critico = p.estoque_critico ?? 0;
   const minimo = p.estoque_minimo ?? 0;
-  if (critico > 0 && q <= critico) return "critico";
   if (q <= 0) return "critico";
   if (q <= minimo) return "baixo";
   return "ok";
@@ -270,7 +268,6 @@ export default function EstoquePage() {
               <TableHead>Sala</TableHead>
               <TableHead className="text-right w-[110px]">Quantidade</TableHead>
               <TableHead className="text-right w-[80px]">Mín.</TableHead>
-              <TableHead className="text-right w-[80px]">Crít.</TableHead>
               <TableHead className="w-[130px]">Status</TableHead>
               {isMaster && <TableHead className="w-[260px] text-right">Ações</TableHead>}
             </TableRow>
@@ -287,7 +284,6 @@ export default function EstoquePage() {
                 <TableCell>{r.sala.nome}</TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
-                <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_critico ?? 0}</TableCell>
                 <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
                 {isMaster && (
                   <TableCell className="text-right">
