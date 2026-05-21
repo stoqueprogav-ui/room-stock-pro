@@ -250,6 +250,7 @@ function AppLayoutInner() {
           <Outlet />
         </div>
       </main>
+      <FloatingChat />
     </div>
   );
 }
