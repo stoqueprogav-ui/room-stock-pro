@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -93,6 +94,7 @@ function playBeep(kind: "info" | "warn" = "info") {
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user, role, profile } = useAuth();
+  const navigate = useNavigate();
   const [requisicoes, setRequisicoes] = useState<PendingRequisicao[]>([]);
   const [emprestimosPendentes, setEmprestimosPendentes] = useState<PendingEmprestimo[]>([]);
   const [emprestimosAprovados, setEmprestimosAprovados] = useState<PendingEmprestimo[]>([]);
@@ -271,7 +273,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             "🔴 Nova requisição recebida",
             `Sala: ${sala?.nome ?? "—"} · Por: ${prof?.nome ?? "—"}`,
             "warn",
-            () => { window.location.href = "/app/requisicoes"; }
+            () => navigate("/app/requisicoes")
           );
           await refresh();
         }
@@ -298,9 +300,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             isAdminOrigem ? "🟡 Sua sala recebeu um pedido de empréstimo" : "🟡 Novo pedido de empréstimo",
             desc,
             "warn",
-            () => {
-              window.location.href = role === "admin" ? "/app/aprovar-emprestimos" : "/app/emprestimos";
-            }
+            () => navigate(role === "admin" ? "/app/aprovar-emprestimos" : "/app/emprestimos")
           );
           await refresh();
         }
@@ -320,7 +320,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               "✅ Empréstimo aprovado",
               `${salaO?.nome ?? "—"} → ${salaD?.nome ?? "—"} · aguarda arquivamento`,
               "info",
-              () => { window.location.href = "/app/emprestimos"; }
+              () => navigate("/app/emprestimos")
             );
           }
           await refresh();
@@ -332,7 +332,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         async (payload) => {
           const row: any = payload.new;
           if (row.sender_id === user.id) return;
-          // Ignora se a página de chat estiver aberta nessa conversa
+          // Se já está na página de chat olhando esta conversa, apenas refresca
           if (typeof window !== "undefined") {
             const p = window.location.pathname;
             const url = new URL(window.location.href);
@@ -343,11 +343,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             }
           }
           const { data: prof } = await supabase.from("profiles").select("nome").eq("id", row.sender_id).maybeSingle();
+          const openConv = () => {
+            const onChatPage = typeof window !== "undefined" && window.location.pathname.startsWith("/app/chat");
+            if (onChatPage) {
+              navigate(`/app/chat?c=${row.conversation_id}`);
+            } else {
+              // Abre o chat flutuante diretamente na conversa, sem sair da página
+              window.dispatchEvent(new CustomEvent("floating-chat:open", { detail: { conversationId: row.conversation_id } }));
+            }
+          };
           notify(
             `💬 ${prof?.nome ?? "Nova mensagem"}`,
             row.body ?? (row.attachment_name ? `📎 ${row.attachment_name}` : "Nova mensagem"),
             "info",
-            () => { window.location.href = `/app/chat?c=${row.conversation_id}`; }
+            openConv
           );
           await refresh();
         }
@@ -355,7 +364,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, role, profile?.sala_id, soundEnabled, refresh]);
+  }, [user, role, profile?.sala_id, soundEnabled, refresh, navigate]);
 
   // ===== Estado de leitura / fechamento (persistente em localStorage) =====
   const [readIds, setReadIds] = useState<Set<string>>(() => loadSet(READ_KEY));

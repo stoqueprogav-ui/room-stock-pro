@@ -84,7 +84,14 @@ export default function NotificationsBell() {
         title: `💬 ${c.sender_nome}`,
         subtitle: `${c.preview} · ${timeAgo(c.created_at)}${c.unread_count > 1 ? ` · ${c.unread_count} novas` : ""}`,
         created_at: c.created_at,
-        go: () => navigate(`/app/chat?c=${c.conversation_id}`),
+        go: () => {
+          const onChatPage = window.location.pathname.startsWith("/app/chat");
+          if (onChatPage) {
+            navigate(`/app/chat?c=${c.conversation_id}`);
+          } else {
+            window.dispatchEvent(new CustomEvent("floating-chat:open", { detail: { conversationId: c.conversation_id } }));
+          }
+        },
       });
     }
     arr.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));

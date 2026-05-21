@@ -9,6 +9,7 @@ import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeConte
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import NotificationsBell from "@/components/NotificationsBell";
 import MasterScopeSwitcher from "@/components/MasterScopeSwitcher";
+import FloatingChat from "@/components/FloatingChat";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -249,6 +250,7 @@ function AppLayoutInner() {
           <Outlet />
         </div>
       </main>
+      <FloatingChat />
     </div>
   );
 }

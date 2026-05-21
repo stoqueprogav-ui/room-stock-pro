@@ -104,6 +104,11 @@ export default function ChatPage() {
   const [activeId, setActiveId] = useState<string | null>(params.get("c"));
   const activeIdRef = useRef<string | null>(activeId);
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+  // Sincroniza activeId quando o parâmetro ?c= muda (ex.: clique em notificação já estando em /app/chat)
+  useEffect(() => {
+    const c = params.get("c");
+    if (c && c !== activeId) setActiveId(c);
+  }, [params]); // eslint-disable-line react-hooks/exhaustive-deps
   const [messages, setMessages] = useState<Msg[]>([]);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
