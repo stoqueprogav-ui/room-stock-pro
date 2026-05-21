@@ -78,6 +78,7 @@ export default function DividasPage() {
                     {d.saldo} {d.produto.unidade}
                   </span>
                 </TableCell>
+                {role === "master" && (
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => { setEditing(d); setQtd(d.saldo); }}><Wallet className="size-4" /> Quitar</Button>
                   </TableCell>
