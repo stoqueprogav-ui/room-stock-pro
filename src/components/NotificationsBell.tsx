@@ -1,4 +1,4 @@
-import { Bell, BellOff, Volume2, VolumeX, Inbox, ArrowLeftRight, CheckCircle2, Check, X, RotateCcw, History } from "lucide-react";
+import { Bell, BellOff, Volume2, VolumeX, Inbox, ArrowLeftRight, CheckCircle2, Check, X, RotateCcw, History, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
