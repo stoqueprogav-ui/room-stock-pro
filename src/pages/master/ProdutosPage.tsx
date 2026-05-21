@@ -290,9 +290,54 @@ export default function ProdutosPage() {
             </div>
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Unidade</Label><Input value={form.unidade} onChange={(e) => setForm({ ...form, unidade: e.target.value })} placeholder="un, kg, cx…" /></div>
+              <div className="space-y-2">
+                <Label>Unidade</Label>
+                <Select
+                  value={UNIDADES_PRESET.includes(form.unidade) ? form.unidade : "__custom"}
+                  onValueChange={(v) => {
+                    if (v === "__custom") setForm({ ...form, unidade: "" });
+                    else setForm({ ...form, unidade: v });
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {UNIDADES_PRESET.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                    <SelectItem value="__custom">Outros (personalizado)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!UNIDADES_PRESET.includes(form.unidade) && (
+                  <Input
+                    value={form.unidade}
+                    onChange={(e) => setForm({ ...form, unidade: e.target.value })}
+                    placeholder="Digite a unidade (ex: Bobina)"
+                  />
+                )}
+              </div>
               <div className="space-y-2"><Label>Estoque mínimo</Label><Input type="number" min={0} value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} /></div>
             </div>
+
+            {editing && (
+              <div className="space-y-3 pt-3 border-t">
+                <div className="space-y-2">
+                  <Label>Escopo do produto</Label>
+                  <Select value={form.sala_id || "__global"} onValueChange={(v) => setForm({ ...form, sala_id: v === "__global" ? "" : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__global">🌐 Global (todas as salas)</SelectItem>
+                      {salas.map((s) => <SelectItem key={s.id} value={s.id}>🏢 {s.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Alterar escopo não altera as quantidades já em estoque.</p>
+                </div>
+                <div className="flex items-center justify-between rounded-md border p-3">
+                  <div>
+                    <div className="text-sm font-medium">Produto ativo</div>
+                    <div className="text-xs text-muted-foreground">Desativados não aparecem em requisições.</div>
+                  </div>
+                  <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
+                </div>
+              </div>
+            )}
 
             {!editing && (
               <div className="space-y-3 pt-3 border-t">
