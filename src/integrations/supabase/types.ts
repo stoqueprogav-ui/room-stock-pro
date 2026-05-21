@@ -874,6 +874,7 @@ export type Database = {
         Args: { _emp: string; _itens: Json; _observacao?: string }
         Returns: string
       }
+      reset_sistema_total: { Args: never; Returns: Json }
       send_message: {
         Args: {
           _attachment_name?: string

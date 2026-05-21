@@ -12,8 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw, FileSpreadsheet } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import type { Produto, Sala, Categoria } from "@/lib/types";
 import ImportarProdutosDialog from "@/components/ImportarProdutosDialog";
+
+const UNIDADES_PRESET = ["Unidade", "Caixa", "Fardo", "Pacote", "Kit", "Litro", "Galão", "Rolo", "Par", "Metro"];
 
 type SalaQty = { sala_id: string; selected: boolean; quantidade: number };
 type Escopo = "global" | "sala";
@@ -24,7 +27,7 @@ export default function ProdutosPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Produto | null>(null);
-  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, categoria_id: "" });
+  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, categoria_id: "", ativo: true, sala_id: "" as string });
 
   // Escopo do produto
   const [escopo, setEscopo] = useState<Escopo>("global");
@@ -58,7 +61,7 @@ export default function ProdutosPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ nome: "", descricao: "", unidade: "un", estoque_minimo: 0, categoria_id: "" });
+    setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, categoria_id: "", ativo: true, sala_id: "" });
     setEscopo("global");
     setSalaUnica("");
     setQtdInicialSala(0);
@@ -73,6 +76,8 @@ export default function ProdutosPage() {
       unidade: p.unidade,
       estoque_minimo: p.estoque_minimo,
       categoria_id: p.categoria_id ?? "",
+      ativo: p.ativo !== false,
+      sala_id: p.sala_id ?? "",
     });
     setOpen(true);
   };
@@ -84,13 +89,15 @@ export default function ProdutosPage() {
     const payload: any = {
       nome: form.nome.trim(),
       descricao: form.descricao || null,
-      unidade: form.unidade.trim() || "un",
+      unidade: (form.unidade || "Unidade").trim(),
       estoque_minimo: Number(form.estoque_minimo) || 0,
       categoria_id: form.categoria_id,
     };
 
     if (editing) {
-      // Edição: não altera escopo (sala_id) para evitar inconsistências de estoque
+      // Edição completa: pode alterar escopo e ativo. Mudança de unidade não toca estoque.
+      payload.ativo = form.ativo;
+      payload.sala_id = form.sala_id || null;
       const { error } = await supabase.from("produtos").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("Produto atualizado");
@@ -283,9 +290,54 @@ export default function ProdutosPage() {
             </div>
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Unidade</Label><Input value={form.unidade} onChange={(e) => setForm({ ...form, unidade: e.target.value })} placeholder="un, kg, cx…" /></div>
+              <div className="space-y-2">
+                <Label>Unidade</Label>
+                <Select
+                  value={UNIDADES_PRESET.includes(form.unidade) ? form.unidade : "__custom"}
+                  onValueChange={(v) => {
+                    if (v === "__custom") setForm({ ...form, unidade: "" });
+                    else setForm({ ...form, unidade: v });
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {UNIDADES_PRESET.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                    <SelectItem value="__custom">Outros (personalizado)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!UNIDADES_PRESET.includes(form.unidade) && (
+                  <Input
+                    value={form.unidade}
+                    onChange={(e) => setForm({ ...form, unidade: e.target.value })}
+                    placeholder="Digite a unidade (ex: Bobina)"
+                  />
+                )}
+              </div>
               <div className="space-y-2"><Label>Estoque mínimo</Label><Input type="number" min={0} value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} /></div>
             </div>
+
+            {editing && (
+              <div className="space-y-3 pt-3 border-t">
+                <div className="space-y-2">
+                  <Label>Escopo do produto</Label>
+                  <Select value={form.sala_id || "__global"} onValueChange={(v) => setForm({ ...form, sala_id: v === "__global" ? "" : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__global">🌐 Global (todas as salas)</SelectItem>
+                      {salas.map((s) => <SelectItem key={s.id} value={s.id}>🏢 {s.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Alterar escopo não altera as quantidades já em estoque.</p>
+                </div>
+                <div className="flex items-center justify-between rounded-md border p-3">
+                  <div>
+                    <div className="text-sm font-medium">Produto ativo</div>
+                    <div className="text-xs text-muted-foreground">Desativados não aparecem em requisições.</div>
+                  </div>
+                  <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
+                </div>
+              </div>
+            )}
 
             {!editing && (
               <div className="space-y-3 pt-3 border-t">

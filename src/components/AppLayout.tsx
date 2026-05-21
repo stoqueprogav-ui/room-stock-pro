@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
-  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle,
+  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle, MapPin, Settings, Globe2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
@@ -50,6 +50,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
       { to: "/app/movimentacoes", label: "Movimentações", icon: History },
       { to: "/app/chat", label: "Chat", icon: MessageCircle, badgeKey: "chat" },
       { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
+      { to: "/app/configuracoes", label: "Configurações", icon: Settings },
     );
     return items;
   }
@@ -96,8 +97,17 @@ function AppLayoutInner() {
   const location = useLocation();
   const { logoUrl } = useCompanyLogo();
   const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0, chat: 0 });
+  const [salaNome, setSalaNome] = useState<string | null>(null);
 
   const items = useMemo(() => navForRole(role, scopeSalaId === null), [role, scopeSalaId]);
+
+  // Carrega nome da sala em foco (master) ou da sala do usuário (admin/analista)
+  useEffect(() => {
+    const targetSala = role === "master" ? scopeSalaId : profile?.sala_id ?? null;
+    if (!targetSala) { setSalaNome(null); return; }
+    supabase.from("salas").select("nome").eq("id", targetSala).maybeSingle()
+      .then(({ data }) => setSalaNome((data as any)?.nome ?? null));
+  }, [role, scopeSalaId, profile?.sala_id]);
 
   // Carrega contadores de pendências para badges
   const loadCounts = useCallback(async () => {
@@ -190,9 +200,14 @@ function AppLayoutInner() {
           ))}
         </nav>
         <div className="p-3 border-t border-sidebar-border space-y-2">
-          <div className="px-2">
+          <div className="px-2 space-y-1.5">
             <div className="text-sm font-medium text-sidebar-accent-foreground truncate">{profile?.nome}</div>
             <div className="text-xs text-sidebar-foreground/70 truncate">{profile?.email}</div>
+            <div className="flex items-center gap-1.5 text-[11px] font-medium rounded-md bg-primary/15 text-primary px-2 py-1 border border-primary/20">
+              {role === "master" && scopeSalaId === null
+                ? <><Globe2 className="size-3" /> {ROLE_LABEL[role]} · Visão Global</>
+                : <><MapPin className="size-3" /> {ROLE_LABEL[role]} · {salaNome ?? "Sem sala"}</>}
+            </div>
           </div>
           <Button variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground" onClick={handleSignOut}>
             <LogOut className="size-4" /> Sair
@@ -208,7 +223,19 @@ function AppLayoutInner() {
             </div>
             <span className="font-display font-bold">Estoque Pro</span>
           </div>
-          <div className="hidden md:block text-sm text-muted-foreground">Painel · {ROLE_LABEL[role]}</div>
+          <div className="hidden md:flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Painel · {ROLE_LABEL[role]}</span>
+            <span className="text-muted-foreground/40">·</span>
+            {role === "master" && scopeSalaId === null ? (
+              <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
+                <Globe2 className="size-3" /> Visão Global
+              </Badge>
+            ) : (
+              <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
+                <MapPin className="size-3" /> Sala: {salaNome ?? "—"}
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-3 ml-auto">
             {role === "master" && <MasterScopeSwitcher />}
             <NotificationsBell />
