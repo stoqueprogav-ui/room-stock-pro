@@ -22,15 +22,24 @@ export type PendingEmprestimo = {
   created_at: string;
 };
 
+export type ChatAlert = {
+  id: string;                // conversation id (agrupado)
+  conversation_id: string;
+  sender_id: string;
+  sender_nome: string;
+  preview: string;
+  created_at: string;
+  unread_count: number;
+};
+
 type Ctx = {
   requisicoes: PendingRequisicao[];
   emprestimosPendentes: PendingEmprestimo[];
   emprestimosAprovados: PendingEmprestimo[];
-  // contadores derivados (apenas alertas ativos / não lidos)
-  totalCount: number;       // não lidos (badge vermelho do sino)
-  activeCount: number;      // ativos (não fechados) — usado nos banners
+  chatAlerts: ChatAlert[];
+  totalCount: number;
+  activeCount: number;
   perSalaCount: Record<string, number>;
-  // status por alerta
   isRead: (id: string) => boolean;
   isDismissed: (id: string) => boolean;
   markRead: (id: string) => void;
