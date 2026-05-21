@@ -4,9 +4,10 @@ import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2, MessageCircle } from "lucide-react";
+import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2, MessageCircle, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
@@ -27,7 +28,7 @@ type Emp = {
   origem: { nome: string };
   destino: { nome: string };
   solicitante: { nome: string } | null;
-  itens: { quantidade: number; produto: { nome: string; unidade: string } }[];
+  itens: { quantidade: number; quantidade_devolvida: number; produto: { nome: string; unidade: string } }[];
 };
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
@@ -36,6 +37,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
+  const [busca, setBusca] = useState("");
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
   const [devolverId, setDevolverId] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                origem:salas!emprestimos_sala_origem_id_fkey(nome),
                destino:salas!emprestimos_sala_destino_id_fkey(nome),
                solicitante:profiles!emprestimos_solicitante_id_fkey(nome),
-               itens:emprestimo_itens(quantidade, produto:produtos(nome, unidade))`)
+               itens:emprestimo_itens(quantidade, quantidade_devolvida, produto:produtos(nome, unidade))`)
       .order("created_at", { ascending: false });
     if (role === "master" && scopeSalaId) {
       q = q.or(`sala_origem_id.eq.${scopeSalaId},sala_destino_id.eq.${scopeSalaId}`);
@@ -94,8 +96,22 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const podeDecidir = (e: Emp) =>
     role === "admin" && profile?.sala_id === e.sala_origem_id;
 
+  const pendenteTotal = (e: Emp) =>
+    (e.itens ?? []).reduce((s, it) => s + (it.quantidade - (it.quantidade_devolvida ?? 0)), 0);
+
   let list = rows.filter((r) => r.status === tab);
   if (approveOnly) list = list.filter((r) => r.sala_origem_id === profile?.sala_id);
+  if (busca.trim()) {
+    const t = busca.trim().toLowerCase();
+    list = list.filter((e) =>
+      e.origem.nome.toLowerCase().includes(t) ||
+      e.destino.nome.toLowerCase().includes(t) ||
+      (e.solicitante?.nome ?? "").toLowerCase().includes(t) ||
+      (e.observacao ?? "").toLowerCase().includes(t) ||
+      e.id.toLowerCase().includes(t) ||
+      e.itens.some((it) => it.produto.nome.toLowerCase().includes(t)),
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -110,12 +126,18 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         }
       />
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList>
-          <TabsTrigger value="pendente">Pendentes</TabsTrigger>
-          <TabsTrigger value="aprovado">Aprovados</TabsTrigger>
-          <TabsTrigger value="rejeitado">Rejeitados</TabsTrigger>
-          <TabsTrigger value="arquivado">Arquivados</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList>
+            <TabsTrigger value="pendente">Pendentes</TabsTrigger>
+            <TabsTrigger value="aprovado">Aprovados</TabsTrigger>
+            <TabsTrigger value="rejeitado">Rejeitados</TabsTrigger>
+            <TabsTrigger value="arquivado">Arquivados</TabsTrigger>
+          </TabsList>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input placeholder="Buscar sala, produto, ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-8" />
+          </div>
+        </div>
         <TabsContent value={tab} className="mt-4">
           <div className="panel overflow-x-auto">
             <Table>
@@ -142,11 +164,27 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {e.itens.map((it, i) => (
-                          <span key={i} className="rounded bg-muted px-2 py-0.5 text-xs font-mono">
-                            {it.produto.nome} · {it.quantidade}{it.produto.unidade}
-                          </span>
-                        ))}
+                        {e.itens.map((it, i) => {
+                          const pend = it.quantidade - (it.quantidade_devolvida ?? 0);
+                          const isAprov = e.status === "aprovado";
+                          return (
+                            <span
+                              key={i}
+                              className={`rounded px-2 py-0.5 text-xs font-mono ${
+                                isAprov && pend === 0
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                  : isAprov && pend < it.quantidade
+                                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                    : isAprov
+                                      ? "bg-destructive/15 text-destructive"
+                                      : "bg-muted"
+                              }`}
+                              title={isAprov ? `Emprestado ${it.quantidade}, devolvido ${it.quantidade_devolvida ?? 0}, pendente ${pend}` : undefined}
+                            >
+                              {it.produto.nome} · {isAprov ? `${pend}/${it.quantidade}` : it.quantidade}{it.produto.unidade}
+                            </span>
+                          );
+                        })}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{formatDateTime(e.created_at)}</TableCell>
@@ -173,21 +211,32 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
                           </>
                         )
                       )}
-                      {tab === "aprovado" && (
-                        <>
-                          <Button size="sm" variant="outline" className="mr-2" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
-                            <Printer className="size-4" /> Imprimir
-                          </Button>
-                          {(role === "master" || profile?.sala_id === e.sala_destino_id) && (
-                            <Button size="sm" variant="secondary" className="mr-2" onClick={() => setDevolverId(e.id)}>
-                              <Undo2 className="size-4" /> Devolver
+                      {tab === "aprovado" && (() => {
+                        const pend = pendenteTotal(e);
+                        return (
+                          <>
+                            <Button size="sm" variant="outline" className="mr-2" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
+                              <Printer className="size-4" /> Imprimir
                             </Button>
-                          )}
-                          {role === "master" && (
-                            <Button size="sm" variant="ghost" onClick={() => setArquivarId(e.id)}><Archive className="size-4" /> Arquivar</Button>
-                          )}
-                        </>
-                      )}
+                            {role === "master" && pend > 0 && (
+                              <Button size="sm" variant="secondary" className="mr-2" onClick={() => setDevolverId(e.id)}>
+                                <Undo2 className="size-4" /> Devolver ({pend})
+                              </Button>
+                            )}
+                            {role === "master" && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={pend > 0}
+                                title={pend > 0 ? `Devolva todos os itens antes de arquivar (${pend} pendente(s))` : "Arquivar"}
+                                onClick={() => setArquivarId(e.id)}
+                              >
+                                <Archive className="size-4" /> Arquivar
+                              </Button>
+                            )}
+                          </>
+                        );
+                      })()}
                       {tab === "rejeitado" && role === "master" && (
                         <Button size="sm" variant="ghost" onClick={() => arquivarRejeitado(e.id)}><Archive className="size-4" /> Arquivar</Button>
                       )}

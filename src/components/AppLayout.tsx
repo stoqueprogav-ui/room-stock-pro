@@ -42,7 +42,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
         label: "Empréstimos", icon: ArrowLeftRight,
         children: [
           { to: "/app/emprestimos", label: "Todos os empréstimos", icon: ArrowLeftRight },
-          { to: "/app/dividas", label: "Dívidas", icon: Wallet },
+          { to: "/app/dividas", label: "Dívidas da Sala", icon: Wallet },
         ],
       },
       { to: "/app/usuarios", label: "Usuários", icon: Users },
