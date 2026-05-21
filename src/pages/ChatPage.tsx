@@ -370,7 +370,7 @@ export default function ChatPage() {
           </div>
         }
       />
-      <div className="grid grid-cols-1 md:grid-cols-[340px_1fr] gap-4 h-[calc(100vh-220px)]">
+      <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 h-[calc(100vh-220px)]">
         {/* Sidebar */}
         <aside className="border rounded-xl flex flex-col bg-card overflow-hidden shadow-sm">
           <div className="p-3 border-b bg-muted/30">
