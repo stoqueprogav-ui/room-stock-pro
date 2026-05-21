@@ -37,6 +37,7 @@ export default function RequisicoesPage() {
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Requisicao[]>([]);
   const [loading, setLoading] = useState(false);
+  const [busca, setBusca] = useState("");
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
 
