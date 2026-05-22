@@ -276,7 +276,7 @@ export default function FloatingChat() {
             </Button>
           </div>
 
-          {!active ? (
+          {!activeId ? (
             <>
               <div className="p-2 border-b">
                 <div className="relative">
