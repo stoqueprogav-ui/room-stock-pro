@@ -242,7 +242,7 @@ export default function FloatingChat() {
           }}
         >
           <div className="flex items-center gap-1.5 px-3 py-2 border-b bg-muted/40">
-            {active && (
+            {activeId && (
               <Button variant="ghost" size="icon" className="size-7" onClick={() => setActiveId(null)} title="Voltar">
                 <ArrowLeft className="size-4" />
               </Button>
