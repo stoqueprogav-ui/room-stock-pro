@@ -225,7 +225,7 @@ export default function FloatingChat() {
   if (location.pathname.startsWith("/app/escolher-sala")) return null;
 
   const active = convs.find((c) => c.id === activeId) ?? null;
-  const activeUI = active ? describe(active) : null;
+  const activeUI = active ? describe(active) : (activeId ? { name: "Conversa", seed: activeId } as UI : null);
 
   return (
     <>
