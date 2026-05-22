@@ -225,7 +225,7 @@ export default function FloatingChat() {
   if (location.pathname.startsWith("/app/escolher-sala")) return null;
 
   const active = convs.find((c) => c.id === activeId) ?? null;
-  const activeUI = active ? describe(active) : null;
+  const activeUI = active ? describe(active) : (activeId ? { name: "Conversa", seed: activeId } as UI : null);
 
   return (
     <>
@@ -242,7 +242,7 @@ export default function FloatingChat() {
           }}
         >
           <div className="flex items-center gap-1.5 px-3 py-2 border-b bg-muted/40">
-            {active && (
+            {activeId && (
               <Button variant="ghost" size="icon" className="size-7" onClick={() => setActiveId(null)} title="Voltar">
                 <ArrowLeft className="size-4" />
               </Button>
@@ -266,7 +266,7 @@ export default function FloatingChat() {
               variant="ghost"
               size="icon"
               className="size-7"
-              onClick={() => { navigate(active ? `/app/chat?c=${active.id}` : "/app/chat"); setOpen(false); }}
+              onClick={() => { navigate(activeId ? `/app/chat?c=${activeId}` : "/app/chat"); setOpen(false); }}
               title="Abrir chat completo"
             >
               <Maximize2 className="size-3.5" />
@@ -276,7 +276,7 @@ export default function FloatingChat() {
             </Button>
           </div>
 
-          {!active ? (
+          {!activeId ? (
             <>
               <div className="p-2 border-b">
                 <div className="relative">
