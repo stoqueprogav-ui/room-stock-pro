@@ -266,7 +266,7 @@ export default function FloatingChat() {
               variant="ghost"
               size="icon"
               className="size-7"
-              onClick={() => { navigate(active ? `/app/chat?c=${active.id}` : "/app/chat"); setOpen(false); }}
+              onClick={() => { navigate(activeId ? `/app/chat?c=${activeId}` : "/app/chat"); setOpen(false); }}
               title="Abrir chat completo"
             >
               <Maximize2 className="size-3.5" />
