@@ -81,10 +81,9 @@ export default function UsuariosPage() {
       },
     });
     setSaving(false);
-    if (error || (data as any)?.error) {
-      return toast.error((data as any)?.error ?? error?.message ?? "Falha ao criar");
-    }
-    // Master continua logado — não trocamos sessão
+    const payload = (data ?? {}) as { ok?: boolean; error?: string; step?: string };
+    if (error) return toast.error(`Erro de rede: ${error.message}`);
+    if (!payload.ok) return toast.error(payload.error ?? "Falha ao criar usuário");
     setCreatedInfo({ nome: form.nome, email: form.email.trim(), password: form.password });
     setOpen(false);
     setForm({ nome: "", email: "", password: "", role: "analista", sala_id: "" });
@@ -105,10 +104,12 @@ export default function UsuariosPage() {
   };
 
   const remover = async (u: UserRow) => {
-    const { error } = await supabase.functions.invoke("admin-delete-user", {
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", {
       body: { target_user_id: u.id },
     });
-    if (error) return toast.error(error.message);
+    const payload = (data ?? {}) as { ok?: boolean; error?: string };
+    if (error) return toast.error(`Erro de rede: ${error.message}`);
+    if (!payload.ok) return toast.error(payload.error ?? "Falha ao excluir");
     toast.success("Usuário excluído permanentemente");
     load();
   };
