@@ -10,7 +10,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ success: false, step: "method", error: "método não permitido" }), {
-      status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
@@ -20,7 +19,7 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     if (!token) {
       return new Response(JSON.stringify({ success: false, step: "auth", error: "sessão não encontrada" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -28,7 +27,6 @@ Deno.serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!SUPABASE_URL || !SERVICE_KEY) {
       return new Response(JSON.stringify({ success: false, step: "env", error: "configuração segura do backend ausente" }), {
-        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -39,7 +37,7 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) {
       console.error("reset-system auth error", userErr);
       return new Response(JSON.stringify({ success: false, step: "auth", error: "sessão inválida" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -49,14 +47,14 @@ Deno.serve(async (req) => {
       .eq("user_id", userData.user.id).eq("role", "master").maybeSingle();
     if (!roleRow) {
       return new Response(JSON.stringify({ success: false, step: "auth.master", error: "apenas Master pode resetar o sistema" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const body = await req.json().catch(() => ({}));
     if (body?.confirm !== "RESETAR SISTEMA") {
       return new Response(JSON.stringify({ success: false, step: "confirmacao", error: "confirmação inválida" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
