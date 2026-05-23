@@ -43,6 +43,24 @@ export default function ProdutosPage() {
   const [delLoading, setDelLoading] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
+  // Criação inline de categoria
+  const [novaCatOpen, setNovaCatOpen] = useState(false);
+  const [novaCatNome, setNovaCatNome] = useState("");
+  const [novaCatSaving, setNovaCatSaving] = useState(false);
+
+  const criarCategoriaInline = async () => {
+    const n = novaCatNome.trim();
+    if (!n) return toast.error("Informe o nome da categoria");
+    setNovaCatSaving(true);
+    const { data, error } = await supabase.from("categorias").insert({ nome: n }).select("id, nome").single();
+    setNovaCatSaving(false);
+    if (error || !data) return toast.error(error?.message ?? "Falha ao criar categoria");
+    setCategorias((prev) => [...prev, data as Categoria].sort((a, b) => a.nome.localeCompare(b.nome)));
+    setForm((f) => ({ ...f, categoria_id: data.id }));
+    setNovaCatOpen(false);
+    toast.success("Categoria criada e selecionada");
+  };
+
   const load = async () => {
     const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
       supabase.from("produtos").select("*, categoria:categorias(id, nome), sala:salas(id, nome)").order("nome"),
