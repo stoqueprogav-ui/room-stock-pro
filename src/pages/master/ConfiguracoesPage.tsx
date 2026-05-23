@@ -35,11 +35,12 @@ export default function ConfiguracoesPage() {
       toast.error(error.message ?? "Falha ao resetar o sistema");
       return;
     }
-    if ((data as any)?.error) {
-      toast.error((data as any).error);
+    const result = data as any;
+    if (!result?.success) {
+      toast.error(result?.step ? `${result.step}: ${result?.error ?? "falha no reset"}` : result?.error ?? "Falha ao resetar o sistema");
       return;
     }
-    toast.success(`Sistema resetado. Usuários removidos: ${(data as any)?.deleted_users ?? 0}`);
+    toast.success(`Sistema resetado. Usuários removidos: ${result?.deleted?.usuarios_auth ?? result?.deleted?.usuarios ?? 0}`);
     setOpen(false);
     setConfirm("");
     localStorage.removeItem("master_scope_sala_id");
@@ -78,7 +79,7 @@ export default function ConfiguracoesPage() {
             <DialogDescription className="space-y-2">
               <span className="block">
                 Esta ação apagará permanentemente: salas, usuários (exceto Masters), produtos, categorias,
-                requisições, empréstimos, dívidas, mensagens, notificações e movimentações.
+                requisições, empréstimos, dívidas, mensagens, conversas, notificações e movimentações.
               </span>
               <span className="block font-medium text-foreground">A ação NÃO poderá ser desfeita.</span>
             </DialogDescription>
