@@ -458,6 +458,29 @@ export default function ProdutosPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Criar categoria inline */}
+      <Dialog open={novaCatOpen} onOpenChange={setNovaCatOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Nova categoria</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label>Nome</Label>
+            <Input
+              value={novaCatNome}
+              onChange={(e) => setNovaCatNome(e.target.value)}
+              placeholder="Ex: Bar, Limpeza, Eventos…"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") criarCategoriaInline(); }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNovaCatOpen(false)}>Cancelar</Button>
+            <Button onClick={criarCategoriaInline} disabled={novaCatSaving}>
+              {novaCatSaving ? "Criando..." : "Criar e selecionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ImportarProdutosDialog
         open={importOpen}
         onOpenChange={setImportOpen}
