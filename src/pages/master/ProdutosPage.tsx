@@ -277,7 +277,13 @@ export default function ProdutosPage() {
           <div className="space-y-3">
             <div className="space-y-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
             <div className="space-y-2">
-              <Label>Categoria *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Categoria *</Label>
+                <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs"
+                  onClick={() => { setNovaCatNome(""); setNovaCatOpen(true); }}>
+                  <Plus className="size-3" /> Nova categoria
+                </Button>
+              </div>
               <Select value={form.categoria_id} onValueChange={(v) => setForm({ ...form, categoria_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
                 <SelectContent>
@@ -285,7 +291,7 @@ export default function ProdutosPage() {
                 </SelectContent>
               </Select>
               {categorias.length === 0 && (
-                <p className="text-xs text-destructive">Nenhuma categoria cadastrada. Crie uma em "Categorias".</p>
+                <p className="text-xs text-muted-foreground">Nenhuma categoria ainda. Use "+ Nova categoria" para criar.</p>
               )}
             </div>
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
