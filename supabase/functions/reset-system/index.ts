@@ -45,11 +45,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 1. Limpa dados via RPC
-    const { data: rpcData, error: rpcErr } = await admin.rpc("reset_sistema_total");
+    // 1. Limpa dados via RPC (passa o ID do master pois service role não tem auth.uid)
+    const { data: rpcData, error: rpcErr } = await admin.rpc("reset_sistema_total", {
+      _caller: userData.user.id,
+    });
     if (rpcErr) {
       console.error("reset-system rpc error", rpcErr);
-      return new Response(JSON.stringify({ error: rpcErr.message }), {
+      return new Response(JSON.stringify({ error: rpcErr.message, details: rpcErr }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
