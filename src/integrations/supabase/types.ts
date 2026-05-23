@@ -144,6 +144,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "conversations_related_emprestimo_id_fkey"
+            columns: ["related_emprestimo_id"]
+            isOneToOne: false
+            referencedRelation: "emprestimos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_related_requisicao_id_fkey"
+            columns: ["related_requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "conversations_sala_id_fkey"
             columns: ["sala_id"]
             isOneToOne: false
@@ -187,6 +201,13 @@ export type Database = {
             columns: ["emprestimo_item_id"]
             isOneToOne: false
             referencedRelation: "emprestimo_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devolucao_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
         ]
@@ -862,7 +883,9 @@ export type Database = {
         Args: { _emp: string; _itens: Json; _observacao?: string }
         Returns: string
       }
-      reset_sistema_total: { Args: never; Returns: Json }
+      reset_sistema_total:
+        | { Args: never; Returns: Json }
+        | { Args: { _caller?: string }; Returns: Json }
       send_message: {
         Args: {
           _attachment_name?: string
