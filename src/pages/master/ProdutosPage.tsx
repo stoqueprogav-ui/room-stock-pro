@@ -43,6 +43,24 @@ export default function ProdutosPage() {
   const [delLoading, setDelLoading] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
+  // Criação inline de categoria
+  const [novaCatOpen, setNovaCatOpen] = useState(false);
+  const [novaCatNome, setNovaCatNome] = useState("");
+  const [novaCatSaving, setNovaCatSaving] = useState(false);
+
+  const criarCategoriaInline = async () => {
+    const n = novaCatNome.trim();
+    if (!n) return toast.error("Informe o nome da categoria");
+    setNovaCatSaving(true);
+    const { data, error } = await supabase.from("categorias").insert({ nome: n }).select("id, nome").single();
+    setNovaCatSaving(false);
+    if (error || !data) return toast.error(error?.message ?? "Falha ao criar categoria");
+    setCategorias((prev) => [...prev, data as Categoria].sort((a, b) => a.nome.localeCompare(b.nome)));
+    setForm((f) => ({ ...f, categoria_id: data.id }));
+    setNovaCatOpen(false);
+    toast.success("Categoria criada e selecionada");
+  };
+
   const load = async () => {
     const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
       supabase.from("produtos").select("*, categoria:categorias(id, nome), sala:salas(id, nome)").order("nome"),
@@ -277,7 +295,13 @@ export default function ProdutosPage() {
           <div className="space-y-3">
             <div className="space-y-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
             <div className="space-y-2">
-              <Label>Categoria *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Categoria *</Label>
+                <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 text-xs"
+                  onClick={() => { setNovaCatNome(""); setNovaCatOpen(true); }}>
+                  <Plus className="size-3" /> Nova categoria
+                </Button>
+              </div>
               <Select value={form.categoria_id} onValueChange={(v) => setForm({ ...form, categoria_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
                 <SelectContent>
@@ -285,7 +309,7 @@ export default function ProdutosPage() {
                 </SelectContent>
               </Select>
               {categorias.length === 0 && (
-                <p className="text-xs text-destructive">Nenhuma categoria cadastrada. Crie uma em "Categorias".</p>
+                <p className="text-xs text-muted-foreground">Nenhuma categoria ainda. Use "+ Nova categoria" para criar.</p>
               )}
             </div>
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
@@ -429,6 +453,29 @@ export default function ProdutosPage() {
             <Button variant="outline" onClick={() => setConfirmDel(null)}>Cancelar</Button>
             <Button variant="destructive" onClick={confirmarExclusao} disabled={delLoading}>
               {delLoading ? "Processando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Criar categoria inline */}
+      <Dialog open={novaCatOpen} onOpenChange={setNovaCatOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Nova categoria</DialogTitle></DialogHeader>
+          <div className="space-y-2">
+            <Label>Nome</Label>
+            <Input
+              value={novaCatNome}
+              onChange={(e) => setNovaCatNome(e.target.value)}
+              placeholder="Ex: Bar, Limpeza, Eventos…"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") criarCategoriaInline(); }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNovaCatOpen(false)}>Cancelar</Button>
+            <Button onClick={criarCategoriaInline} disabled={novaCatSaving}>
+              {novaCatSaving ? "Criando..." : "Criar e selecionar"}
             </Button>
           </DialogFooter>
         </DialogContent>
