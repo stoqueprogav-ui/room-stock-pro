@@ -34,19 +34,25 @@ export type Database = {
       }
       categorias: {
         Row: {
+          cor: string | null
           created_at: string
+          icone: string | null
           id: string
           nome: string
           updated_at: string
         }
         Insert: {
+          cor?: string | null
           created_at?: string
+          icone?: string | null
           id?: string
           nome: string
           updated_at?: string
         }
         Update: {
+          cor?: string | null
           created_at?: string
+          icone?: string | null
           id?: string
           nome?: string
           updated_at?: string
@@ -884,6 +890,7 @@ export type Database = {
         Returns: string
       }
       reset_sistema_total: { Args: { _caller?: string }; Returns: Json }
+      seed_categorias_padrao: { Args: never; Returns: undefined }
       send_message: {
         Args: {
           _attachment_name?: string
