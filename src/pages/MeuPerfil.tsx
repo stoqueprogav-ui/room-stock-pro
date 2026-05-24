@@ -33,8 +33,16 @@ export default function MeuPerfil() {
 
   const salvarNome = async () => {
     if (!nome.trim()) return toast.error("Nome obrigatório");
+    if (!profile?.id) return toast.error("Sessão inválida");
     setSavingNome(true);
-    const { error } = await supabase.from("profiles").update({ nome: nome.trim() }).eq("id", profile!.id);
+    // Garante que existe um profile (auto-recuperação após reset)
+    await supabase.rpc("ensure_my_profile");
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(
+        { id: profile.id, nome: nome.trim(), email: profile.email ?? "" },
+        { onConflict: "id" }
+      );
     setSavingNome(false);
     if (error) return toast.error(error.message);
     toast.success("Nome atualizado");

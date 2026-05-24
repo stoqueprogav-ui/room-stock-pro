@@ -24,10 +24,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(async (uid: string) => {
-    const [{ data: prof }, { data: roleRows }] = await Promise.all([
+    let [{ data: prof }, { data: roleRows }] = await Promise.all([
       supabase.from("profiles").select("id, nome, email, sala_id, must_change_password").eq("id", uid).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", uid),
     ]);
+    // Auto-recuperação: se o profile foi perdido (ex.: após reset), recria a partir de auth.users
+    if (!prof) {
+      const { data: ensured } = await supabase.rpc("ensure_my_profile");
+      if (ensured) prof = ensured as typeof prof;
+    }
     setProfile(prof ?? null);
     // ordem de prioridade: master > admin > analista
     const order: AppRole[] = ["master", "admin", "analista"];
