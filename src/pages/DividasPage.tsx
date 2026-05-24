@@ -30,7 +30,7 @@ export default function DividasPage() {
   const [editing, setEditing] = useState<Divida | null>(null);
   const [qtd, setQtd] = useState(0);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     let q = supabase
       .from("dividas")
       .select(`id, saldo, sala_devedora_id, sala_credora_id,
@@ -43,8 +43,10 @@ export default function DividasPage() {
     }
     const { data } = await q;
     setRows((data as any) ?? []);
-  };
-  useEffect(() => { load(); }, [scopeSalaId, role]);
+  }, [role, scopeSalaId]);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeSync(["dividas", "emprestimos", "movimentacoes"], load, { debounceMs: 300 });
+
 
   const quitar = async () => {
     if (!editing) return;
