@@ -43,7 +43,7 @@ export default function RequisicoesPage() {
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     let q = supabase
       .from("solicitacoes")
@@ -56,8 +56,10 @@ export default function RequisicoesPage() {
     const { data } = await q;
     setRows((data as any) ?? []);
     setLoading(false);
-  };
-  useEffect(() => { load(); }, [scopeSalaId]);
+  }, [scopeSalaId]);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeSync(["solicitacoes", "solicitacao_itens", "estoque"], load, { debounceMs: 300 });
+
 
   const decidir = async (id: string, aprovar: boolean) => {
     const { error } = await supabase.rpc("decidir_solicitacao", { _solic: id, _aprovar: aprovar });
