@@ -835,6 +835,24 @@ export type Database = {
           sala_nome: string
         }[]
       }
+      ensure_my_profile: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          must_change_password: boolean
+          nome: string
+          sala_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
       excluir_sala: { Args: { _force?: boolean; _sala: string }; Returns: Json }
       get_or_create_direct_conversation: {
