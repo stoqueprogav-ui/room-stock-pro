@@ -60,6 +60,7 @@ const App = () => (
               <Route path="categorias" element={<CategoriasPage />} />
               <Route path="relatorios" element={<RelatoriosPage />} />
               <Route path="configuracoes" element={<ConfiguracoesPage />} />
+              <Route path="auditoria" element={<AuditoriaPage />} />
               {/* Compartilhado */}
               <Route path="emprestimos" element={<EmprestimosPage />} />
               <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />
