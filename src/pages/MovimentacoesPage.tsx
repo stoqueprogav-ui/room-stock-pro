@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { formatDateTime } from "@/lib/format";
 import type { Sala } from "@/lib/types";
+
 
 type Mov = {
   id: string; created_at: string; tipo: string; quantidade: number; saldo_apos: number;
@@ -37,22 +39,23 @@ export default function MovimentacoesPage() {
   const [salaFilter, setSalaFilter] = useState("all");
   const [busca, setBusca] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const [{ data }, { data: ss }] = await Promise.all([
-        supabase
-          .from("movimentacoes")
-          .select(`id, created_at, tipo, quantidade, saldo_apos, observacao,
-                   produto:produtos(nome, unidade), sala:salas(nome),
-                   usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
-          .order("created_at", { ascending: false })
-          .limit(500),
-        supabase.from("salas").select("*").order("nome"),
-      ]);
-      setRows((data as any) ?? []);
-      setSalas((ss as Sala[]) ?? []);
-    })();
+  const load = useCallback(async () => {
+    const [{ data }, { data: ss }] = await Promise.all([
+      supabase
+        .from("movimentacoes")
+        .select(`id, created_at, tipo, quantidade, saldo_apos, observacao,
+                 produto:produtos(nome, unidade), sala:salas(nome),
+                 usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
+        .order("created_at", { ascending: false })
+        .limit(500),
+      supabase.from("salas").select("*").order("nome"),
+    ]);
+    setRows((data as any) ?? []);
+    setSalas((ss as Sala[]) ?? []);
   }, []);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeSync(["movimentacoes", "estoque", "salas"], load, { debounceMs: 400 });
+
 
   // Sincroniza filtro com escopo do master / sala do user
   useEffect(() => {

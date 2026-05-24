@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,12 @@ import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2, MessageC
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { formatDateTime } from "@/lib/format";
 import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
 import RevisarPedidoDialog from "@/components/RevisarPedidoDialog";
 import DevolverEmprestimoDialog from "@/components/DevolverEmprestimoDialog";
+
 
 type Emp = {
   id: string;
@@ -42,7 +44,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const [revisarId, setRevisarId] = useState<string | null>(null);
   const [devolverId, setDevolverId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     let q = supabase
       .from("emprestimos")
       .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id, retirado_por, retirado_em,
@@ -56,8 +58,10 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     }
     const { data } = await q;
     setRows((data as any) ?? []);
-  };
-  useEffect(() => { load(); }, [scopeSalaId, role]);
+  }, [role, scopeSalaId]);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeSync(["emprestimos", "emprestimo_itens", "devolucoes", "estoque", "dividas"], load, { debounceMs: 300 });
+
 
   const decidir = async (id: string, ap: boolean) => {
     const { error } = await supabase.rpc("decidir_emprestimo", { _emp: id, _aprovar: ap });

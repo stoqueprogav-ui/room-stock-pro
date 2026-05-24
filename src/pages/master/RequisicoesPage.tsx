@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { formatDateTime } from "@/lib/format";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+
 import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
 import RevisarPedidoDialog from "@/components/RevisarPedidoDialog";
 import { Eye } from "lucide-react";
@@ -41,7 +43,7 @@ export default function RequisicoesPage() {
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     let q = supabase
       .from("solicitacoes")
@@ -54,8 +56,10 @@ export default function RequisicoesPage() {
     const { data } = await q;
     setRows((data as any) ?? []);
     setLoading(false);
-  };
-  useEffect(() => { load(); }, [scopeSalaId]);
+  }, [scopeSalaId]);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeSync(["solicitacoes", "solicitacao_itens", "estoque"], load, { debounceMs: 300 });
+
 
   const decidir = async (id: string, aprovar: boolean) => {
     const { error } = await supabase.rpc("decidir_solicitacao", { _solic: id, _aprovar: aprovar });
