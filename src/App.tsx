@@ -28,6 +28,7 @@ import MeuPerfil from "./pages/MeuPerfil";
 import ChatPage from "./pages/ChatPage";
 import TrocarSenhaObrigatoria from "./pages/TrocarSenhaObrigatoria";
 import ConfiguracoesPage from "./pages/master/ConfiguracoesPage";
+import AuditoriaPage from "./pages/master/AuditoriaPage";
 
 const queryClient = new QueryClient();
 
