@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
@@ -34,25 +36,47 @@ const TIPO_LABEL: Record<string, { label: string; cls: string }> = {
 export default function MovimentacoesPage() {
   const { role, profile } = useAuth();
   const { scopeSalaId } = useMasterScope();
+  const PAGE_SIZE = 100;
   const [rows, setRows] = useState<Mov[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
   const [salaFilter, setSalaFilter] = useState("all");
   const [busca, setBusca] = useState("");
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const fetchPage = useCallback(async (before?: string) => {
+    let q = supabase
+      .from("movimentacoes")
+      .select(`id, created_at, tipo, quantidade, saldo_apos, observacao,
+               produto:produtos(nome, unidade), sala:salas(nome),
+               usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
+      .order("created_at", { ascending: false })
+      .limit(PAGE_SIZE);
+    if (before) q = q.lt("created_at", before);
+    const { data } = await q;
+    return (data as any[]) ?? [];
+  }, []);
 
   const load = useCallback(async () => {
-    const [{ data }, { data: ss }] = await Promise.all([
-      supabase
-        .from("movimentacoes")
-        .select(`id, created_at, tipo, quantidade, saldo_apos, observacao,
-                 produto:produtos(nome, unidade), sala:salas(nome),
-                 usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
-        .order("created_at", { ascending: false })
-        .limit(500),
+    const [page, { data: ss }] = await Promise.all([
+      fetchPage(),
       supabase.from("salas").select("*").order("nome"),
     ]);
-    setRows((data as any) ?? []);
+    setRows(page as Mov[]);
     setSalas((ss as Sala[]) ?? []);
-  }, []);
+    setHasMore(page.length === PAGE_SIZE);
+  }, [fetchPage]);
+
+  const loadMore = useCallback(async () => {
+    if (!rows.length || loadingMore) return;
+    setLoadingMore(true);
+    const last = rows[rows.length - 1];
+    const more = await fetchPage(last.created_at);
+    setRows((prev) => [...prev, ...(more as Mov[])]);
+    setHasMore(more.length === PAGE_SIZE);
+    setLoadingMore(false);
+  }, [rows, loadingMore, fetchPage]);
+
   useEffect(() => { load(); }, [load]);
   useRealtimeSync(["movimentacoes", "estoque", "salas"], load, { debounceMs: 400 });
 
@@ -123,6 +147,13 @@ export default function MovimentacoesPage() {
           </TableBody>
         </Table>
       </div>
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? <><Loader2 className="size-4 mr-2 animate-spin" />Carregando…</> : "Carregar mais"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

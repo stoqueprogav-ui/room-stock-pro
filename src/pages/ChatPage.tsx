@@ -116,8 +116,11 @@ export default function ChatPage() {
   const [rolesMap, setRolesMap] = useState<Record<string, RoleStr>>({});
   const [salasMap, setSalasMap] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState("");
+  const [hasMoreMsgs, setHasMoreMsgs] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const MSG_PAGE = 50;
 
   const scrollToBottom = useCallback((smooth = false) => {
     setTimeout(() => {
@@ -136,14 +139,34 @@ export default function ChatPage() {
       .from("messages")
       .select("*")
       .eq("conversation_id", convId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(MSG_PAGE);
     if (error) { console.error(error); return; }
-    setMessages((data ?? []) as Msg[]);
+    const list = ((data ?? []) as Msg[]).slice().reverse();
+    setMessages(list);
+    setHasMoreMsgs((data?.length ?? 0) === MSG_PAGE);
     await supabase.rpc("mark_conversation_read", { _conv: convId });
     loadConvs();
     refreshNotifs();
     scrollToBottom();
   }, [loadConvs, scrollToBottom, refreshNotifs]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!activeId || messages.length === 0 || loadingOlder) return;
+    setLoadingOlder(true);
+    const oldest = messages[0].created_at;
+    const { data } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", activeId)
+      .lt("created_at", oldest)
+      .order("created_at", { ascending: false })
+      .limit(MSG_PAGE);
+    const older = ((data ?? []) as Msg[]).slice().reverse();
+    setMessages((prev) => [...older, ...prev]);
+    setHasMoreMsgs((data?.length ?? 0) === MSG_PAGE);
+    setLoadingOlder(false);
+  }, [activeId, messages, loadingOlder]);
 
   // Carrega salas (global) e roles uma vez
   useEffect(() => {
@@ -459,6 +482,13 @@ export default function ChatPage() {
 
               <ScrollArea className="flex-1 px-4 py-4 bg-gradient-to-b from-background to-muted/10">
                 <div className="space-y-4">
+                  {hasMoreMsgs && (
+                    <div className="flex justify-center">
+                      <Button variant="outline" size="sm" onClick={loadOlderMessages} disabled={loadingOlder} className="text-xs h-7">
+                        {loadingOlder ? "Carregando…" : "Carregar mensagens antigas"}
+                      </Button>
+                    </div>
+                  )}
                   {groupedMessages.map(group => (
                     <div key={group.day} className="space-y-2">
                       <div className="flex justify-center">
