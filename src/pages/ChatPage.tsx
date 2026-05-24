@@ -194,6 +194,9 @@ export default function ChatPage() {
   useEffect(() => { loadConvs(); }, [loadConvs]);
   useEffect(() => { if (activeId) loadMessages(activeId); else setMessages([]); }, [activeId, loadMessages]);
 
+  // IDs de mensagens já reconciliadas via RPC — evita duplicação se realtime chegar depois
+  const sentIdsRef = useRef<Set<string>>(new Set());
+
   // Realtime
   useEffect(() => {
     if (!user) return;
@@ -204,7 +207,11 @@ export default function ChatPage() {
         const isActive = m.conversation_id === activeIdRef.current;
         if (isActive) {
           setMessages(prev => {
+            // Dedup por id real
             if (prev.some(x => x.id === m.id)) return prev;
+            // Se essa msg já foi reconciliada via RPC, ignora
+            if (sentIdsRef.current.has(m.id)) return prev;
+            // Remove qualquer optimistic pendente do mesmo autor com mesmo corpo
             const withoutPending = prev.filter(x => !(x._pending && x.sender_id === m.sender_id && (x.body ?? "") === (m.body ?? "")));
             return [...withoutPending, m];
           });
