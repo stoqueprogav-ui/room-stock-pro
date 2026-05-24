@@ -315,7 +315,7 @@ export default function ChatPage() {
     const text = body.trim();
     if (!text) return;
     setSending(true);
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${crypto.randomUUID()}`;
     const optimistic: Msg = {
       id: tempId, conversation_id: activeId, sender_id: user.id,
       body: text, attachment_path: null, attachment_name: null, attachment_type: null,
@@ -324,14 +324,23 @@ export default function ChatPage() {
     setMessages(prev => [...prev, optimistic]);
     setBody("");
     scrollToBottom(true);
-    const { error } = await supabase.rpc("send_message", { _conv: activeId, _body: text });
+    const { data: newId, error } = await supabase.rpc("send_message", { _conv: activeId, _body: text });
     setSending(false);
     if (error) {
       setMessages(prev => prev.filter(m => m.id !== tempId));
       toast.error(error.message);
       setBody(text);
     } else {
-      // garante que a conversa apareça/suba na sidebar mesmo se realtime atrasar
+      // Reconciliação: substitui o optimistic pelo id real (sem duplicar se realtime chegou antes)
+      const realId = newId as unknown as string;
+      if (realId) {
+        sentIdsRef.current.add(realId);
+        setMessages(prev => {
+          const alreadyHasReal = prev.some(m => m.id === realId);
+          if (alreadyHasReal) return prev.filter(m => m.id !== tempId);
+          return prev.map(m => m.id === tempId ? { ...m, id: realId, _pending: false } : m);
+        });
+      }
       loadConvs();
     }
   };
