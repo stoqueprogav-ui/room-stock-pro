@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { PageHeader } from "@/components/AppLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -10,18 +11,19 @@ export default function MinhasRequisicoes() {
   const { profile } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!profile?.sala_id) return;
-    (async () => {
-      const { data } = await supabase
-        .from("solicitacoes")
-        .select(`id, status, observacao, created_at, decidido_em,
-                 itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade))`)
-        .eq("sala_id", profile.sala_id)
-        .order("created_at", { ascending: false });
-      setRows(data ?? []);
-    })();
-  }, [profile]);
+    const { data } = await supabase
+      .from("solicitacoes")
+      .select(`id, status, observacao, created_at, decidido_em,
+               itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade))`)
+      .eq("sala_id", profile.sala_id)
+      .order("created_at", { ascending: false });
+    setRows(data ?? []);
+  }, [profile?.sala_id]);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeSync(["solicitacoes", "solicitacao_itens"], load, { debounceMs: 300 });
+
 
   return (
     <div className="space-y-4">
