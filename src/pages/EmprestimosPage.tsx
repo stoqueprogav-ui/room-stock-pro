@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,12 @@ import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2, MessageC
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { formatDateTime } from "@/lib/format";
 import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
 import RevisarPedidoDialog from "@/components/RevisarPedidoDialog";
 import DevolverEmprestimoDialog from "@/components/DevolverEmprestimoDialog";
+
 
 type Emp = {
   id: string;
