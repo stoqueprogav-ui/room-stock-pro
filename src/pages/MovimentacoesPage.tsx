@@ -39,22 +39,23 @@ export default function MovimentacoesPage() {
   const [salaFilter, setSalaFilter] = useState("all");
   const [busca, setBusca] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const [{ data }, { data: ss }] = await Promise.all([
-        supabase
-          .from("movimentacoes")
-          .select(`id, created_at, tipo, quantidade, saldo_apos, observacao,
-                   produto:produtos(nome, unidade), sala:salas(nome),
-                   usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
-          .order("created_at", { ascending: false })
-          .limit(500),
-        supabase.from("salas").select("*").order("nome"),
-      ]);
-      setRows((data as any) ?? []);
-      setSalas((ss as Sala[]) ?? []);
-    })();
+  const load = useCallback(async () => {
+    const [{ data }, { data: ss }] = await Promise.all([
+      supabase
+        .from("movimentacoes")
+        .select(`id, created_at, tipo, quantidade, saldo_apos, observacao,
+                 produto:produtos(nome, unidade), sala:salas(nome),
+                 usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
+        .order("created_at", { ascending: false })
+        .limit(500),
+      supabase.from("salas").select("*").order("nome"),
+    ]);
+    setRows((data as any) ?? []);
+    setSalas((ss as Sala[]) ?? []);
   }, []);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeSync(["movimentacoes", "estoque", "salas"], load, { debounceMs: 400 });
+
 
   // Sincroniza filtro com escopo do master / sala do user
   useEffect(() => {
