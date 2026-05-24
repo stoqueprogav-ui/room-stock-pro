@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { formatDateTime } from "@/lib/format";
 import type { Sala } from "@/lib/types";
+
 
 type Mov = {
   id: string; created_at: string; tipo: string; quantidade: number; saldo_apos: number;
