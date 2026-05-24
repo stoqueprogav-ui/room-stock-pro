@@ -147,6 +147,13 @@ export default function MovimentacoesPage() {
           </TableBody>
         </Table>
       </div>
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? <><Loader2 className="size-4 mr-2 animate-spin" />Carregando…</> : "Carregar mais"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
