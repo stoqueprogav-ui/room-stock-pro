@@ -28,6 +28,7 @@ import MeuPerfil from "./pages/MeuPerfil";
 import ChatPage from "./pages/ChatPage";
 import TrocarSenhaObrigatoria from "./pages/TrocarSenhaObrigatoria";
 import ConfiguracoesPage from "./pages/master/ConfiguracoesPage";
+import AuditoriaPage from "./pages/master/AuditoriaPage";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="categorias" element={<CategoriasPage />} />
               <Route path="relatorios" element={<RelatoriosPage />} />
               <Route path="configuracoes" element={<ConfiguracoesPage />} />
+              <Route path="auditoria" element={<AuditoriaPage />} />
               {/* Compartilhado */}
               <Route path="emprestimos" element={<EmprestimosPage />} />
               <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />
