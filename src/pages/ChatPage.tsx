@@ -482,6 +482,13 @@ export default function ChatPage() {
 
               <ScrollArea className="flex-1 px-4 py-4 bg-gradient-to-b from-background to-muted/10">
                 <div className="space-y-4">
+                  {hasMoreMsgs && (
+                    <div className="flex justify-center">
+                      <Button variant="outline" size="sm" onClick={loadOlderMessages} disabled={loadingOlder} className="text-xs h-7">
+                        {loadingOlder ? "Carregando…" : "Carregar mensagens antigas"}
+                      </Button>
+                    </div>
+                  )}
                   {groupedMessages.map(group => (
                     <div key={group.day} className="space-y-2">
                       <div className="flex justify-center">
