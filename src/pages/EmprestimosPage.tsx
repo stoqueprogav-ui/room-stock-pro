@@ -44,7 +44,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const [revisarId, setRevisarId] = useState<string | null>(null);
   const [devolverId, setDevolverId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     let q = supabase
       .from("emprestimos")
       .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id, retirado_por, retirado_em,
@@ -58,8 +58,10 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     }
     const { data } = await q;
     setRows((data as any) ?? []);
-  };
-  useEffect(() => { load(); }, [scopeSalaId, role]);
+  }, [role, scopeSalaId]);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeSync(["emprestimos", "emprestimo_itens", "devolucoes", "estoque", "dividas"], load, { debounceMs: 300 });
+
 
   const decidir = async (id: string, ap: boolean) => {
     const { error } = await supabase.rpc("decidir_emprestimo", { _emp: id, _aprovar: ap });
