@@ -763,6 +763,51 @@ export type Database = {
           },
         ]
       }
+      system_logs: {
+        Row: {
+          actor_email: string | null
+          actor_id: string | null
+          actor_nome: string | null
+          created_at: string
+          description: string
+          entity_id: string | null
+          entity_type: string | null
+          event_category: string
+          event_type: string
+          id: string
+          metadata: Json
+          sala_id: string | null
+        }
+        Insert: {
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_nome?: string | null
+          created_at?: string
+          description: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_category?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          sala_id?: string | null
+        }
+        Update: {
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_nome?: string | null
+          created_at?: string
+          description?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_category?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          sala_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -895,6 +940,52 @@ export type Database = {
           unread_count: number
           updated_at: string
         }[]
+      }
+      listar_system_logs: {
+        Args: {
+          _actor?: string
+          _cursor?: string
+          _event_category?: string
+          _event_type?: string
+          _from?: string
+          _limit?: number
+          _sala?: string
+          _search?: string
+          _to?: string
+        }
+        Returns: {
+          actor_email: string | null
+          actor_id: string | null
+          actor_nome: string | null
+          created_at: string
+          description: string
+          entity_id: string | null
+          entity_type: string | null
+          event_category: string
+          event_type: string
+          id: string
+          metadata: Json
+          sala_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "system_logs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      log_event: {
+        Args: {
+          _actor_id?: string
+          _description: string
+          _entity_id?: string
+          _entity_type?: string
+          _event_category?: string
+          _event_type: string
+          _metadata?: Json
+          _sala_id?: string
+        }
+        Returns: string
       }
       marcar_senha_trocada: { Args: never; Returns: undefined }
       mark_conversation_read: { Args: { _conv: string }; Returns: undefined }
