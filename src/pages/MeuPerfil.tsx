@@ -39,10 +39,8 @@ export default function MeuPerfil() {
     await supabase.rpc("ensure_my_profile");
     const { error } = await supabase
       .from("profiles")
-      .upsert(
-        { id: profile.id, nome: nome.trim(), email: profile.email ?? "" },
-        { onConflict: "id" }
-      );
+      .update({ nome: nome.trim() })
+      .eq("id", profile.id);
     setSavingNome(false);
     if (error) return toast.error(error.message);
     toast.success("Nome atualizado");
