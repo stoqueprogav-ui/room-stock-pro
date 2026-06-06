@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2, MessageCircle, Search } from "lucide-react";
+import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2, MessageCircle, Search, ChevronDown, Package, Repeat, Filter, Calendar, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
@@ -40,6 +41,9 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
   const [busca, setBusca] = useState("");
+  const [dataIni, setDataIni] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
   const [devolverId, setDevolverId] = useState<string | null>(null);
@@ -96,26 +100,33 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     navigate(`/app/chat?c=${data}`);
   };
 
-  // Apenas admin da sala ORIGEM aprova
   const podeDecidir = (e: Emp) =>
     role === "admin" && profile?.sala_id === e.sala_origem_id;
 
   const pendenteTotal = (e: Emp) =>
     (e.itens ?? []).reduce((s, it) => s + (it.quantidade - (it.quantidade_devolvida ?? 0)), 0);
 
-  let list = rows.filter((r) => r.status === tab);
-  if (approveOnly) list = list.filter((r) => r.sala_origem_id === profile?.sala_id);
-  if (busca.trim()) {
-    const t = busca.trim().toLowerCase();
-    list = list.filter((e) =>
-      e.origem.nome.toLowerCase().includes(t) ||
-      e.destino.nome.toLowerCase().includes(t) ||
-      (e.solicitante?.nome ?? "").toLowerCase().includes(t) ||
-      (e.observacao ?? "").toLowerCase().includes(t) ||
-      e.id.toLowerCase().includes(t) ||
-      e.itens.some((it) => it.produto.nome.toLowerCase().includes(t)),
-    );
-  }
+  const list = useMemo(() => {
+    let l = rows.filter((r) => r.status === tab);
+    if (approveOnly) l = l.filter((r) => r.sala_origem_id === profile?.sala_id);
+    if (dataIni) l = l.filter((e) => e.created_at >= dataIni);
+    if (dataFim) l = l.filter((e) => e.created_at <= dataFim + "T23:59:59");
+    if (busca.trim()) {
+      const t = busca.trim().toLowerCase();
+      l = l.filter((e) =>
+        e.origem.nome.toLowerCase().includes(t) ||
+        e.destino.nome.toLowerCase().includes(t) ||
+        (e.solicitante?.nome ?? "").toLowerCase().includes(t) ||
+        (e.observacao ?? "").toLowerCase().includes(t) ||
+        (e.retirado_por ?? "").toLowerCase().includes(t) ||
+        e.id.toLowerCase().includes(t) ||
+        e.itens.some((it) => it.produto.nome.toLowerCase().includes(t)),
+      );
+    }
+    return l;
+  }, [rows, tab, approveOnly, profile?.sala_id, busca, dataIni, dataFim]);
+
+  const filtrosAtivos = !!(dataIni || dataFim);
 
   return (
     <div className="space-y-4">
@@ -137,125 +148,58 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
             <TabsTrigger value="rejeitado">Rejeitados</TabsTrigger>
             <TabsTrigger value="arquivado">Arquivados</TabsTrigger>
           </TabsList>
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Buscar sala, produto, ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-8" />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-72">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input placeholder="Buscar sala, produto, ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-8" />
+            </div>
+            <Button variant={filtrosAtivos ? "default" : "outline"} size="sm" onClick={() => setShowFilters((v) => !v)}>
+              <Filter className="size-4" /> Filtros {filtrosAtivos && <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">ativo</Badge>}
+            </Button>
           </div>
         </div>
-        <TabsContent value={tab} className="mt-4">
-          <div className="panel overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Solicitante</TableHead>
-                  <TableHead>Origem → Destino</TableHead>
-                  <TableHead>Itens</TableHead>
-                  <TableHead className="w-[170px]">Criado em</TableHead>
-                  <TableHead className="w-[160px]">Retirada</TableHead>
-                  <TableHead className="w-[120px]">Status</TableHead>
-                  <TableHead className="text-right w-[260px]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {list.map((e) => (
-                  <TableRow key={e.id} className="table-row-hover align-top">
-                    <TableCell>{e.solicitante?.nome ?? "—"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 font-medium">
-                        {e.origem.nome} <ArrowRight className="size-3 text-muted-foreground" /> {e.destino.nome}
-                      </div>
-                      {e.observacao && <div className="text-xs text-muted-foreground mt-1">"{e.observacao}"</div>}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {e.itens.map((it, i) => {
-                          const pend = it.quantidade - (it.quantidade_devolvida ?? 0);
-                          const isAprov = e.status === "aprovado";
-                          return (
-                            <span
-                              key={i}
-                              className={`rounded px-2 py-0.5 text-xs font-mono ${
-                                isAprov && pend === 0
-                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                  : isAprov && pend < it.quantidade
-                                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                    : isAprov
-                                      ? "bg-destructive/15 text-destructive"
-                                      : "bg-muted"
-                              }`}
-                              title={isAprov ? `Emprestado ${it.quantidade}, devolvido ${it.quantidade_devolvida ?? 0}, pendente ${pend}` : undefined}
-                            >
-                              {it.produto.nome} · {isAprov ? `${pend}/${it.quantidade}` : it.quantidade}{it.produto.unidade}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDateTime(e.created_at)}</TableCell>
-                    <TableCell className="text-xs">
-                      {e.retirado_por ? (
-                        <div>
-                          <div className="flex items-center gap-1 font-medium text-foreground"><UserCheck className="size-3" /> {e.retirado_por}</div>
-                          {e.retirado_em && <div className="text-muted-foreground">{formatDateTime(e.retirado_em)}</div>}
-                        </div>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                    <TableCell><StatusBadge status={e.status} /></TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      <Button size="sm" variant="ghost" className="mr-2" onClick={() => abrirChat(e.id)} title="Conversar sobre este pedido">
-                        <MessageCircle className="size-4" />
-                      </Button>
-                      {tab === "pendente" && (
-                        podeDecidir(e) ? (
-                          <Button size="sm" onClick={() => setRevisarId(e.id)}><Eye className="size-4" /> Revisar e decidir</Button>
-                        ) : (
-                          <>
-                            <Button size="sm" variant="outline" className="mr-2" onClick={() => setRevisarId(e.id)}><Eye className="size-4" /> Visualizar</Button>
-                            <span className="text-xs text-muted-foreground">Aguardando admin da origem</span>
-                          </>
-                        )
-                      )}
-                      {tab === "aprovado" && (() => {
-                        const pend = pendenteTotal(e);
-                        return (
-                          <>
-                            <Button size="sm" variant="outline" className="mr-2" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
-                              <Printer className="size-4" /> Imprimir
-                            </Button>
-                            {role === "master" && pend > 0 && (
-                              <Button size="sm" variant="secondary" className="mr-2" onClick={() => setDevolverId(e.id)}>
-                                <Undo2 className="size-4" /> Devolver ({pend})
-                              </Button>
-                            )}
-                            {role === "master" && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                disabled={pend > 0}
-                                title={pend > 0 ? `Devolva todos os itens antes de arquivar (${pend} pendente(s))` : "Arquivar"}
-                                onClick={() => setArquivarId(e.id)}
-                              >
-                                <Archive className="size-4" /> Arquivar
-                              </Button>
-                            )}
-                          </>
-                        );
-                      })()}
-                      {tab === "rejeitado" && role === "master" && (
-                        <Button size="sm" variant="ghost" onClick={() => arquivarRejeitado(e.id)}><Archive className="size-4" /> Arquivar</Button>
-                      )}
-                      {tab === "arquivado" && (
-                        <Button size="sm" variant="outline" onClick={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}>
-                          <Printer className="size-4" /> Imprimir
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {list.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Nenhum empréstimo.</TableCell></TableRow>}
-              </TableBody>
-            </Table>
+
+        {showFilters && (
+          <div className="panel p-3 mt-2 flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="size-3" /> Data inicial</label>
+              <Input type="date" value={dataIni} onChange={(e) => setDataIni(e.target.value)} className="w-44" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="size-3" /> Data final</label>
+              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-44" />
+            </div>
+            {filtrosAtivos && (
+              <Button variant="ghost" size="sm" onClick={() => { setDataIni(""); setDataFim(""); }}>
+                <X className="size-4" /> Limpar
+              </Button>
+            )}
+            <div className="ml-auto text-xs text-muted-foreground">{list.length} resultado(s)</div>
           </div>
+        )}
+
+        <TabsContent value={tab} className="mt-4 space-y-2">
+          {list.length === 0 && (
+            <div className="panel p-12 text-center text-muted-foreground">Nenhum empréstimo.</div>
+          )}
+          {list.map((e) => (
+            <EmprestimoCard
+              key={e.id}
+              e={e}
+              tab={tab}
+              role={role}
+              podeDecidir={podeDecidir(e)}
+              pendente={pendenteTotal(e)}
+              onRevisar={() => setRevisarId(e.id)}
+              onAprovar={() => decidir(e.id, true)}
+              onRejeitar={() => decidir(e.id, false)}
+              onDevolver={() => setDevolverId(e.id)}
+              onArquivarAprovado={() => setArquivarId(e.id)}
+              onArquivarRejeitado={() => arquivarRejeitado(e.id)}
+              onImprimir={() => window.open(`/app/emprestimos/${e.id}/imprimir`, "_blank")}
+              onChat={() => abrirChat(e.id)}
+            />
+          ))}
         </TabsContent>
       </Tabs>
 
@@ -284,6 +228,148 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         emprestimoId={devolverId}
         onDone={load}
       />
+    </div>
+  );
+}
+
+function EmprestimoCard({
+  e, tab, role, podeDecidir, pendente,
+  onRevisar, onAprovar, onRejeitar, onDevolver, onArquivarAprovado, onArquivarRejeitado, onImprimir, onChat,
+}: {
+  e: Emp; tab: string; role: string | null; podeDecidir: boolean; pendente: number;
+  onRevisar: () => void; onAprovar: () => void; onRejeitar: () => void;
+  onDevolver: () => void; onArquivarAprovado: () => void; onArquivarRejeitado: () => void;
+  onImprimir: () => void; onChat: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const shortId = e.id.slice(0, 8).toUpperCase();
+  const totalItens = e.itens.length;
+
+  return (
+    <div className="panel overflow-hidden">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3 hover:bg-muted/20 transition">
+          <CollapsibleTrigger className="flex items-center gap-3 min-w-0 flex-1 text-left">
+            <ChevronDown className={`size-4 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : "-rotate-90"}`} />
+            <Repeat className="size-4 text-primary shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-display font-bold text-sm">EMP-#{shortId}</span>
+                <StatusBadge status={e.status} />
+                <Badge variant="secondary" className="gap-1 h-5"><Package className="size-3" /> {totalItens}</Badge>
+                {e.status === "aprovado" && pendente > 0 && (
+                  <Badge variant="outline" className="gap-1 h-5 border-amber-500/40 text-amber-600 dark:text-amber-400">
+                    {pendente} pendente(s)
+                  </Badge>
+                )}
+                {e.status === "aprovado" && pendente === 0 && (
+                  <Badge variant="outline" className="gap-1 h-5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                    devolvido
+                  </Badge>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                <span className="inline-flex items-center gap-1 text-foreground font-medium">
+                  {e.origem.nome} <ArrowRight className="size-3 text-muted-foreground" /> {e.destino.nome}
+                </span>
+                <span>·</span>
+                <span>{e.solicitante?.nome ?? "—"}</span>
+                <span>·</span>
+                <span>{formatDateTime(e.created_at)}</span>
+                {e.retirado_por && <><span>·</span><span className="text-success inline-flex items-center gap-1"><UserCheck className="size-3" /> {e.retirado_por}</span></>}
+              </div>
+            </div>
+          </CollapsibleTrigger>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button size="sm" variant="ghost" onClick={onChat} title="Chat"><MessageCircle className="size-4" /></Button>
+            {tab === "pendente" && (
+              podeDecidir ? (
+                <Button size="sm" onClick={onRevisar}><Eye className="size-4" /> Revisar</Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={onRevisar}><Eye className="size-4" /> Ver</Button>
+              )
+            )}
+            {(tab === "aprovado" || tab === "arquivado") && (
+              <Button size="sm" variant="outline" onClick={onImprimir}><Printer className="size-4" /> PDF</Button>
+            )}
+          </div>
+        </div>
+
+        <CollapsibleContent className="border-t border-border">
+          {/* Itens */}
+          <div className="px-4 py-2">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-muted-foreground border-b border-border/60">
+                  <th className="text-left py-1 font-normal">Produto</th>
+                  <th className="text-right py-1 font-normal w-32">Quantidade</th>
+                  {e.status === "aprovado" && <th className="text-right py-1 font-normal w-32">Devolvido</th>}
+                  {e.status === "aprovado" && <th className="text-right py-1 font-normal w-32">Pendente</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {e.itens.map((it, i) => {
+                  const pend = it.quantidade - (it.quantidade_devolvida ?? 0);
+                  return (
+                    <tr key={i} className="border-b border-border/30 last:border-b-0">
+                      <td className="py-1.5">{it.produto.nome}</td>
+                      <td className="py-1.5 text-right font-mono">{it.quantidade} <span className="text-muted-foreground text-xs">{it.produto.unidade}</span></td>
+                      {e.status === "aprovado" && <td className="py-1.5 text-right font-mono text-emerald-600 dark:text-emerald-400">{it.quantidade_devolvida ?? 0}</td>}
+                      {e.status === "aprovado" && <td className={`py-1.5 text-right font-mono font-semibold ${pend === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>{pend}</td>}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {e.observacao && (
+            <div className="px-4 py-2 bg-muted/20 border-t border-border text-sm">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">Observação: </span>
+              <span className="italic">"{e.observacao}"</span>
+            </div>
+          )}
+
+          {e.retirado_por && (
+            <div className="px-4 py-2 bg-muted/20 border-t border-border text-xs flex items-center gap-2">
+              <UserCheck className="size-3.5 text-success" />
+              <span><span className="font-semibold">Retirada:</span> {e.retirado_por}</span>
+              {e.retirado_em && <span className="text-muted-foreground">· {formatDateTime(e.retirado_em)}</span>}
+            </div>
+          )}
+
+          <div className="px-4 py-3 border-t border-border bg-background flex flex-wrap items-center justify-end gap-2">
+            {tab === "pendente" && podeDecidir && (
+              <>
+                <Button size="sm" variant="outline" onClick={onRejeitar}><X className="size-4" /> Rejeitar</Button>
+                <Button size="sm" onClick={onAprovar}><Check className="size-4" /> Aprovar</Button>
+              </>
+            )}
+            {tab === "pendente" && !podeDecidir && (
+              <span className="text-xs text-muted-foreground">Aguardando admin da sala de origem.</span>
+            )}
+            {tab === "aprovado" && role === "master" && pendente > 0 && (
+              <Button size="sm" variant="secondary" onClick={onDevolver}>
+                <Undo2 className="size-4" /> Devolver ({pendente})
+              </Button>
+            )}
+            {tab === "aprovado" && role === "master" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={pendente > 0}
+                title={pendente > 0 ? `Devolva todos os itens antes de arquivar (${pendente} pendente(s))` : "Arquivar"}
+                onClick={onArquivarAprovado}
+              >
+                <Archive className="size-4" /> Arquivar
+              </Button>
+            )}
+            {tab === "rejeitado" && role === "master" && (
+              <Button size="sm" variant="ghost" onClick={onArquivarRejeitado}><Archive className="size-4" /> Arquivar</Button>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
