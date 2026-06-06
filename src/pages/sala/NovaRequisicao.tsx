@@ -64,6 +64,14 @@ export default function NovaRequisicao() {
 
   const setQtd = (id: string, q: number) => setCarrinho((c) => ({ ...c, [id]: q }));
 
+  const abrirConfirmacao = () => {
+    const itens = Object.entries(carrinho)
+      .map(([produto_id, quantidade]) => ({ produto_id, quantidade: Number(quantidade) }))
+      .filter((i) => i.quantidade > 0);
+    if (itens.length === 0) return toast.error("Adicione ao menos um item");
+    setConfirmOpen(true);
+  };
+
   const enviar = async () => {
     const itens = Object.entries(carrinho)
       .map(([produto_id, quantidade]) => ({ produto_id, quantidade: Number(quantidade) }))
@@ -73,6 +81,7 @@ export default function NovaRequisicao() {
     const { error } = await supabase.rpc("criar_solicitacao", { _itens: itens, _observacao: obs || null });
     setEnviando(false);
     if (error) return toast.error(error.message);
+    setConfirmOpen(false);
     toast.success("Requisição enviada · aguardando aprovação do Master");
     navigate("/app/minhas-requisicoes");
   };
