@@ -72,7 +72,7 @@ export default function MovimentacoesPage() {
       .limit(PAGE_SIZE);
     if (before) q = q.lt("created_at", before);
     if (salaFilter !== "all") q = q.eq("sala_id", salaFilter);
-    if (tipoFilter !== "all") q = q.eq("tipo", tipoFilter);
+    if (tipoFilter !== "all") q = q.eq("tipo", tipoFilter as any);
     if (dataInicial) q = q.gte("created_at", `${dataInicial}T00:00:00`);
     if (dataFinal) q = q.lte("created_at", `${dataFinal}T23:59:59`);
     return q;
