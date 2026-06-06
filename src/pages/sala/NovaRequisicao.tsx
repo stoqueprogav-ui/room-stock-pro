@@ -39,13 +39,14 @@ export default function NovaRequisicao() {
   useEffect(() => {
     if (!profile?.sala_id) return;
     (async () => {
-      const [{ data }, { data: cats }] = await Promise.all([
+      const [{ data }, { data: cats }, { data: sala }] = await Promise.all([
         supabase
           .from("estoque")
           .select("produto_id, quantidade, produtos!inner(nome, unidade, ativo, categoria_id, categoria:categorias(nome))")
           .eq("sala_id", profile.sala_id)
           .eq("produtos.ativo", true),
         supabase.from("categorias").select("*").order("nome"),
+        supabase.from("salas").select("nome").eq("id", profile.sala_id).maybeSingle(),
       ]);
       const list: Linha[] = (data ?? []).map((r: any) => ({
         produto_id: r.produto_id,
@@ -57,6 +58,7 @@ export default function NovaRequisicao() {
       })).sort((a: Linha, b: Linha) => a.nome.localeCompare(b.nome));
       setLinhas(list);
       setCategorias((cats as Categoria[]) ?? []);
+      setSalaNome((sala as any)?.nome ?? "");
     })();
   }, [profile]);
 
