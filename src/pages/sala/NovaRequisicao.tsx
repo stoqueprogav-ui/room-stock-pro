@@ -32,6 +32,8 @@ export default function NovaRequisicao() {
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
   const [busca, setBusca] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [salaNome, setSalaNome] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
