@@ -259,8 +259,8 @@ export default function NovaRequisicao() {
               <Label>Observação</Label>
               <Textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Justificativa, finalidade…" />
             </div>
-            <Button className="w-full" onClick={enviar} disabled={enviando || totalSelecionados === 0}>
-              <Send className="size-4" /> {enviando ? "Enviando..." : "Enviar requisição"}
+            <Button className="w-full" onClick={abrirConfirmacao} disabled={enviando || totalSelecionados === 0}>
+              <Send className="size-4" /> Revisar e enviar
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => setCarrinho({})} disabled={totalSelecionados === 0}>
               <Trash2 className="size-4" /> Limpar
@@ -268,6 +268,22 @@ export default function NovaRequisicao() {
           </div>
         </div>
       )}
+
+      <ConfirmarRequisicaoDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        salaNome={salaNome}
+        itens={carrinhoDetalhado.map((it) => ({
+          produto_id: it.produto_id,
+          nome: it.nome,
+          unidade: it.unidade,
+          quantidade: it.quantidade,
+          categoria_nome: it.categoria_nome,
+        }))}
+        observacao={obs}
+        enviando={enviando}
+        onConfirmar={enviar}
+      />
     </div>
   );
 }
