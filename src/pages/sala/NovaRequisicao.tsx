@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Send, Trash2, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Categoria } from "@/lib/types";
+import ConfirmarRequisicaoDialog from "@/components/ConfirmarRequisicaoDialog";
 
 type Linha = {
   produto_id: string;
