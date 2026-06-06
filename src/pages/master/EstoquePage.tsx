@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag } from "lucide-react";
+import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X } from "lucide-react";
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
@@ -19,6 +20,8 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 type Row = { produto_id: string; sala_id: string; quantidade: number; produto: Produto; sala: Sala };
 type StatusKind = "ok" | "baixo" | "critico";
 type SortKey = "nome" | "quantidade" | "menor";
+
+const UNIDADES_PRESET = ["Unidade", "Caixa", "Fardo", "Pacote", "Kit", "Litro", "Galão", "Rolo", "Par", "Metro"];
 
 function getStatus(q: number, p: Produto): StatusKind {
   const minimo = p.estoque_minimo ?? 0;
@@ -30,7 +33,6 @@ function getStatus(q: number, p: Produto): StatusKind {
 export default function EstoquePage() {
   const { role, profile } = useAuth();
   const isMaster = role === "master";
-  // Hook chamado sempre — só consumimos o valor quando o role for master
   const masterScope = useMasterScope();
 
   const [salas, setSalas] = useState<Sala[]>([]);
@@ -47,7 +49,19 @@ export default function EstoquePage() {
   const [editObs, setEditObs] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Modal de Entrada/Saída rápida (a partir da linha do produto)
+  // Edição rápida do PRODUTO
+  const [editProd, setEditProd] = useState<Produto | null>(null);
+  const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "" });
+  const [savingProd, setSavingProd] = useState(false);
+
+  // Exclusão individual e em massa
+  const [confirmDel, setConfirmDel] = useState<Produto | null>(null);
+  const [delLoading, setDelLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Modal de Entrada/Saída
   const [movOpen, setMovOpen] = useState(false);
   const [movTipo, setMovTipo] = useState<"entrada" | "saida">("entrada");
   const [movRow, setMovRow] = useState<Row | null>(null);
@@ -74,16 +88,12 @@ export default function EstoquePage() {
   };
 
   useEffect(() => { load(); }, []);
-
-  // Sincronização em tempo real — fonte única de verdade (estoque/produtos/movimentações)
   useRealtimeSync(["estoque", "produtos", "movimentacoes", "salas", "categorias"], () => { load(); }, { debounceMs: 250 });
 
-  // Para admin/analista, fixa o filtro na própria sala
   useEffect(() => {
     if (!isMaster && profile?.sala_id) setSalaFilterUI(profile.sala_id);
   }, [isMaster, profile]);
 
-  // Sala efetiva considerando o escopo do master
   const effectiveSalaFilter: string = isMaster
     ? (masterScope.scopeSalaId ?? "all")
     : (profile?.sala_id ?? "all");
@@ -117,7 +127,31 @@ export default function EstoquePage() {
     return { critico, baixo, ok, total: inScope.length };
   }, [rows, effectiveSalaFilter]);
 
-  // (lista de produtos não é mais necessária — modal opera sobre uma linha específica)
+  const distinctProdutoIdsFiltered = useMemo(() => {
+    const set = new Set<string>();
+    filtered.forEach((r) => set.add(r.produto_id));
+    return [...set];
+  }, [filtered]);
+
+  const allSelected = isMaster && distinctProdutoIdsFiltered.length > 0 && distinctProdutoIdsFiltered.every((id) => selectedIds.has(id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleOne = (produtoId: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(produtoId); else next.delete(produtoId);
+      return next;
+    });
+  };
+  const toggleAll = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) distinctProdutoIdsFiltered.forEach((id) => next.add(id));
+      else distinctProdutoIdsFiltered.forEach((id) => next.delete(id));
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedIds(new Set());
 
   const ajustar = async () => {
     if (!editing) return;
@@ -158,6 +192,72 @@ export default function EstoquePage() {
     if (error) return toast.error(error.message);
     toast.success(`${movTipo === "entrada" ? "Entrada" : "Saída"} de ${movQtd} ${movRow.produto.unidade} registrada`);
     setMovOpen(false);
+    load();
+  };
+
+  // -------- Edição rápida do PRODUTO --------
+  const openEditProduto = (p: Produto) => {
+    setEditProd(p);
+    setEditProdForm({
+      nome: p.nome,
+      categoria_id: (p as any).categoria_id ?? "",
+      unidade: p.unidade ?? "Unidade",
+      estoque_minimo: p.estoque_minimo ?? 0,
+      descricao: p.descricao ?? "",
+    });
+  };
+  const salvarProduto = async () => {
+    if (!editProd) return;
+    if (!editProdForm.nome.trim()) return toast.error("Nome obrigatório");
+    if (!editProdForm.categoria_id) return toast.error("Categoria obrigatória");
+    setSavingProd(true);
+    const { error } = await supabase.from("produtos").update({
+      nome: editProdForm.nome.trim(),
+      categoria_id: editProdForm.categoria_id,
+      unidade: (editProdForm.unidade || "Unidade").trim(),
+      estoque_minimo: Number(editProdForm.estoque_minimo) || 0,
+      descricao: editProdForm.descricao || null,
+    }).eq("id", editProd.id);
+    setSavingProd(false);
+    if (error) return toast.error(error.message);
+    toast.success("Produto atualizado");
+    setEditProd(null);
+    load();
+  };
+
+  // -------- Exclusão --------
+  const confirmarExclusao = async () => {
+    if (!confirmDel) return;
+    setDelLoading(true);
+    const { data, error } = await supabase.rpc("excluir_produto", { _produto: confirmDel.id });
+    setDelLoading(false);
+    if (error) return toast.error(error.message ?? "Não foi possível excluir");
+    const res = (data as any) ?? {};
+    if (res.modo === "desativado") toast.warning(res.mensagem ?? "Produto desativado (possui histórico ou estoque).");
+    else toast.success(res.mensagem ?? "Produto excluído");
+    setSelectedIds((prev) => { const n = new Set(prev); n.delete(confirmDel.id); return n; });
+    setConfirmDel(null);
+    load();
+  };
+
+  const confirmarBulk = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setBulkLoading(true);
+    let excl = 0, desat = 0, erros = 0;
+    for (const id of ids) {
+      const { data, error } = await supabase.rpc("excluir_produto", { _produto: id });
+      if (error) { erros++; continue; }
+      const r = (data as any) ?? {};
+      if (r.modo === "desativado") desat++;
+      else excl++;
+    }
+    setBulkLoading(false);
+    setConfirmBulk(false);
+    clearSelection();
+    if (erros > 0) toast.error(`${erros} falha(s) na exclusão.`);
+    if (excl > 0) toast.success(`${excl} produto(s) excluído(s) permanentemente.`);
+    if (desat > 0) toast.warning(`${desat} produto(s) desativado(s) (possuíam histórico/estoque).`);
     load();
   };
 
@@ -259,22 +359,57 @@ export default function EstoquePage() {
         </div>
       </div>
 
+      {/* Barra de ações em massa */}
+      {isMaster && someSelected && (
+        <div className="panel p-3 flex flex-wrap items-center gap-3 border-primary/40 bg-primary/5">
+          <span className="text-sm font-medium">
+            {selectedIds.size} produto(s) selecionado(s)
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={clearSelection}>
+              <X className="size-4" /> Limpar
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setConfirmBulk(true)}>
+              <Trash2 className="size-4" /> Excluir selecionados
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="panel overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
+              {isMaster && (
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={(v) => toggleAll(!!v)}
+                    aria-label="Selecionar todos"
+                  />
+                </TableHead>
+              )}
               <TableHead>Produto</TableHead>
               <TableHead className="w-[130px]">Categoria</TableHead>
               <TableHead>Sala</TableHead>
               <TableHead className="text-right w-[110px]">Quantidade</TableHead>
               <TableHead className="text-right w-[80px]">Mín.</TableHead>
               <TableHead className="w-[130px]">Status</TableHead>
-              {isMaster && <TableHead className="w-[260px] text-right">Ações</TableHead>}
+              {isMaster && <TableHead className="w-[320px] text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((r) => (
               <TableRow key={`${r.produto_id}-${r.sala_id}`} className="table-row-hover">
+                {isMaster && (
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(r.produto_id)}
+                      onCheckedChange={(v) => toggleOne(r.produto_id, !!v)}
+                      aria-label={`Selecionar ${r.produto.nome}`}
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="font-medium">{r.produto.nome} <span className="text-muted-foreground text-xs">({r.produto.unidade})</span></TableCell>
                 <TableCell>
                   {(r.produto as any)?.categoria?.nome
@@ -304,15 +439,18 @@ export default function EstoquePage() {
                       >
                         <ArrowUpFromLine className="size-3.5" /> Saída
                       </Button>
-                      <Button variant="ghost" size="icon" title="Ajustar quantidade exata" onClick={() => { setEditing(r); setEditValue(r.quantidade); setEditObs(""); }}>
+                      <Button variant="ghost" size="icon" title="Editar produto" onClick={() => openEditProduto(r.produto)}>
                         <Pencil className="size-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Excluir produto" onClick={() => setConfirmDel(r.produto)}>
+                        <Trash2 className="size-4 text-destructive" />
                       </Button>
                     </div>
                   </TableCell>
                 )}
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 7 : 6} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 8 : 6} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -335,7 +473,7 @@ export default function EstoquePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Entrada/Saída rápida (a partir de uma linha) */}
+      {/* Modal: Entrada/Saída rápida */}
       <Dialog open={movOpen} onOpenChange={setMovOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -390,6 +528,119 @@ export default function EstoquePage() {
             >
               {movSaving && <Loader2 className="size-4 animate-spin" />}
               {movTipo === "entrada" ? "Confirmar entrada" : "Confirmar saída"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Edição rápida do PRODUTO */}
+      <Dialog open={!!editProd} onOpenChange={(v) => !v && setEditProd(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="size-5 text-primary" /> Editar produto</DialogTitle>
+            <DialogDescription>Atualize os dados do produto. Estas alterações se aplicam a todas as salas.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2"><Label>Nome *</Label><Input value={editProdForm.nome} onChange={(e) => setEditProdForm({ ...editProdForm, nome: e.target.value })} /></div>
+            <div className="space-y-2">
+              <Label>Categoria *</Label>
+              <Select value={editProdForm.categoria_id} onValueChange={(v) => setEditProdForm({ ...editProdForm, categoria_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
+                <SelectContent>
+                  {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Unidade</Label>
+                <Select
+                  value={UNIDADES_PRESET.includes(editProdForm.unidade) ? editProdForm.unidade : "__custom"}
+                  onValueChange={(v) => {
+                    if (v === "__custom") setEditProdForm({ ...editProdForm, unidade: "" });
+                    else setEditProdForm({ ...editProdForm, unidade: v });
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {UNIDADES_PRESET.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                    <SelectItem value="__custom">Outros (personalizado)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!UNIDADES_PRESET.includes(editProdForm.unidade) && (
+                  <Input
+                    value={editProdForm.unidade}
+                    onChange={(e) => setEditProdForm({ ...editProdForm, unidade: e.target.value })}
+                    placeholder="Digite a unidade"
+                  />
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Estoque mínimo</Label>
+                <Input type="number" min={0} value={editProdForm.estoque_minimo} onChange={(e) => setEditProdForm({ ...editProdForm, estoque_minimo: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observações / descrição</Label>
+              <Textarea value={editProdForm.descricao} onChange={(e) => setEditProdForm({ ...editProdForm, descricao: e.target.value })} rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProd(null)}>Cancelar</Button>
+            <Button onClick={salvarProduto} disabled={savingProd}>
+              {savingProd && <Loader2 className="size-4 animate-spin" />} Salvar alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Confirmar exclusão individual */}
+      <Dialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="size-5" /> Excluir produto
+            </DialogTitle>
+            <DialogDescription>
+              Você está prestes a excluir permanentemente o produto:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+            <div className="font-display font-bold text-base">{confirmDel?.nome}</div>
+            <div className="text-xs text-muted-foreground">
+              Esta ação removerá o produto de <strong>todas as salas</strong> vinculadas.
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Se houver histórico ou estoque, o produto será automaticamente <strong>desativado</strong> em vez de excluído, preservando os registros.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDel(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmarExclusao} disabled={delLoading}>
+              {delLoading && <Loader2 className="size-4 animate-spin" />}
+              <Trash2 className="size-4" /> Excluir produto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Confirmar exclusão em massa */}
+      <Dialog open={confirmBulk} onOpenChange={setConfirmBulk}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="size-5" /> Excluir produtos selecionados
+            </DialogTitle>
+            <DialogDescription>
+              Você está prestes a excluir <strong>{selectedIds.size}</strong> produto(s).
+              Produtos com histórico ou estoque serão automaticamente desativados (não removidos).
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmBulk(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmarBulk} disabled={bulkLoading}>
+              {bulkLoading && <Loader2 className="size-4 animate-spin" />}
+              <Trash2 className="size-4" /> Excluir {selectedIds.size} produto(s)
             </Button>
           </DialogFooter>
         </DialogContent>
