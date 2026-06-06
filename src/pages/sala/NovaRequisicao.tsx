@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Send, Trash2, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Categoria } from "@/lib/types";
+import ConfirmarRequisicaoDialog from "@/components/ConfirmarRequisicaoDialog";
 
 type Linha = {
   produto_id: string;
@@ -31,18 +32,21 @@ export default function NovaRequisicao() {
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
   const [busca, setBusca] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [salaNome, setSalaNome] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!profile?.sala_id) return;
     (async () => {
-      const [{ data }, { data: cats }] = await Promise.all([
+      const [{ data }, { data: cats }, { data: sala }] = await Promise.all([
         supabase
           .from("estoque")
           .select("produto_id, quantidade, produtos!inner(nome, unidade, ativo, categoria_id, categoria:categorias(nome))")
           .eq("sala_id", profile.sala_id)
           .eq("produtos.ativo", true),
         supabase.from("categorias").select("*").order("nome"),
+        supabase.from("salas").select("nome").eq("id", profile.sala_id).maybeSingle(),
       ]);
       const list: Linha[] = (data ?? []).map((r: any) => ({
         produto_id: r.produto_id,
@@ -54,10 +58,19 @@ export default function NovaRequisicao() {
       })).sort((a: Linha, b: Linha) => a.nome.localeCompare(b.nome));
       setLinhas(list);
       setCategorias((cats as Categoria[]) ?? []);
+      setSalaNome((sala as any)?.nome ?? "");
     })();
   }, [profile]);
 
   const setQtd = (id: string, q: number) => setCarrinho((c) => ({ ...c, [id]: q }));
+
+  const abrirConfirmacao = () => {
+    const itens = Object.entries(carrinho)
+      .map(([produto_id, quantidade]) => ({ produto_id, quantidade: Number(quantidade) }))
+      .filter((i) => i.quantidade > 0);
+    if (itens.length === 0) return toast.error("Adicione ao menos um item");
+    setConfirmOpen(true);
+  };
 
   const enviar = async () => {
     const itens = Object.entries(carrinho)
@@ -68,6 +81,7 @@ export default function NovaRequisicao() {
     const { error } = await supabase.rpc("criar_solicitacao", { _itens: itens, _observacao: obs || null });
     setEnviando(false);
     if (error) return toast.error(error.message);
+    setConfirmOpen(false);
     toast.success("Requisição enviada · aguardando aprovação do Master");
     navigate("/app/minhas-requisicoes");
   };
@@ -245,8 +259,8 @@ export default function NovaRequisicao() {
               <Label>Observação</Label>
               <Textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Justificativa, finalidade…" />
             </div>
-            <Button className="w-full" onClick={enviar} disabled={enviando || totalSelecionados === 0}>
-              <Send className="size-4" /> {enviando ? "Enviando..." : "Enviar requisição"}
+            <Button className="w-full" onClick={abrirConfirmacao} disabled={enviando || totalSelecionados === 0}>
+              <Send className="size-4" /> Revisar e enviar
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => setCarrinho({})} disabled={totalSelecionados === 0}>
               <Trash2 className="size-4" /> Limpar
@@ -254,6 +268,22 @@ export default function NovaRequisicao() {
           </div>
         </div>
       )}
+
+      <ConfirmarRequisicaoDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        salaNome={salaNome}
+        itens={carrinhoDetalhado.map((it) => ({
+          produto_id: it.produto_id,
+          nome: it.nome,
+          unidade: it.unidade,
+          quantidade: it.quantidade,
+          categoria_nome: it.categoria_nome,
+        }))}
+        observacao={obs}
+        enviando={enviando}
+        onConfirmar={enviar}
+      />
     </div>
   );
 }
