@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
-import { Check, X, Archive, Printer, UserCheck, MessageCircle, Search, Package, FolderTree, FileText, Tag, Loader2, Eye } from "lucide-react";
+import { Check, X, Archive, Printer, UserCheck, MessageCircle, Search, Package, FolderTree, FileText, Tag, Loader2, Eye, ChevronDown, Filter, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
@@ -43,6 +44,9 @@ export default function RequisicoesPage() {
   const [rows, setRows] = useState<Requisicao[]>([]);
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState("");
+  const [dataIni, setDataIni] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
@@ -101,19 +105,27 @@ export default function RequisicoesPage() {
     navigate(`/app/chat?c=${data}`);
   };
 
-  const list = rows.filter((r) => r.status === tab).filter((s) => {
-    const t = busca.trim().toLowerCase();
-    if (!t) return true;
-    return (
-      s.sala.nome.toLowerCase().includes(t) ||
-      (s.usuario?.nome ?? "").toLowerCase().includes(t) ||
-      (s.usuario?.email ?? "").toLowerCase().includes(t) ||
-      (s.observacao ?? "").toLowerCase().includes(t) ||
-      (s.retirado_por ?? "").toLowerCase().includes(t) ||
-      s.id.toLowerCase().includes(t) ||
-      s.itens.some((it) => it.produto.nome.toLowerCase().includes(t))
-    );
-  });
+  const list = useMemo(() => {
+    return rows
+      .filter((r) => r.status === tab)
+      .filter((s) => {
+        if (dataIni && s.created_at < dataIni) return false;
+        if (dataFim && s.created_at > dataFim + "T23:59:59") return false;
+        const t = busca.trim().toLowerCase();
+        if (!t) return true;
+        return (
+          s.sala.nome.toLowerCase().includes(t) ||
+          (s.usuario?.nome ?? "").toLowerCase().includes(t) ||
+          (s.usuario?.email ?? "").toLowerCase().includes(t) ||
+          (s.observacao ?? "").toLowerCase().includes(t) ||
+          (s.retirado_por ?? "").toLowerCase().includes(t) ||
+          s.id.toLowerCase().includes(t) ||
+          s.itens.some((it) => it.produto.nome.toLowerCase().includes(t))
+        );
+      });
+  }, [rows, tab, busca, dataIni, dataFim]);
+
+  const filtrosAtivos = !!(dataIni || dataFim);
 
   return (
     <div className="space-y-4">
@@ -126,12 +138,37 @@ export default function RequisicoesPage() {
             <TabsTrigger value="rejeitado">Rejeitadas</TabsTrigger>
             <TabsTrigger value="arquivado">Arquivadas</TabsTrigger>
           </TabsList>
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input placeholder="Buscar sala, produto, ID, retirado por..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-8" />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-80">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input placeholder="Buscar sala, produto, ID, retirado por..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-8" />
+            </div>
+            <Button variant={filtrosAtivos ? "default" : "outline"} size="sm" onClick={() => setShowFilters((v) => !v)}>
+              <Filter className="size-4" /> Filtros {filtrosAtivos && <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">ativo</Badge>}
+            </Button>
           </div>
         </div>
-        <TabsContent value={tab} className="mt-4 space-y-3">
+
+        {showFilters && (
+          <div className="panel p-3 mt-2 flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="size-3" /> Data inicial</label>
+              <Input type="date" value={dataIni} onChange={(e) => setDataIni(e.target.value)} className="w-44" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="size-3" /> Data final</label>
+              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-44" />
+            </div>
+            {filtrosAtivos && (
+              <Button variant="ghost" size="sm" onClick={() => { setDataIni(""); setDataFim(""); }}>
+                <X className="size-4" /> Limpar
+              </Button>
+            )}
+            <div className="ml-auto text-xs text-muted-foreground">{list.length} resultado(s)</div>
+          </div>
+        )}
+
+        <TabsContent value={tab} className="mt-4 space-y-2">
           {loading && <div className="grid place-items-center py-12"><Loader2 className="size-6 animate-spin text-primary" /></div>}
           {!loading && list.length === 0 && (
             <div className="panel p-12 text-center text-muted-foreground">Nenhuma requisição.</div>
@@ -183,6 +220,7 @@ function RequisicaoCard({
   onArquivarRejeitada: () => void; onArquivarAprovada: () => void;
   onImprimir: () => void; onChat: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   const grupos = useMemo(() => {
     const m = new Map<string, Item[]>();
     for (const it of s.itens) {
@@ -199,104 +237,99 @@ function RequisicaoCard({
 
   return (
     <div className="panel overflow-hidden">
-      {/* Cabeçalho do card */}
-      <div className="px-4 py-3 border-b border-border bg-muted/30 flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <FileText className="size-4 text-primary" />
-            <span className="font-display font-bold text-base">Requisição #{shortId}</span>
-            <StatusBadge status={s.status} />
-          </div>
-          <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5">
-            <span><span className="text-foreground font-medium">Sala:</span> {s.sala.nome}</span>
-            <span>·</span>
-            <span><span className="text-foreground font-medium">Solicitante:</span> {s.usuario?.nome ?? "—"}</span>
-            <span>·</span>
-            <span>{formatDateTime(s.created_at)}</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-          <Badge variant="secondary" className="gap-1"><Package className="size-3" /> {totalProdutos} produto(s)</Badge>
-          <Badge variant="secondary" className="gap-1"><FolderTree className="size-3" /> {totalCategorias} categoria(s)</Badge>
-        </div>
-      </div>
-
-      {/* Tabela de produtos agrupada por categoria */}
-      <div className="divide-y divide-border">
-        {grupos.map(([cat, itens]) => (
-          <div key={cat}>
-            <div className="px-4 py-1.5 bg-muted/20 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
-              <Tag className="size-3 text-primary" /> {cat}
-              <Badge variant="outline" className="h-4 text-[10px] px-1.5">{itens.length}</Badge>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        {/* Cabeçalho compacto (sempre visível) */}
+        <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3 hover:bg-muted/20 transition">
+          <CollapsibleTrigger className="flex items-center gap-3 min-w-0 flex-1 text-left">
+            <ChevronDown className={`size-4 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : "-rotate-90"}`} />
+            <FileText className="size-4 text-primary shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-display font-bold text-sm">REQ-#{shortId}</span>
+                <StatusBadge status={s.status} />
+                <Badge variant="secondary" className="gap-1 h-5"><Package className="size-3" /> {totalProdutos}</Badge>
+                <Badge variant="secondary" className="gap-1 h-5"><FolderTree className="size-3" /> {totalCategorias}</Badge>
+              </div>
+              <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                <span><span className="text-foreground font-medium">{s.sala.nome}</span></span>
+                <span>·</span>
+                <span>{s.usuario?.nome ?? "—"}</span>
+                <span>·</span>
+                <span>{formatDateTime(s.created_at)}</span>
+                {s.retirado_por && <><span>·</span><span className="text-success inline-flex items-center gap-1"><UserCheck className="size-3" /> {s.retirado_por}</span></>}
+              </div>
             </div>
-            <div className="px-4 py-2">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-muted-foreground border-b border-border/60">
-                    <th className="text-left py-1 font-normal">Produto</th>
-                    <th className="text-right py-1 font-normal w-32">Quantidade</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {itens.map((it, i) => (
-                    <tr key={i} className="border-b border-border/30 last:border-b-0">
-                      <td className="py-1.5">{it.produto.nome}</td>
-                      <td className="py-1.5 text-right font-mono font-semibold">{it.quantidade} <span className="text-muted-foreground text-xs">{it.produto.unidade}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          </CollapsibleTrigger>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button size="sm" variant="ghost" onClick={onChat} title="Chat"><MessageCircle className="size-4" /></Button>
+            {role === "master" && tab === "pendente" && (
+              <Button size="sm" onClick={onRevisar}><Eye className="size-4" /> Revisar</Button>
+            )}
+            {role === "master" && (tab === "aprovado" || tab === "arquivado") && (
+              <Button size="sm" variant="outline" onClick={onImprimir}><Printer className="size-4" /> PDF</Button>
+            )}
           </div>
-        ))}
-      </div>
-
-      {/* Observação */}
-      {s.observacao && (
-        <div className="px-4 py-2 bg-muted/20 border-t border-border text-sm">
-          <span className="text-xs uppercase tracking-wide text-muted-foreground">Observação: </span>
-          <span className="italic">"{s.observacao}"</span>
         </div>
-      )}
 
-      {/* Retirada */}
-      {s.retirado_por && (
-        <div className="px-4 py-2 bg-muted/20 border-t border-border text-xs flex items-center gap-2">
-          <UserCheck className="size-3.5 text-success" />
-          <span><span className="font-semibold">Retirada:</span> {s.retirado_por}</span>
-          {s.retirado_em && <span className="text-muted-foreground">· {formatDateTime(s.retirado_em)}</span>}
-        </div>
-      )}
+        {/* Conteúdo expansível */}
+        <CollapsibleContent className="border-t border-border">
+          <div className="divide-y divide-border">
+            {grupos.map(([cat, itens]) => (
+              <div key={cat}>
+                <div className="px-4 py-1.5 bg-muted/20 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+                  <Tag className="size-3 text-primary" /> {cat}
+                  <Badge variant="outline" className="h-4 text-[10px] px-1.5">{itens.length}</Badge>
+                </div>
+                <table className="w-full text-sm">
+                  <tbody>
+                    {itens.map((it, i) => (
+                      <tr key={i} className="border-b border-border/30 last:border-b-0">
+                        <td className="px-4 py-1.5">{it.produto.nome}</td>
+                        <td className="px-4 py-1.5 text-right font-mono font-semibold w-32">{it.quantidade} <span className="text-muted-foreground text-xs">{it.produto.unidade}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
 
-      {/* Ações */}
-      <div className="px-4 py-3 border-t border-border bg-background flex flex-wrap items-center justify-end gap-2">
-        <Button size="sm" variant="ghost" onClick={onChat} title="Conversar sobre este pedido">
-          <MessageCircle className="size-4" /> Chat
-        </Button>
-        {role === "master" && tab === "pendente" && (
-          <>
-            <Button size="sm" variant="outline" onClick={onRevisar}><Eye className="size-4" /> Revisar</Button>
-            <Button size="sm" variant="outline" onClick={onRejeitar} disabled={acting}>
-              <X className="size-4" /> Rejeitar
-            </Button>
-            <Button size="sm" onClick={onAprovar} disabled={acting}>
-              {acting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Aprovar
-            </Button>
-          </>
-        )}
-        {role === "master" && tab === "aprovado" && (
-          <>
-            <Button size="sm" variant="outline" onClick={onImprimir}><Printer className="size-4" /> Imprimir</Button>
-            <Button size="sm" variant="ghost" onClick={onArquivarAprovada}><Archive className="size-4" /> Arquivar</Button>
-          </>
-        )}
-        {role === "master" && tab === "rejeitado" && (
-          <Button size="sm" variant="ghost" onClick={onArquivarRejeitada}><Archive className="size-4" /> Arquivar</Button>
-        )}
-        {role === "master" && tab === "arquivado" && (
-          <Button size="sm" variant="outline" onClick={onImprimir}><Printer className="size-4" /> Imprimir</Button>
-        )}
-      </div>
+          {s.observacao && (
+            <div className="px-4 py-2 bg-muted/20 border-t border-border text-sm">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">Observação: </span>
+              <span className="italic">"{s.observacao}"</span>
+            </div>
+          )}
+
+          {s.retirado_por && (
+            <div className="px-4 py-2 bg-muted/20 border-t border-border text-xs flex items-center gap-2">
+              <UserCheck className="size-3.5 text-success" />
+              <span><span className="font-semibold">Retirada:</span> {s.retirado_por}</span>
+              {s.retirado_em && <span className="text-muted-foreground">· {formatDateTime(s.retirado_em)}</span>}
+            </div>
+          )}
+
+          {/* Ações completas */}
+          <div className="px-4 py-3 border-t border-border bg-background flex flex-wrap items-center justify-end gap-2">
+            {role === "master" && tab === "pendente" && (
+              <>
+                <Button size="sm" variant="outline" onClick={onRejeitar} disabled={acting}>
+                  <X className="size-4" /> Rejeitar
+                </Button>
+                <Button size="sm" onClick={onAprovar} disabled={acting}>
+                  {acting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Aprovar
+                </Button>
+              </>
+            )}
+            {role === "master" && tab === "aprovado" && (
+              <Button size="sm" variant="ghost" onClick={onArquivarAprovada}><Archive className="size-4" /> Arquivar</Button>
+            )}
+            {role === "master" && tab === "rejeitado" && (
+              <Button size="sm" variant="ghost" onClick={onArquivarRejeitada}><Archive className="size-4" /> Arquivar</Button>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
