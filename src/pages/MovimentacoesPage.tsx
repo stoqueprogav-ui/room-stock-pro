@@ -98,7 +98,8 @@ export default function MovimentacoesPage() {
     const solMap = new Map<string, { nome: string } | null>();
     (solsRes.data ?? []).forEach((s: any) => solMap.set(s.id, s.solicitante ?? null));
     const empMap = new Map<string, { nome: string } | null>();
-    (empsRes.data ?? []).forEach((e: any) => empMap.set(e.id, e.usuario ?? null));
+    (empsRes.data ?? []).forEach((e: any) => empMap.set(e.id, e.solicitante ?? null));
+
     return list.map((r) => {
       if (r.referencia_tipo === "solicitacao" && r.referencia_id) {
         return { ...r, originador: solMap.get(r.referencia_id) ?? null };
