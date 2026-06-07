@@ -18,10 +18,14 @@ type Mov = {
   id: string; created_at: string; tipo: string; quantidade: number; saldo_apos: number;
   observacao: string | null;
   sala_id: string;
+  referencia_tipo: string | null;
+  referencia_id: string | null;
   produto: { nome: string; unidade: string };
   sala: { nome: string };
   usuario: { nome: string } | null;
+  originador?: { nome: string } | null;
 };
+
 
 const TIPO_LABEL: Record<string, { label: string; cls: string }> = {
   solicitacao: { label: "Requisição", cls: "bg-warning/15 text-warning border-warning/30" },
@@ -65,7 +69,7 @@ export default function MovimentacoesPage() {
   const buildQuery = useCallback((before?: string) => {
     let q = supabase
       .from("movimentacoes")
-      .select(`id, created_at, tipo, quantidade, saldo_apos, observacao, sala_id,
+      .select(`id, created_at, tipo, quantidade, saldo_apos, observacao, sala_id, referencia_tipo, referencia_id,
                produto:produtos(nome, unidade), sala:salas(nome),
                usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
       .order("created_at", { ascending: false })
@@ -78,6 +82,36 @@ export default function MovimentacoesPage() {
     return q;
   }, [salaFilter, tipoFilter, dataInicial, dataFinal]);
 
+  // Para movimentações originadas de uma solicitação/empréstimo, busca quem foi o solicitante original
+  const enrichOriginadores = useCallback(async (list: Mov[]): Promise<Mov[]> => {
+    const solIds = Array.from(new Set(list.filter(r => r.referencia_tipo === "solicitacao" && r.referencia_id).map(r => r.referencia_id!)));
+    const empIds = Array.from(new Set(list.filter(r => r.referencia_tipo === "emprestimo" && r.referencia_id).map(r => r.referencia_id!)));
+    const [solsRes, empsRes] = await Promise.all([
+      solIds.length
+        ? supabase.from("solicitacoes").select("id, solicitante:profiles!solicitacoes_usuario_id_fkey(nome)").in("id", solIds)
+        : Promise.resolve({ data: [] as any[] }),
+      empIds.length
+        ? supabase.from("emprestimos").select("id, solicitante:profiles!emprestimos_solicitante_id_fkey(nome)").in("id", empIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    const solMap = new Map<string, { nome: string } | null>();
+    (solsRes.data ?? []).forEach((s: any) => solMap.set(s.id, s.solicitante ?? null));
+    const empMap = new Map<string, { nome: string } | null>();
+    (empsRes.data ?? []).forEach((e: any) => empMap.set(e.id, e.solicitante ?? null));
+
+    return list.map((r) => {
+      if (r.referencia_tipo === "solicitacao" && r.referencia_id) {
+        return { ...r, originador: solMap.get(r.referencia_id) ?? null };
+      }
+      if (r.referencia_tipo === "emprestimo" && r.referencia_id) {
+        return { ...r, originador: empMap.get(r.referencia_id) ?? null };
+      }
+      return r;
+    });
+  }, []);
+
+
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data }, { data: ss }] = await Promise.all([
@@ -85,11 +119,12 @@ export default function MovimentacoesPage() {
       supabase.from("salas").select("*").order("nome"),
     ]);
     const page = (data as any[]) ?? [];
-    setRows(page as Mov[]);
+    const enriched = await enrichOriginadores(page as Mov[]);
+    setRows(enriched);
     setSalas((ss as Sala[]) ?? []);
     setHasMore(page.length === PAGE_SIZE);
     setLoading(false);
-  }, [buildQuery]);
+  }, [buildQuery, enrichOriginadores]);
 
   const loadMore = useCallback(async () => {
     if (!rows.length || loadingMore) return;
@@ -97,10 +132,12 @@ export default function MovimentacoesPage() {
     const last = rows[rows.length - 1];
     const { data } = await buildQuery(last.created_at);
     const more = (data as any[]) ?? [];
-    setRows((prev) => [...prev, ...(more as Mov[])]);
+    const enriched = await enrichOriginadores(more as Mov[]);
+    setRows((prev) => [...prev, ...enriched]);
     setHasMore(more.length === PAGE_SIZE);
     setLoadingMore(false);
-  }, [rows, loadingMore, buildQuery]);
+  }, [rows, loadingMore, buildQuery, enrichOriginadores]);
+
 
   useEffect(() => { load(); }, [load]);
   useRealtimeSync(["movimentacoes", "estoque", "salas"], load, { debounceMs: 400 });
@@ -117,8 +154,14 @@ export default function MovimentacoesPage() {
   const filtered = useMemo(() => {
     return rows
       .filter((r) => !busca || r.produto.nome.toLowerCase().includes(busca.toLowerCase()))
-      .filter((r) => !buscaUsuario || (r.usuario?.nome ?? "").toLowerCase().includes(buscaUsuario.toLowerCase()));
+      .filter((r) => {
+        if (!buscaUsuario) return true;
+        const t = buscaUsuario.toLowerCase();
+        return (r.originador?.nome ?? "").toLowerCase().includes(t) ||
+               (r.usuario?.nome ?? "").toLowerCase().includes(t);
+      });
   }, [rows, busca, buscaUsuario]);
+
 
   const limparFiltros = () => {
     setTipoFilter("all");
@@ -207,7 +250,21 @@ export default function MovimentacoesPage() {
               return (
                 <TableRow key={m.id} className="table-row-hover">
                   <TableCell className="text-muted-foreground">{formatDateTime(m.created_at)}</TableCell>
-                  <TableCell className="font-medium">{m.usuario?.nome ?? "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    {m.originador?.nome ? (
+                      <div className="flex flex-col">
+                        <span>{m.originador.nome}</span>
+                        {m.usuario?.nome && m.usuario.nome !== m.originador.nome && (
+                          <span className="text-[11px] text-muted-foreground font-normal">
+                            {m.tipo === "estorno" ? "estornado por" : "processado por"} {m.usuario.nome}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      m.usuario?.nome ?? "—"
+                    )}
+                  </TableCell>
+
                   <TableCell>{m.sala.nome}</TableCell>
                   <TableCell><Badge variant="outline" className={tipoCfg.cls}>{tipoCfg.label}</Badge></TableCell>
                   <TableCell>{m.produto.nome}</TableCell>
