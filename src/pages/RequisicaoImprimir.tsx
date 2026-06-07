@@ -80,17 +80,6 @@ export default function RequisicaoImprimir() {
           <div className="text-xs mt-1">Nº <span className="font-mono">{req.id.slice(0, 8).toUpperCase()}</span></div>
         </div>
 
-        {/* Resumo visual */}
-        {(() => {
-          const cats = new Set(req.itens.map((it) => it.produto.categoria?.nome ?? "Sem categoria"));
-          return (
-            <div className="flex flex-wrap gap-x-5 gap-y-1 mb-4 text-xs border border-black/30 rounded px-3 py-2">
-              <span>📦 <strong>{req.itens.length}</strong> produto(s)</span>
-              <span>📂 <strong>{cats.size}</strong> categoria(s)</span>
-              <span>📋 Requisição <span className="font-mono">#{req.id.slice(0, 8).toUpperCase()}</span></span>
-            </div>
-          );
-        })()}
 
         <div className="grid grid-cols-2 gap-3 mb-5 text-sm">
           <Field label="Sala">{req.sala.nome}</Field>
