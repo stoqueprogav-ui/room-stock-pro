@@ -228,8 +228,14 @@ function LogItem({ row, salaNome }: { row: LogRow; salaNome: string | null }) {
             {salaNome && <Badge variant="secondary" className="text-xs">📍 {salaNome}</Badge>}
           </div>
           <div className="mt-1 font-medium">{row.description}</div>
+          {row.solicitante_nome && (
+            <div className="text-xs mt-1">
+              <span className="text-muted-foreground">Solicitante: </span>
+              <span className="font-medium">{row.solicitante_nome}</span>
+            </div>
+          )}
           <div className="text-xs text-muted-foreground mt-1">
-            {row.actor_nome ?? row.actor_email ?? "Sistema"}
+            {row.solicitante_nome ? "Processado por " : ""}{row.actor_nome ?? row.actor_email ?? "Sistema"}
             {" · "}
             {new Date(row.created_at).toLocaleString("pt-BR")}
           </div>
