@@ -23,6 +23,7 @@ type LogRow = {
   entity_id: string | null;
   description: string;
   metadata: Record<string, unknown>;
+  solicitante_nome?: string | null;
 };
 
 const PAGE_SIZE = 50;
@@ -72,6 +73,23 @@ export default function AuditoriaPage() {
     });
   }, []);
 
+  const enrichSolicitantes = useCallback(async (list: LogRow[]): Promise<LogRow[]> => {
+    const solIds = Array.from(new Set(list.filter(r => r.entity_type === "solicitacao" && r.entity_id).map(r => r.entity_id!)));
+    const empIds = Array.from(new Set(list.filter(r => r.entity_type === "emprestimo" && r.entity_id).map(r => r.entity_id!)));
+    const [solsRes, empsRes] = await Promise.all([
+      solIds.length
+        ? supabase.from("solicitacoes").select("id, solicitante:profiles!solicitacoes_usuario_id_fkey(nome)").in("id", solIds)
+        : Promise.resolve({ data: [] as any[] }),
+      empIds.length
+        ? supabase.from("emprestimos").select("id, solicitante:profiles!emprestimos_solicitante_id_fkey(nome)").in("id", empIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const map = new Map<string, string>();
+    (solsRes.data ?? []).forEach((s: any) => { if (s.solicitante?.nome) map.set(s.id, s.solicitante.nome); });
+    (empsRes.data ?? []).forEach((e: any) => { if (e.solicitante?.nome) map.set(e.id, e.solicitante.nome); });
+    return list.map(r => (r.entity_id && map.has(r.entity_id)) ? { ...r, solicitante_nome: map.get(r.entity_id) } : r);
+  }, []);
+
   const fetchPage = useCallback(async (reset: boolean) => {
     setLoading(true);
     const params: any = {
@@ -90,7 +108,8 @@ export default function AuditoriaPage() {
       return;
     }
     const list = (data ?? []) as LogRow[];
-    setRows((prev) => (reset ? list : [...prev, ...list]));
+    const enriched = await enrichSolicitantes(list);
+    setRows((prev) => (reset ? enriched : [...prev, ...enriched]));
     setHasMore(list.length === PAGE_SIZE);
     if (list.length > 0) setCursor(list[list.length - 1].created_at);
     setLoading(false);
@@ -209,8 +228,14 @@ function LogItem({ row, salaNome }: { row: LogRow; salaNome: string | null }) {
             {salaNome && <Badge variant="secondary" className="text-xs">📍 {salaNome}</Badge>}
           </div>
           <div className="mt-1 font-medium">{row.description}</div>
+          {row.solicitante_nome && (
+            <div className="text-xs mt-1">
+              <span className="text-muted-foreground">Solicitante: </span>
+              <span className="font-medium">{row.solicitante_nome}</span>
+            </div>
+          )}
           <div className="text-xs text-muted-foreground mt-1">
-            {row.actor_nome ?? row.actor_email ?? "Sistema"}
+            {row.solicitante_nome ? "Processado por " : ""}{row.actor_nome ?? row.actor_email ?? "Sistema"}
             {" · "}
             {new Date(row.created_at).toLocaleString("pt-BR")}
           </div>
