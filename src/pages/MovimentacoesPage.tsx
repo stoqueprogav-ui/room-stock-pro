@@ -69,7 +69,7 @@ export default function MovimentacoesPage() {
   const buildQuery = useCallback((before?: string) => {
     let q = supabase
       .from("movimentacoes")
-      .select(`id, created_at, tipo, quantidade, saldo_apos, observacao, sala_id,
+      .select(`id, created_at, tipo, quantidade, saldo_apos, observacao, sala_id, referencia_tipo, referencia_id,
                produto:produtos(nome, unidade), sala:salas(nome),
                usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
       .order("created_at", { ascending: false })
@@ -81,6 +81,34 @@ export default function MovimentacoesPage() {
     if (dataFinal) q = q.lte("created_at", `${dataFinal}T23:59:59`);
     return q;
   }, [salaFilter, tipoFilter, dataInicial, dataFinal]);
+
+  // Para movimentações originadas de uma solicitação/empréstimo, busca quem foi o solicitante original
+  const enrichOriginadores = useCallback(async (list: Mov[]): Promise<Mov[]> => {
+    const solIds = Array.from(new Set(list.filter(r => r.referencia_tipo === "solicitacao" && r.referencia_id).map(r => r.referencia_id!)));
+    const empIds = Array.from(new Set(list.filter(r => r.referencia_tipo === "emprestimo" && r.referencia_id).map(r => r.referencia_id!)));
+    const [solsRes, empsRes] = await Promise.all([
+      solIds.length
+        ? supabase.from("solicitacoes").select("id, solicitante:profiles!solicitacoes_solicitante_id_fkey(nome)").in("id", solIds)
+        : Promise.resolve({ data: [] as any[] }),
+      empIds.length
+        ? supabase.from("emprestimos").select("id, usuario:profiles!emprestimos_usuario_id_fkey(nome)").in("id", empIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const solMap = new Map<string, { nome: string } | null>();
+    (solsRes.data ?? []).forEach((s: any) => solMap.set(s.id, s.solicitante ?? null));
+    const empMap = new Map<string, { nome: string } | null>();
+    (empsRes.data ?? []).forEach((e: any) => empMap.set(e.id, e.usuario ?? null));
+    return list.map((r) => {
+      if (r.referencia_tipo === "solicitacao" && r.referencia_id) {
+        return { ...r, originador: solMap.get(r.referencia_id) ?? null };
+      }
+      if (r.referencia_tipo === "emprestimo" && r.referencia_id) {
+        return { ...r, originador: empMap.get(r.referencia_id) ?? null };
+      }
+      return r;
+    });
+  }, []);
+
 
   const load = useCallback(async () => {
     setLoading(true);
