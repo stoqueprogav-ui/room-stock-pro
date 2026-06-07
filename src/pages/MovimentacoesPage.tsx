@@ -18,10 +18,14 @@ type Mov = {
   id: string; created_at: string; tipo: string; quantidade: number; saldo_apos: number;
   observacao: string | null;
   sala_id: string;
+  referencia_tipo: string | null;
+  referencia_id: string | null;
   produto: { nome: string; unidade: string };
   sala: { nome: string };
   usuario: { nome: string } | null;
+  originador?: { nome: string } | null;
 };
+
 
 const TIPO_LABEL: Record<string, { label: string; cls: string }> = {
   solicitacao: { label: "Requisição", cls: "bg-warning/15 text-warning border-warning/30" },
