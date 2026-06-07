@@ -91,7 +91,8 @@ export default function AuditoriaPage() {
       return;
     }
     const list = (data ?? []) as LogRow[];
-    setRows((prev) => (reset ? list : [...prev, ...list]));
+    const enriched = await enrichSolicitantes(list);
+    setRows((prev) => (reset ? enriched : [...prev, ...enriched]));
     setHasMore(list.length === PAGE_SIZE);
     if (list.length > 0) setCursor(list[list.length - 1].created_at);
     setLoading(false);
