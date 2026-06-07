@@ -88,12 +88,13 @@ export default function MovimentacoesPage() {
     const empIds = Array.from(new Set(list.filter(r => r.referencia_tipo === "emprestimo" && r.referencia_id).map(r => r.referencia_id!)));
     const [solsRes, empsRes] = await Promise.all([
       solIds.length
-        ? supabase.from("solicitacoes").select("id, solicitante:profiles!solicitacoes_solicitante_id_fkey(nome)").in("id", solIds)
+        ? supabase.from("solicitacoes").select("id, solicitante:profiles!solicitacoes_usuario_id_fkey(nome)").in("id", solIds)
         : Promise.resolve({ data: [] as any[] }),
       empIds.length
-        ? supabase.from("emprestimos").select("id, usuario:profiles!emprestimos_usuario_id_fkey(nome)").in("id", empIds)
+        ? supabase.from("emprestimos").select("id, solicitante:profiles!emprestimos_solicitante_id_fkey(nome)").in("id", empIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
+
     const solMap = new Map<string, { nome: string } | null>();
     (solsRes.data ?? []).forEach((s: any) => solMap.set(s.id, s.solicitante ?? null));
     const empMap = new Map<string, { nome: string } | null>();
