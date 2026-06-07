@@ -154,8 +154,14 @@ export default function MovimentacoesPage() {
   const filtered = useMemo(() => {
     return rows
       .filter((r) => !busca || r.produto.nome.toLowerCase().includes(busca.toLowerCase()))
-      .filter((r) => !buscaUsuario || (r.usuario?.nome ?? "").toLowerCase().includes(buscaUsuario.toLowerCase()));
+      .filter((r) => {
+        if (!buscaUsuario) return true;
+        const t = buscaUsuario.toLowerCase();
+        return (r.originador?.nome ?? "").toLowerCase().includes(t) ||
+               (r.usuario?.nome ?? "").toLowerCase().includes(t);
+      });
   }, [rows, busca, buscaUsuario]);
+
 
   const limparFiltros = () => {
     setTipoFilter("all");
