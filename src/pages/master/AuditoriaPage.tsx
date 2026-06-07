@@ -73,6 +73,23 @@ export default function AuditoriaPage() {
     });
   }, []);
 
+  const enrichSolicitantes = useCallback(async (list: LogRow[]): Promise<LogRow[]> => {
+    const solIds = Array.from(new Set(list.filter(r => r.entity_type === "solicitacao" && r.entity_id).map(r => r.entity_id!)));
+    const empIds = Array.from(new Set(list.filter(r => r.entity_type === "emprestimo" && r.entity_id).map(r => r.entity_id!)));
+    const [solsRes, empsRes] = await Promise.all([
+      solIds.length
+        ? supabase.from("solicitacoes").select("id, solicitante:profiles!solicitacoes_usuario_id_fkey(nome)").in("id", solIds)
+        : Promise.resolve({ data: [] as any[] }),
+      empIds.length
+        ? supabase.from("emprestimos").select("id, solicitante:profiles!emprestimos_solicitante_id_fkey(nome)").in("id", empIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const map = new Map<string, string>();
+    (solsRes.data ?? []).forEach((s: any) => { if (s.solicitante?.nome) map.set(s.id, s.solicitante.nome); });
+    (empsRes.data ?? []).forEach((e: any) => { if (e.solicitante?.nome) map.set(e.id, e.solicitante.nome); });
+    return list.map(r => (r.entity_id && map.has(r.entity_id)) ? { ...r, solicitante_nome: map.get(r.entity_id) } : r);
+  }, []);
+
   const fetchPage = useCallback(async (reset: boolean) => {
     setLoading(true);
     const params: any = {
