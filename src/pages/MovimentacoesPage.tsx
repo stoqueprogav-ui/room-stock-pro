@@ -119,11 +119,12 @@ export default function MovimentacoesPage() {
       supabase.from("salas").select("*").order("nome"),
     ]);
     const page = (data as any[]) ?? [];
-    setRows(page as Mov[]);
+    const enriched = await enrichOriginadores(page as Mov[]);
+    setRows(enriched);
     setSalas((ss as Sala[]) ?? []);
     setHasMore(page.length === PAGE_SIZE);
     setLoading(false);
-  }, [buildQuery]);
+  }, [buildQuery, enrichOriginadores]);
 
   const loadMore = useCallback(async () => {
     if (!rows.length || loadingMore) return;
@@ -131,10 +132,12 @@ export default function MovimentacoesPage() {
     const last = rows[rows.length - 1];
     const { data } = await buildQuery(last.created_at);
     const more = (data as any[]) ?? [];
-    setRows((prev) => [...prev, ...(more as Mov[])]);
+    const enriched = await enrichOriginadores(more as Mov[]);
+    setRows((prev) => [...prev, ...enriched]);
     setHasMore(more.length === PAGE_SIZE);
     setLoadingMore(false);
-  }, [rows, loadingMore, buildQuery]);
+  }, [rows, loadingMore, buildQuery, enrichOriginadores]);
+
 
   useEffect(() => { load(); }, [load]);
   useRealtimeSync(["movimentacoes", "estoque", "salas"], load, { debounceMs: 400 });
