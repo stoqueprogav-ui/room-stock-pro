@@ -23,6 +23,7 @@ type LogRow = {
   entity_id: string | null;
   description: string;
   metadata: Record<string, unknown>;
+  solicitante_nome?: string | null;
 };
 
 const PAGE_SIZE = 50;
