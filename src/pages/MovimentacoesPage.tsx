@@ -250,7 +250,21 @@ export default function MovimentacoesPage() {
               return (
                 <TableRow key={m.id} className="table-row-hover">
                   <TableCell className="text-muted-foreground">{formatDateTime(m.created_at)}</TableCell>
-                  <TableCell className="font-medium">{m.usuario?.nome ?? "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    {m.originador?.nome ? (
+                      <div className="flex flex-col">
+                        <span>{m.originador.nome}</span>
+                        {m.usuario?.nome && m.usuario.nome !== m.originador.nome && (
+                          <span className="text-[11px] text-muted-foreground font-normal">
+                            {m.tipo === "estorno" ? "estornado por" : "processado por"} {m.usuario.nome}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      m.usuario?.nome ?? "—"
+                    )}
+                  </TableCell>
+
                   <TableCell>{m.sala.nome}</TableCell>
                   <TableCell><Badge variant="outline" className={tipoCfg.cls}>{tipoCfg.label}</Badge></TableCell>
                   <TableCell>{m.produto.nome}</TableCell>
