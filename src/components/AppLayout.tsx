@@ -30,7 +30,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
   if (role === "master") {
     const items: NavItem[] = [
       { to: "/app", label: "Visão geral", icon: LayoutDashboard },
-    ];
+      { to: "/app/dashboard-gerencial", label: "Dashboard Gerencial", icon: LineChart },
     if (isGlobalScope) {
       items.push({ to: "/app/salas", label: "Salas", icon: Building2 });
       items.push({ to: "/app/categorias", label: "Categorias", icon: Tag });
