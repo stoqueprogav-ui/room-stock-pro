@@ -64,6 +64,9 @@ const App = () => (
               <Route path="relatorios" element={<RelatoriosPage />} />
               <Route path="configuracoes" element={<ConfiguracoesPage />} />
               <Route path="auditoria" element={<AuditoriaPage />} />
+              <Route path="consumo-interno" element={<ConsumoInternoPage />} />
+              <Route path="inventario" element={<InventarioPage />} />
+              <Route path="dashboard-gerencial" element={<DashboardGerencial />} />
               {/* Compartilhado */}
               <Route path="emprestimos" element={<EmprestimosPage />} />
               <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />
