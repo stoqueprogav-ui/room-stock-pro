@@ -101,7 +101,7 @@ export default function SalasPage() {
                   <Button variant="ghost" size="icon" aria-label="Editar sala" onClick={() => openEdit(s)}><Pencil className="size-4" /></Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button>
+                      <Button variant="ghost" size="icon" aria-label="Excluir sala"><Trash2 className="size-4 text-destructive" /></Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>

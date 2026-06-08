@@ -273,8 +273,8 @@ export default function ProdutosPage() {
                       </Button>
                     ) : (
                       <>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setConfirmDel(p)}>
+                        <Button variant="ghost" size="icon" aria-label="Editar produto" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
+                        <Button variant="ghost" size="icon" aria-label="Excluir produto" onClick={() => setConfirmDel(p)}>
                           <Trash2 className="size-4 text-destructive" />
                         </Button>
                       </>
