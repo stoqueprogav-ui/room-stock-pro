@@ -1,47 +1,67 @@
-## Plano de Implementação
+# Plano — Plataforma de Gestão Operacional
 
-Três melhorias estruturais. Vou implementar em sequência, com migração de banco para o reset e ampliação do schema de produtos.
+Esse é um pacote grande (8 módulos). Vou propor uma divisão em **4 fases** para entregar valor rápido e validar cada parte antes de avançar. Confirme quais fases quer que eu execute (pode ser tudo de uma vez, mas o resultado fica mais sólido em etapas).
 
-### 1. Identificação visível da sala/cargo do usuário
+## Fase 1 — Consumo Interno (núcleo novo)
 
-- **`AppLayout.tsx`** (header e sidebar):
-  - No header: adicionar badge destacado com `📍 Sala: <nome>` (ou "Visão Global" para Master) ao lado do nome do papel.
-  - Na sidebar (rodapé do usuário): incluir linha com cargo + sala em destaque (cor primária suave, ícone `MapPin`).
-- **`MasterOverview` / `SalaOverview`**: já exibem nome, reforçar com chip de sala/cargo logo abaixo do título.
-- **`ChatPage`**: adicionar barra superior mostrando "Você: <nome> · <cargo> · <sala>".
-- Para Master usar `MasterScopeContext` (sala em foco ou "Global").
+**Backend (migration):**
+- Nova tabela `consumos_internos` (sala_id, produto_id, quantidade, motivo, observacao, usuario_id, created_at).
+- Enum `motivo_consumo`: Consumo Interno, Evento, Uso Administrativo, Uso Operacional, Perda, Avaria, Descarte, Outro.
+- Novo tipo em `movimentacoes.tipo`: `consumo_interno`.
+- RPC `registrar_consumo_interno(_sala, _produto, _qtd, _motivo, _obs)`:
+  - Verifica role master, baixa estoque, insere movimentação, insere consumo, chama `log_event`.
+- RLS + GRANTs.
 
-### 2. Reset Total do Sistema (Modo Teste)
+**Frontend:**
+- Novo menu **Consumo Interno** (master).
+- Página com formulário (sala → categoria → produto → quantidade → motivo → observação) + lista/busca dos consumos registrados.
 
-- **Migração**: criar função `public.reset_sistema_total()` SECURITY DEFINER que:
-  - Verifica `has_role(auth.uid(), 'master')`.
-  - Em ordem: `DELETE FROM messages, conversation_reads, conversation_participants, conversations, devolucao_itens, devolucoes, emprestimo_itens, emprestimos, solicitacao_itens, solicitacoes, dividas, movimentacoes, estoque, produtos, categorias`.
-  - `DELETE FROM profiles WHERE id NOT IN (SELECT user_id FROM user_roles WHERE role='master')`.
-  - `DELETE FROM user_roles WHERE role <> 'master'`.
-  - `DELETE FROM salas`.
-  - Retorna `jsonb` com contagens.
-  - Nota: usuários `auth.users` não-master serão removidos via edge function complementar (`admin-reset-system`) usando service role, já que SQL não pode apagar de `auth.users` com segurança a partir da app.
-- **Edge function `reset-system`**: chama RPC, depois lista `auth.users` e apaga todos cujo id não esteja em `user_roles role=master`.
-- **UI**: nova página `src/pages/master/ConfiguracoesPage.tsx` com card "Zona de Perigo" → botão "Resetar Sistema" → modal exige digitação literal de `RESETAR SISTEMA`. Rota `/app/configuracoes` no menu Master.
+## Fase 2 — Inventário
 
-### 3. Edição avançada de produtos
+**Backend:**
+- Tabela `inventarios` (codigo `INV-AAAA-0000`, sala_id nullable, data_referencia, total_itens, criado_por).
+- Tabela `inventario_itens` (inventario_id, produto_id, sala_id, categoria_id, quantidade, unidade).
+- RPC `gerar_inventario(_sala, _categoria, _produto)` → cria snapshot a partir do `estoque` atual.
 
-- **Migração**: nada novo no schema (campos já existem: nome, descricao, unidade, estoque_minimo, categoria_id, sala_id, ativo).
-- **`ProdutosPage.tsx`**: adicionar botão "Editar" por linha que abre modal completo com todos os campos:
-  - Nome, Descrição, Categoria (select), Unidade (select com presets: Unidade, Caixa, Fardo, Pacote, Kit, Litro, Galão, Rolo, Par, Metro, Outros + livre), Estoque mínimo, Sala (select ou Global), Ativo (switch).
-  - Salvar via `update` em `produtos` (RLS master_all já permite).
-  - Trocar unidade NÃO mexe em estoque/movimentações.
-- Realtime já garantido por `useRealtimeSync`.
+**Frontend:**
+- Menu **Inventário** com filtros (sala, categoria, produto, data), tabela, exportar PDF (jsPDF + autotable) e Excel (xlsx — já posso adicionar a dependência).
+- Submenu **Histórico** listando inventários salvos com consulta posterior.
 
-### Arquivos a criar/editar
+## Fase 3 — Central de Relatórios
 
-- migration: função `reset_sistema_total`
-- `supabase/functions/reset-system/index.ts` (nova)
-- `supabase/config.toml` (registrar função se necessário)
-- `src/pages/master/ConfiguracoesPage.tsx` (nova)
-- `src/pages/master/ProdutosPage.tsx` (modal de edição)
-- `src/components/AppLayout.tsx` (badges sala/cargo + nav item Configurações)
-- `src/App.tsx` (rota `/app/configuracoes`)
-- `src/pages/ChatPage.tsx` (barra de identidade superior)
+Reaproveita a página `RelatoriosPage` existente, transformando em hub com abas:
 
-Histórico de alterações de produto fica fora do escopo desta entrega (recomendado, não obrigatório) para manter a entrega focada.
+1. **Inventário** (link p/ fase 2)
+2. **Consumo Interno** — lista + filtros + ranking
+3. **Consumo por Sala** — ranking com filtro Hoje/Semana/Mês/Ano/Personalizado
+4. **Produtos Mais Consumidos** — ranking com filtros sala/categoria/período
+5. **Requisições** — totais por sala, aprovadas/rejeitadas/arquivadas, top produtos
+6. **Empréstimos** — quem mais empresta/pega, totais emprestados/devolvidos/pendentes
+7. **Movimentações / Produtos / Salas / Auditoria** — atalhos com filtros + export
+
+Cada aba: filtros, tabela, **Exportar PDF**, **Exportar Excel**, **Imprimir**.
+
+## Fase 4 — Dashboard Gerencial do Master
+
+Nova aba no `MasterOverview` (ou rota `/app/dashboard-gerencial`):
+- KPIs: produtos, itens em estoque, movimentações do mês, requisições do mês, empréstimos ativos, consumos internos do mês.
+- Gráficos (recharts — já no projeto):
+  - Consumo por sala (barras)
+  - Consumo por categoria (pizza)
+  - Requisições por período (linha)
+  - Empréstimos por período (linha)
+  - Consumo interno por período (área)
+- Top salas consumidoras e top produtos consumidos.
+
+## Dependências a adicionar
+- `xlsx` (export Excel) — `jspdf` e `jspdf-autotable` (provavelmente já há jsPDF; checo na hora).
+
+## Detalhes técnicos
+- Realtime via `useRealtimeSync` em todas as novas telas.
+- Todas as RPCs como `SECURITY DEFINER` + checagem `has_role(... 'master')`.
+- Auditoria via `log_event` em cada operação relevante.
+- Exports respeitam os filtros ativos.
+
+---
+
+**Pergunta:** Posso executar tudo (Fases 1–4) em sequência agora, ou prefere que eu entregue Fase 1 primeiro e valide antes das próximas? Recomendo começar pela Fase 1 + Fase 2 — são as fundações que alimentam os relatórios e o dashboard.
