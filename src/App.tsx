@@ -29,6 +29,9 @@ import ChatPage from "./pages/ChatPage";
 import TrocarSenhaObrigatoria from "./pages/TrocarSenhaObrigatoria";
 import ConfiguracoesPage from "./pages/master/ConfiguracoesPage";
 import AuditoriaPage from "./pages/master/AuditoriaPage";
+import ConsumoInternoPage from "./pages/master/ConsumoInternoPage";
+import InventarioPage from "./pages/master/InventarioPage";
+import DashboardGerencial from "./pages/master/DashboardGerencial";
 
 const queryClient = new QueryClient();
 
