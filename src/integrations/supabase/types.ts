@@ -1084,6 +1084,15 @@ export type Database = {
       }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
       excluir_sala: { Args: { _force?: boolean; _sala: string }; Returns: Json }
+      gerar_inventario: {
+        Args: {
+          _categoria?: string
+          _observacao?: string
+          _produto?: string
+          _sala?: string
+        }
+        Returns: string
+      }
       get_or_create_direct_conversation: {
         Args: { _other: string }
         Returns: string
@@ -1178,6 +1187,16 @@ export type Database = {
         Returns: undefined
       }
       reativar_produto: { Args: { _produto: string }; Returns: undefined }
+      registrar_consumo_interno: {
+        Args: {
+          _motivo: Database["public"]["Enums"]["motivo_consumo"]
+          _observacao?: string
+          _produto: string
+          _quantidade: number
+          _sala: string
+        }
+        Returns: string
+      }
       registrar_devolucao: {
         Args: { _emp: string; _itens: Json; _observacao?: string }
         Returns: string
