@@ -51,7 +51,7 @@ export default function SalaOverview() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Olá, ${profile.nome.split(" ")[0]}`} description="Visão geral da sua sala." />
+      <PageHeader title="Painel da Sala — Visão Geral" description={`Olá, ${profile.nome.split(" ")[0]} — visão geral da sua sala.`} />
       <WelcomeAlerts />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map(({ label, value, icon: Icon, danger }) => (

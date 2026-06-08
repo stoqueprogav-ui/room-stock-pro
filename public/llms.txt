@@ -1,0 +1,10 @@
+# Estoque Pro
+
+> Sistema corporativo de controle de estoque multi-sala, com requisições internas, empréstimos entre salas, dívidas, movimentações e relatórios em tempo real.
+
+Estoque Pro é uma aplicação web privada (acesso autenticado) usada por equipes operacionais para gerir produtos, categorias, salas, requisições e empréstimos. As páginas internas exigem login e não estão listadas abaixo.
+
+## Pages
+
+- [Início](/): Apresentação do produto e ponto de entrada para o login.
+- [Entrar](/login): Tela de autenticação corporativa.

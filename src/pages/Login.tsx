@@ -36,12 +36,12 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <main className="min-h-screen grid lg:grid-cols-2">
       <div className="hidden lg:flex relative bg-gradient-primary text-primary-foreground p-12 flex-col justify-between overflow-hidden">
         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 30% 20%, hsl(var(--primary-glow)) 0%, transparent 50%)" }} />
         <div className="relative flex items-center gap-3">
           <div className="size-10 rounded-lg bg-primary-foreground/15 backdrop-blur grid place-items-center overflow-hidden">
-            {logoUrl ? <img src={logoUrl} alt="Logo" className="size-full object-contain" /> : <Boxes className="size-6" />}
+            {logoUrl ? <img src={logoUrl} alt="Logotipo do Estoque Pro" className="size-full object-contain" /> : <Boxes className="size-6" />}
           </div>
           <span className="font-display text-xl font-bold">Estoque Pro</span>
         </div>
@@ -66,7 +66,7 @@ export default function Login() {
         <div className="w-full max-w-sm space-y-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="size-12 rounded-lg bg-gradient-primary grid place-items-center text-primary-foreground overflow-hidden">
-              {logoUrl ? <img src={logoUrl} alt="Logo" className="size-full object-contain" /> : <Boxes className="size-6" />}
+              {logoUrl ? <img src={logoUrl} alt="Logotipo do Estoque Pro" className="size-full object-contain" /> : <Boxes className="size-6" />}
             </div>
             <span className="font-display text-xl font-bold">Estoque Pro</span>
           </div>
@@ -92,6 +92,6 @@ export default function Login() {
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
