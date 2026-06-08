@@ -13,8 +13,11 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
-import { Building2, Globe2, Package, Inbox, ArrowLeftRight, AlertTriangle } from "lucide-react";
+import { Building2, Globe2, Package, Inbox, ArrowLeftRight, AlertTriangle, FileDown, FileSpreadsheet, ClipboardCheck, Trash2, LineChart as LineChartIcon } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
+import { exportToExcel, exportToPdf } from "@/lib/exporters";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 type Mov = {
   id: string; created_at: string; tipo: string; quantidade: number; saldo_apos: number;
