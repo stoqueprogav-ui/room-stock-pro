@@ -356,7 +356,33 @@ export default function RelatoriosPage() {
 
         <TabsContent value="movs" className="mt-4">
           <Card className="p-0 overflow-hidden">
-            <div className="p-4 text-sm font-medium border-b border-border">Histórico de movimentações ({movs.length})</div>
+            <div className="p-4 flex items-center justify-between border-b border-border">
+              <div className="text-sm font-medium">Histórico de movimentações ({movs.length})</div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => {
+                  const cols = [
+                    { header: "Quando", key: "q", map: (m: any) => formatDateTime(m.created_at) },
+                    { header: "Tipo", key: "tipo" },
+                    { header: "Produto", key: "produto", map: (m: any) => m.produto?.nome ?? "" },
+                    { header: "Sala", key: "sala", map: (m: any) => m.sala?.nome ?? "" },
+                    { header: "Quantidade", key: "quantidade" },
+                    { header: "Usuário", key: "user", map: (m: any) => m.usuario?.nome ?? "" },
+                  ];
+                  exportToExcel("movimentacoes", cols, movs);
+                }}><FileSpreadsheet className="size-4" /> Excel</Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const cols = [
+                    { header: "Quando", key: "q", map: (m: any) => formatDateTime(m.created_at) },
+                    { header: "Tipo", key: "tipo" },
+                    { header: "Produto", key: "produto", map: (m: any) => m.produto?.nome ?? "" },
+                    { header: "Sala", key: "sala", map: (m: any) => m.sala?.nome ?? "" },
+                    { header: "Quantidade", key: "quantidade" },
+                    { header: "Usuário", key: "user", map: (m: any) => m.usuario?.nome ?? "" },
+                  ];
+                  exportToPdf("movimentacoes", "Histórico de Movimentações", cols, movs);
+                }}><FileDown className="size-4" /> PDF</Button>
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
