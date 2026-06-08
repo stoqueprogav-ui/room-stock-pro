@@ -98,7 +98,7 @@ export default function SalasPage() {
                 </TableCell>
                 <TableCell className="text-muted-foreground">{new Date(s.created_at).toLocaleDateString("pt-BR")}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="size-4" /></Button>
+                  <Button variant="ghost" size="icon" aria-label="Editar sala" onClick={() => openEdit(s)}><Pencil className="size-4" /></Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button>

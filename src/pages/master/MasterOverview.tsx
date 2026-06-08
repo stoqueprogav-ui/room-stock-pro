@@ -82,10 +82,9 @@ export default function MasterOverview() {
     <div className="space-y-6">
       <PageHeader
         title="Painel Master — Visão Geral"
-        description={`Olá, ${profile?.nome?.split(" ")[0] ?? "Master"}. Resumo consolidado de todas as salas.`}
         description={isGlobal
-          ? "Visão consolidada de todo o sistema."
-          : `Visão da sala: ${salaNome ?? "—"}`}
+          ? `Olá, ${profile?.nome?.split(" ")[0] ?? "Master"} — visão consolidada de todo o sistema.`
+          : `Olá, ${profile?.nome?.split(" ")[0] ?? "Master"} — visão da sala: ${salaNome ?? "—"}`}
       />
       <WelcomeAlerts />
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
