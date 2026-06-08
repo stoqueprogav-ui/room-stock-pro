@@ -189,7 +189,7 @@ function AppLayoutInner() {
       <aside className="hidden md:flex w-64 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
         <div className="px-5 py-5 flex items-center gap-3 border-b border-sidebar-border">
           <div className="size-9 rounded-md bg-gradient-primary grid place-items-center text-primary-foreground overflow-hidden">
-            {logoUrl ? <img src={logoUrl} alt="Logo" className="size-full object-contain" /> : <Boxes className="size-5" />}
+            {logoUrl ? <img src={logoUrl} alt="Logotipo do Estoque Pro" className="size-full object-contain" /> : <Boxes className="size-5" />}
           </div>
           <div>
             <div className="font-display font-bold text-sidebar-accent-foreground">Estoque Pro</div>
@@ -221,7 +221,7 @@ function AppLayoutInner() {
         <header className="h-14 border-b border-border bg-card/60 backdrop-blur flex items-center justify-between px-4 md:px-8 gap-3">
           <div className="md:hidden flex items-center gap-2">
             <div className="size-8 rounded-md bg-gradient-primary grid place-items-center text-primary-foreground overflow-hidden">
-              {logoUrl ? <img src={logoUrl} alt="Logo" className="size-full object-contain" /> : <Boxes className="size-4" />}
+              {logoUrl ? <img src={logoUrl} alt="Logotipo do Estoque Pro" className="size-full object-contain" /> : <Boxes className="size-4" />}
             </div>
             <span className="font-display font-bold">Estoque Pro</span>
           </div>
