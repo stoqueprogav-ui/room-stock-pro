@@ -59,6 +59,61 @@ export type Database = {
         }
         Relationships: []
       }
+      consumos_internos: {
+        Row: {
+          created_at: string
+          id: string
+          motivo: Database["public"]["Enums"]["motivo_consumo"]
+          observacao: string | null
+          produto_id: string
+          quantidade: number
+          sala_id: string
+          usuario_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          motivo: Database["public"]["Enums"]["motivo_consumo"]
+          observacao?: string | null
+          produto_id: string
+          quantidade: number
+          sala_id: string
+          usuario_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          motivo?: Database["public"]["Enums"]["motivo_consumo"]
+          observacao?: string | null
+          produto_id?: string
+          quantidade?: number
+          sala_id?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consumos_internos_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consumos_internos_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consumos_internos_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_participants: {
         Row: {
           added_at: string
@@ -441,6 +496,135 @@ export type Database = {
           },
           {
             foreignKeyName: "estoque_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventario_itens: {
+        Row: {
+          categoria_nome: string | null
+          id: string
+          inventario_id: string
+          produto_id: string
+          produto_nome: string
+          quantidade: number
+          sala_id: string
+          sala_nome: string
+          unidade: string | null
+        }
+        Insert: {
+          categoria_nome?: string | null
+          id?: string
+          inventario_id: string
+          produto_id: string
+          produto_nome: string
+          quantidade?: number
+          sala_id: string
+          sala_nome: string
+          unidade?: string | null
+        }
+        Update: {
+          categoria_nome?: string | null
+          id?: string
+          inventario_id?: string
+          produto_id?: string
+          produto_nome?: string
+          quantidade?: number
+          sala_id?: string
+          sala_nome?: string
+          unidade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_itens_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inventarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_itens_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventarios: {
+        Row: {
+          categoria_id: string | null
+          codigo: string
+          created_at: string
+          criado_por: string | null
+          data_referencia: string
+          id: string
+          observacao: string | null
+          produto_id: string | null
+          sala_id: string | null
+          total_itens: number
+          total_unidades: number
+        }
+        Insert: {
+          categoria_id?: string | null
+          codigo: string
+          created_at?: string
+          criado_por?: string | null
+          data_referencia?: string
+          id?: string
+          observacao?: string | null
+          produto_id?: string | null
+          sala_id?: string | null
+          total_itens?: number
+          total_unidades?: number
+        }
+        Update: {
+          categoria_id?: string | null
+          codigo?: string
+          created_at?: string
+          criado_por?: string | null
+          data_referencia?: string
+          id?: string
+          observacao?: string | null
+          produto_id?: string | null
+          sala_id?: string | null
+          total_itens?: number
+          total_unidades?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventarios_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventarios_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventarios_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventarios_sala_id_fkey"
             columns: ["sala_id"]
             isOneToOne: false
             referencedRelation: "salas"
@@ -900,6 +1084,15 @@ export type Database = {
       }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
       excluir_sala: { Args: { _force?: boolean; _sala: string }; Returns: Json }
+      gerar_inventario: {
+        Args: {
+          _categoria?: string
+          _observacao?: string
+          _produto?: string
+          _sala?: string
+        }
+        Returns: string
+      }
       get_or_create_direct_conversation: {
         Args: { _other: string }
         Returns: string
@@ -994,6 +1187,16 @@ export type Database = {
         Returns: undefined
       }
       reativar_produto: { Args: { _produto: string }; Returns: undefined }
+      registrar_consumo_interno: {
+        Args: {
+          _motivo: Database["public"]["Enums"]["motivo_consumo"]
+          _observacao?: string
+          _produto: string
+          _quantidade: number
+          _sala: string
+        }
+        Returns: string
+      }
       registrar_devolucao: {
         Args: { _emp: string; _itens: Json; _observacao?: string }
         Returns: string
@@ -1015,6 +1218,15 @@ export type Database = {
       app_role: "master" | "admin" | "analista"
       conversation_type: "direct" | "sala" | "master"
       emprestimo_status: "pendente" | "aprovado" | "rejeitado" | "arquivado"
+      motivo_consumo:
+        | "consumo_interno"
+        | "evento"
+        | "uso_administrativo"
+        | "uso_operacional"
+        | "perda"
+        | "avaria"
+        | "descarte"
+        | "outro"
       movimentacao_tipo:
         | "entrada"
         | "saida"
@@ -1023,6 +1235,7 @@ export type Database = {
         | "estorno"
         | "emprestimo_saida"
         | "emprestimo_entrada"
+        | "consumo_interno"
       solicitacao_status: "pendente" | "aprovado" | "rejeitado" | "arquivado"
     }
     CompositeTypes: {
@@ -1154,6 +1367,16 @@ export const Constants = {
       app_role: ["master", "admin", "analista"],
       conversation_type: ["direct", "sala", "master"],
       emprestimo_status: ["pendente", "aprovado", "rejeitado", "arquivado"],
+      motivo_consumo: [
+        "consumo_interno",
+        "evento",
+        "uso_administrativo",
+        "uso_operacional",
+        "perda",
+        "avaria",
+        "descarte",
+        "outro",
+      ],
       movimentacao_tipo: [
         "entrada",
         "saida",
@@ -1162,6 +1385,7 @@ export const Constants = {
         "estorno",
         "emprestimo_saida",
         "emprestimo_entrada",
+        "consumo_interno",
       ],
       solicitacao_status: ["pendente", "aprovado", "rejeitado", "arquivado"],
     },

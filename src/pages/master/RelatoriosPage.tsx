@@ -13,8 +13,11 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
-import { Building2, Globe2, Package, Inbox, ArrowLeftRight, AlertTriangle } from "lucide-react";
+import { Building2, Globe2, Package, Inbox, ArrowLeftRight, AlertTriangle, FileDown, FileSpreadsheet, ClipboardCheck, Trash2, LineChart as LineChartIcon } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
+import { exportToExcel, exportToPdf } from "@/lib/exporters";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 type Mov = {
   id: string; created_at: string; tipo: string; quantidade: number; saldo_apos: number;
@@ -201,6 +204,20 @@ export default function RelatoriosPage() {
           : <><Building2 className="size-3.5 text-primary" /> Filtrado pela sala em foco.</>}
       </div>
 
+      <Card className="p-4">
+        <div className="text-sm font-medium mb-3">Central de Relatórios</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Button asChild variant="outline" size="sm"><Link to="/app/inventario"><ClipboardCheck className="size-4" /> Inventário</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/app/consumo-interno"><Trash2 className="size-4" /> Consumo Interno</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/app/dashboard-gerencial"><LineChartIcon className="size-4" /> Dashboard Gerencial</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/app/auditoria"><AlertTriangle className="size-4" /> Auditoria</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/app/movimentacoes"><Package className="size-4" /> Movimentações</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/app/requisicoes"><Inbox className="size-4" /> Requisições</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/app/emprestimos"><ArrowLeftRight className="size-4" /> Empréstimos</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/app/dividas"><AlertTriangle className="size-4" /> Dívidas</Link></Button>
+        </div>
+      </Card>
+
       {/* Filtros */}
       <Card className="p-4">
         <div className="grid sm:grid-cols-3 gap-3">
@@ -339,7 +356,33 @@ export default function RelatoriosPage() {
 
         <TabsContent value="movs" className="mt-4">
           <Card className="p-0 overflow-hidden">
-            <div className="p-4 text-sm font-medium border-b border-border">Histórico de movimentações ({movs.length})</div>
+            <div className="p-4 flex items-center justify-between border-b border-border">
+              <div className="text-sm font-medium">Histórico de movimentações ({movs.length})</div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => {
+                  const cols = [
+                    { header: "Quando", key: "q", map: (m: any) => formatDateTime(m.created_at) },
+                    { header: "Tipo", key: "tipo" },
+                    { header: "Produto", key: "produto", map: (m: any) => m.produto?.nome ?? "" },
+                    { header: "Sala", key: "sala", map: (m: any) => m.sala?.nome ?? "" },
+                    { header: "Quantidade", key: "quantidade" },
+                    { header: "Usuário", key: "user", map: (m: any) => m.usuario?.nome ?? "" },
+                  ];
+                  exportToExcel("movimentacoes", cols, movs);
+                }}><FileSpreadsheet className="size-4" /> Excel</Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const cols = [
+                    { header: "Quando", key: "q", map: (m: any) => formatDateTime(m.created_at) },
+                    { header: "Tipo", key: "tipo" },
+                    { header: "Produto", key: "produto", map: (m: any) => m.produto?.nome ?? "" },
+                    { header: "Sala", key: "sala", map: (m: any) => m.sala?.nome ?? "" },
+                    { header: "Quantidade", key: "quantidade" },
+                    { header: "Usuário", key: "user", map: (m: any) => m.usuario?.nome ?? "" },
+                  ];
+                  exportToPdf("movimentacoes", "Histórico de Movimentações", cols, movs);
+                }}><FileDown className="size-4" /> PDF</Button>
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

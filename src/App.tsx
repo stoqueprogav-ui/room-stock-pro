@@ -29,6 +29,9 @@ import ChatPage from "./pages/ChatPage";
 import TrocarSenhaObrigatoria from "./pages/TrocarSenhaObrigatoria";
 import ConfiguracoesPage from "./pages/master/ConfiguracoesPage";
 import AuditoriaPage from "./pages/master/AuditoriaPage";
+import ConsumoInternoPage from "./pages/master/ConsumoInternoPage";
+import InventarioPage from "./pages/master/InventarioPage";
+import DashboardGerencial from "./pages/master/DashboardGerencial";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +64,9 @@ const App = () => (
               <Route path="relatorios" element={<RelatoriosPage />} />
               <Route path="configuracoes" element={<ConfiguracoesPage />} />
               <Route path="auditoria" element={<AuditoriaPage />} />
+              <Route path="consumo-interno" element={<ConsumoInternoPage />} />
+              <Route path="inventario" element={<InventarioPage />} />
+              <Route path="dashboard-gerencial" element={<DashboardGerencial />} />
               {/* Compartilhado */}
               <Route path="emprestimos" element={<EmprestimosPage />} />
               <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />

@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
-  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle, MapPin, Settings, Globe2, FileSearch,
+  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle, MapPin, Settings, Globe2, FileSearch, Trash2, ClipboardCheck, LineChart,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
@@ -30,6 +30,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
   if (role === "master") {
     const items: NavItem[] = [
       { to: "/app", label: "Visão geral", icon: LayoutDashboard },
+      { to: "/app/dashboard-gerencial", label: "Dashboard Gerencial", icon: LineChart },
     ];
     if (isGlobalScope) {
       items.push({ to: "/app/salas", label: "Salas", icon: Building2 });
@@ -46,6 +47,8 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
           { to: "/app/dividas", label: "Dívidas da Sala", icon: Wallet },
         ],
       },
+      { to: "/app/consumo-interno", label: "Consumo Interno", icon: Trash2 },
+      { to: "/app/inventario", label: "Inventário", icon: ClipboardCheck },
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
       { to: "/app/movimentacoes", label: "Movimentações", icon: History },
