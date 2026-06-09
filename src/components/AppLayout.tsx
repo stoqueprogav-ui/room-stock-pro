@@ -30,7 +30,6 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
   if (role === "master") {
     const items: NavItem[] = [
       { to: "/app", label: "Visão geral", icon: LayoutDashboard },
-      { to: "/app/dashboard-gerencial", label: "Dashboard Gerencial", icon: LineChart },
     ];
     if (isGlobalScope) {
       items.push({ to: "/app/salas", label: "Salas", icon: Building2 });
@@ -50,9 +49,18 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
       { to: "/app/consumo-interno", label: "Consumo Interno", icon: Trash2 },
       { to: "/app/inventario", label: "Inventário", icon: ClipboardCheck },
       { to: "/app/usuarios", label: "Usuários", icon: Users },
-      { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
-      { to: "/app/movimentacoes", label: "Movimentações", icon: History },
-      { to: "/app/auditoria", label: "Auditoria", icon: FileSearch },
+      {
+        label: "Relatórios", icon: BarChart3,
+        children: [
+          { to: "/app/relatorios", label: "Central Analítica", icon: LineChart },
+          { to: "/app/inventario", label: "Inventários", icon: ClipboardCheck },
+          { to: "/app/consumo-interno", label: "Consumo Interno", icon: Trash2 },
+          { to: "/app/movimentacoes", label: "Movimentações", icon: History },
+          { to: "/app/requisicoes", label: "Requisições", icon: Inbox },
+          { to: "/app/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
+          { to: "/app/auditoria", label: "Auditoria", icon: FileSearch },
+        ],
+      },
       { to: "/app/chat", label: "Chat", icon: MessageCircle, badgeKey: "chat" },
       { to: "/app/meu-perfil", label: "Meu Perfil", icon: UserCircle },
       { to: "/app/configuracoes", label: "Configurações", icon: Settings },
