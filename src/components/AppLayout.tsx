@@ -47,17 +47,13 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
         ],
       },
       { to: "/app/consumo-interno", label: "Consumo Interno", icon: Trash2 },
-      { to: "/app/inventario", label: "Inventário", icon: ClipboardCheck },
+      { to: "/app/inventario", label: "Inventários", icon: ClipboardCheck },
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       {
         label: "Relatórios", icon: BarChart3,
         children: [
           { to: "/app/relatorios", label: "Central Analítica", icon: LineChart },
-          { to: "/app/inventario", label: "Inventários", icon: ClipboardCheck },
-          { to: "/app/consumo-interno", label: "Consumo Interno", icon: Trash2 },
           { to: "/app/movimentacoes", label: "Movimentações", icon: History },
-          { to: "/app/requisicoes", label: "Requisições", icon: Inbox },
-          { to: "/app/emprestimos", label: "Empréstimos", icon: ArrowLeftRight },
           { to: "/app/auditoria", label: "Auditoria", icon: FileSearch },
         ],
       },
