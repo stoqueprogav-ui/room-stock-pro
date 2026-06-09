@@ -207,13 +207,12 @@ export default function RelatoriosPage() {
       <Card className="p-4">
         <div className="text-sm font-medium mb-3">Central de Relatórios</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Button asChild variant="outline" size="sm"><Link to="/app/inventario"><ClipboardCheck className="size-4" /> Inventário</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/app/inventario"><ClipboardCheck className="size-4" /> Inventários</Link></Button>
           <Button asChild variant="outline" size="sm"><Link to="/app/consumo-interno"><Trash2 className="size-4" /> Consumo Interno</Link></Button>
-          <Button asChild variant="outline" size="sm"><Link to="/app/dashboard-gerencial"><LineChartIcon className="size-4" /> Dashboard Gerencial</Link></Button>
-          <Button asChild variant="outline" size="sm"><Link to="/app/auditoria"><AlertTriangle className="size-4" /> Auditoria</Link></Button>
           <Button asChild variant="outline" size="sm"><Link to="/app/movimentacoes"><Package className="size-4" /> Movimentações</Link></Button>
           <Button asChild variant="outline" size="sm"><Link to="/app/requisicoes"><Inbox className="size-4" /> Requisições</Link></Button>
           <Button asChild variant="outline" size="sm"><Link to="/app/emprestimos"><ArrowLeftRight className="size-4" /> Empréstimos</Link></Button>
+          <Button asChild variant="outline" size="sm"><Link to="/app/auditoria"><AlertTriangle className="size-4" /> Auditoria</Link></Button>
           <Button asChild variant="outline" size="sm"><Link to="/app/dividas"><AlertTriangle className="size-4" /> Dívidas</Link></Button>
         </div>
       </Card>
