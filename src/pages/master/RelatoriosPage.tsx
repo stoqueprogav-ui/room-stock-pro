@@ -13,7 +13,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
-import { Building2, Globe2, Package, Inbox, ArrowLeftRight, AlertTriangle, FileDown, FileSpreadsheet, ClipboardCheck, Trash2, LineChart as LineChartIcon } from "lucide-react";
+import { Building2, Globe2, Package, Inbox, ArrowLeftRight, AlertTriangle, FileDown, FileSpreadsheet, ClipboardCheck, Trash2 } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { exportToExcel, exportToPdf } from "@/lib/exporters";
 import { Link } from "react-router-dom";
