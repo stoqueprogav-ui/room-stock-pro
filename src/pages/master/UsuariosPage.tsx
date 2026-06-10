@@ -251,34 +251,41 @@ export default function UsuariosPage() {
                 Será vinculado automaticamente à sala <span className="font-medium text-foreground">{salaAtualNome}</span>.
               </div>
             )}
-            <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
-            <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Senha provisória</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
               <div className="space-y-2">
                 <Label>Perfil</Label>
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {/* Em modo sala, não permite criar Master por aqui (Master é global) */}
                     {isGlobal && <SelectItem value="master">Master</SelectItem>}
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="analista">Analista</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Sala</Label>
-                <Select
-                  value={form.sala_id}
-                  onValueChange={(v) => setForm({ ...form, sala_id: v })}
-                  disabled={form.role === "master" || !isGlobal}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
             </div>
+            <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Senha provisória</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
+            {form.role !== "master" && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Building2 className="size-3.5 text-primary" /> Salas autorizadas</Label>
+                <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
+                  {salas.length === 0 && <div className="text-xs text-muted-foreground px-2 py-2">Nenhuma sala cadastrada.</div>}
+                  {salas.map((s) => (
+                    <label key={s.id} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer">
+                      <Checkbox
+                        checked={form.salas.includes(s.id)}
+                        onCheckedChange={() => toggleFormSala(s.id)}
+                        disabled={!isGlobal && s.id !== scopeSalaId && !form.salas.includes(s.id)}
+                      />
+                      <span className="text-sm flex-1">{s.nome}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="text-xs text-muted-foreground">{form.salas.length} sala{form.salas.length === 1 ? "" : "s"} selecionada{form.salas.length === 1 ? "" : "s"}.</div>
+              </div>
+            )}
             <div className="text-xs text-muted-foreground flex items-center gap-2">Pré-visualização: <RoleBadge role={form.role} /></div>
           </div>
           <DialogFooter>
