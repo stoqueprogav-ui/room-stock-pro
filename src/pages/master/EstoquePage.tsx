@@ -451,11 +451,14 @@ export default function EstoquePage() {
                 </TableHead>
               )}
               <TableHead>Produto</TableHead>
-              <TableHead className="w-[130px]">Categoria</TableHead>
+              <TableHead className="w-[120px]">Categoria</TableHead>
               <TableHead>Sala</TableHead>
-              <TableHead className="text-right w-[110px]">Quantidade</TableHead>
-              <TableHead className="text-right w-[80px]">Mín.</TableHead>
-              <TableHead className="w-[130px]">Status</TableHead>
+              <TableHead className="text-right w-[90px]">Qtd</TableHead>
+              <TableHead className="text-right w-[70px]">Mín.</TableHead>
+              <TableHead className="text-right w-[110px]">CMP</TableHead>
+              <TableHead className="text-right w-[120px]">V. estoque</TableHead>
+              <TableHead className="w-[150px]">Última compra</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
               {isMaster && <TableHead className="w-[320px] text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
