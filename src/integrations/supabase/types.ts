@@ -234,6 +234,8 @@ export type Database = {
           id: string
           produto_id: string
           quantidade: number
+          valor_total: number | null
+          valor_unitario_aplicado: number | null
         }
         Insert: {
           devolucao_id: string
@@ -241,6 +243,8 @@ export type Database = {
           id?: string
           produto_id: string
           quantidade: number
+          valor_total?: number | null
+          valor_unitario_aplicado?: number | null
         }
         Update: {
           devolucao_id?: string
@@ -248,6 +252,8 @@ export type Database = {
           id?: string
           produto_id?: string
           quantidade?: number
+          valor_total?: number | null
+          valor_unitario_aplicado?: number | null
         }
         Relationships: [
           {
@@ -313,6 +319,7 @@ export type Database = {
           sala_devedora_id: string
           saldo: number
           updated_at: string
+          valor_financeiro: number
         }
         Insert: {
           id?: string
@@ -321,6 +328,7 @@ export type Database = {
           sala_devedora_id: string
           saldo?: number
           updated_at?: string
+          valor_financeiro?: number
         }
         Update: {
           id?: string
@@ -329,6 +337,7 @@ export type Database = {
           sala_devedora_id?: string
           saldo?: number
           updated_at?: string
+          valor_financeiro?: number
         }
         Relationships: [
           {
@@ -361,6 +370,8 @@ export type Database = {
           produto_id: string
           quantidade: number
           quantidade_devolvida: number
+          valor_total: number | null
+          valor_unitario_aplicado: number | null
         }
         Insert: {
           emprestimo_id: string
@@ -368,6 +379,8 @@ export type Database = {
           produto_id: string
           quantidade: number
           quantidade_devolvida?: number
+          valor_total?: number | null
+          valor_unitario_aplicado?: number | null
         }
         Update: {
           emprestimo_id?: string
@@ -375,6 +388,8 @@ export type Database = {
           produto_id?: string
           quantidade?: number
           quantidade_devolvida?: number
+          valor_total?: number | null
+          valor_unitario_aplicado?: number | null
         }
         Relationships: [
           {
@@ -464,27 +479,96 @@ export type Database = {
           },
         ]
       }
+      entradas_estoque: {
+        Row: {
+          created_at: string
+          data_entrada: string
+          fornecedor: string | null
+          id: string
+          numero_nf: string | null
+          observacao: string | null
+          produto_id: string
+          quantidade: number
+          sala_id: string
+          usuario_responsavel: string | null
+          usuario_responsavel_nome: string | null
+          valor_total: number | null
+          valor_unitario: number
+        }
+        Insert: {
+          created_at?: string
+          data_entrada?: string
+          fornecedor?: string | null
+          id?: string
+          numero_nf?: string | null
+          observacao?: string | null
+          produto_id: string
+          quantidade: number
+          sala_id: string
+          usuario_responsavel?: string | null
+          usuario_responsavel_nome?: string | null
+          valor_total?: number | null
+          valor_unitario: number
+        }
+        Update: {
+          created_at?: string
+          data_entrada?: string
+          fornecedor?: string | null
+          id?: string
+          numero_nf?: string | null
+          observacao?: string | null
+          produto_id?: string
+          quantidade?: number
+          sala_id?: string
+          usuario_responsavel?: string | null
+          usuario_responsavel_nome?: string | null
+          valor_total?: number | null
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entradas_estoque_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entradas_estoque_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque: {
         Row: {
+          custo_medio: number
           id: string
           produto_id: string
           quantidade: number
           sala_id: string
           updated_at: string
+          valor_total: number
         }
         Insert: {
+          custo_medio?: number
           id?: string
           produto_id: string
           quantidade?: number
           sala_id: string
           updated_at?: string
+          valor_total?: number
         }
         Update: {
+          custo_medio?: number
           id?: string
           produto_id?: string
           quantidade?: number
           sala_id?: string
           updated_at?: string
+          valor_total?: number
         }
         Relationships: [
           {
@@ -547,6 +631,7 @@ export type Database = {
       movimentacoes: {
         Row: {
           created_at: string
+          custo_unitario_aplicado: number | null
           id: string
           observacao: string | null
           produto_id: string
@@ -557,9 +642,11 @@ export type Database = {
           saldo_apos: number
           tipo: Database["public"]["Enums"]["movimentacao_tipo"]
           usuario_id: string | null
+          valor_financeiro: number | null
         }
         Insert: {
           created_at?: string
+          custo_unitario_aplicado?: number | null
           id?: string
           observacao?: string | null
           produto_id: string
@@ -570,9 +657,11 @@ export type Database = {
           saldo_apos: number
           tipo: Database["public"]["Enums"]["movimentacao_tipo"]
           usuario_id?: string | null
+          valor_financeiro?: number | null
         }
         Update: {
           created_at?: string
+          custo_unitario_aplicado?: number | null
           id?: string
           observacao?: string | null
           produto_id?: string
@@ -583,6 +672,7 @@ export type Database = {
           saldo_apos?: number
           tipo?: Database["public"]["Enums"]["movimentacao_tipo"]
           usuario_id?: string | null
+          valor_financeiro?: number | null
         }
         Relationships: [
           {
