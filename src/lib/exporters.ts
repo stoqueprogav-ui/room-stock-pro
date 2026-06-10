@@ -201,3 +201,138 @@ export function printReport<T extends Record<string, any>>(
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
+
+// ============= Phase 4: Executive exports =============
+
+export type ExecutiveSheet<T extends Record<string, any> = any> = {
+  name: string;
+  columns: ExportColumn<T>[];
+  rows: T[];
+};
+
+export type ExecutiveSummaryLine = { label: string; value: string };
+
+/** Multi-tab Excel export with an "Resumo Executivo" sheet on top. */
+export function exportExecutiveExcel(
+  filename: string,
+  sheets: ExecutiveSheet[],
+  summary: { title: string; subtitle?: string; lines: ExecutiveSummaryLine[]; user?: string | null; company?: string },
+) {
+  const wb = XLSX.utils.book_new();
+  const company = summary.company ?? COMPANY_DEFAULT;
+  const header: any[][] = [
+    [company],
+    [summary.title],
+    ...(summary.subtitle ? [[summary.subtitle]] : []),
+    [`Emitido em: ${nowLabel()}${summary.user ? ` · Por ${summary.user}` : ""}`],
+    [],
+    ["Indicador", "Valor"],
+    ...summary.lines.map((l) => [l.label, l.value]),
+  ];
+  const wsSummary = XLSX.utils.aoa_to_sheet(header);
+  wsSummary["!cols"] = [{ wch: 38 }, { wch: 28 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, "Resumo Executivo");
+
+  for (const sh of sheets) {
+    const data = sh.rows.map((r) => {
+      const obj: Record<string, any> = {};
+      for (const c of sh.columns) obj[c.header] = c.map ? c.map(r) : (r as any)[c.key];
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, sh.name.slice(0, 31));
+  }
+  XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : filename + ".xlsx");
+}
+
+export type ChartCapture = { title: string; element: HTMLElement | null };
+
+/** Executive PDF: cover with KPIs + embedded charts (captured via html2canvas) + appended data tables. */
+export async function exportExecutivePdf(
+  filename: string,
+  meta: ReportMeta & { kpis?: ExecutiveSummaryLine[] },
+  charts: ChartCapture[],
+  tables: ExecutiveSheet[] = [],
+) {
+  const doc = new jsPDF({ orientation: "landscape" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const company = meta.companyName ?? COMPANY_DEFAULT;
+  const logoData = meta.logoUrl ? await loadImageDataUrl(meta.logoUrl) : null;
+
+  const drawHeader = () => {
+    if (logoData) { try { doc.addImage(logoData, "PNG", 14, 8, 14, 14); } catch {} }
+    doc.setFontSize(13); doc.setTextColor(20);
+    doc.text(company, logoData ? 32 : 14, 15);
+    doc.setFontSize(14); doc.text(meta.title, logoData ? 32 : 14, 22);
+    if (meta.subtitle) { doc.setFontSize(9); doc.setTextColor(90); doc.text(meta.subtitle, logoData ? 32 : 14, 27); }
+    doc.setFontSize(9); doc.setTextColor(90);
+    doc.text(`Emitido em: ${nowLabel()}`, pageW - 14, 12, { align: "right" });
+    if (meta.user) doc.text(`Por: ${meta.user}`, pageW - 14, 17, { align: "right" });
+    doc.setDrawColor(200); doc.line(14, 31, pageW - 14, 31);
+  };
+
+  drawHeader();
+  let y = 38;
+
+  // KPIs
+  if (meta.kpis && meta.kpis.length) {
+    doc.setFontSize(11); doc.setTextColor(30);
+    doc.text("Resumo Executivo", 14, y); y += 4;
+    autoTable(doc, {
+      startY: y,
+      head: [["Indicador", "Valor"]],
+      body: meta.kpis.map((k) => [k.label, k.value]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // Charts
+  for (const ch of charts) {
+    if (!ch.element) continue;
+    try {
+      const canvas = await html2canvas(ch.element, { backgroundColor: "#ffffff", scale: 2, logging: false, useCORS: true });
+      const img = canvas.toDataURL("image/png");
+      const maxW = pageW - 28;
+      const ratio = canvas.height / canvas.width;
+      const w = maxW;
+      const h = Math.min(maxW * ratio, pageH - 50);
+      if (y + h + 12 > pageH - 14) { doc.addPage(); drawHeader(); y = 38; }
+      doc.setFontSize(11); doc.setTextColor(30); doc.text(ch.title, 14, y); y += 4;
+      doc.addImage(img, "PNG", 14, y, w, h);
+      y += h + 8;
+    } catch (e) { /* skip failed capture */ }
+  }
+
+  // Data tables
+  for (const t of tables) {
+    doc.addPage(); drawHeader();
+    doc.setFontSize(11); doc.setTextColor(30); doc.text(t.name, 14, 38);
+    autoTable(doc, {
+      startY: 42,
+      margin: { top: 36, bottom: 16, left: 14, right: 14 },
+      head: [t.columns.map((c) => c.header)],
+      body: t.rows.map((r) => t.columns.map((c) => {
+        const v = c.map ? c.map(r) : (r as any)[c.key];
+        return v == null ? "" : String(v);
+      })),
+      styles: { fontSize: 9, textColor: 30 },
+      headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+      alternateRowStyles: { fillColor: [250, 250, 250] },
+      didDrawPage: () => { drawHeader(); },
+    });
+  }
+
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(110);
+    doc.text(`Emitido em ${nowLabel()}${meta.user ? ` por ${meta.user}` : ""}`, 14, pageH - 6);
+    doc.text(`Página ${i} de ${total}`, pageW - 14, pageH - 6, { align: "right" });
+  }
+  doc.save(filename.endsWith(".pdf") ? filename : filename + ".pdf");
+}
+
