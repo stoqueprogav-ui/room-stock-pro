@@ -20,6 +20,7 @@ function fromDays(d: number) {
 export default function DashboardGerencial() {
   const [periodo, setPeriodo] = useState("30");
   const [kpis, setKpis] = useState({ produtos: 0, unidadesEstoque: 0, movMes: 0, reqMes: 0, empAtivos: 0, consumosMes: 0 });
+  const [valorizacao, setValorizacao] = useState<{ produtos_valorizados: number; produtos_sem_valor: number; produtos_total: number; percentual_valorizado: number; itens_valorizados: number; itens_sem_valor: number; patrimonio_total: number } | null>(null);
   const [salaConsumo, setSalaConsumo] = useState<{ name: string; value: number }[]>([]);
   const [catConsumo, setCatConsumo] = useState<{ name: string; value: number }[]>([]);
   const [reqPeriodo, setReqPeriodo] = useState<{ data: string; total: number }[]>([]);
