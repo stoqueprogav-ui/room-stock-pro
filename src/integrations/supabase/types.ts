@@ -1045,6 +1045,17 @@ export type Database = {
         Args: { _conv: string; _user: string }
         Returns: boolean
       }
+      comparativo_salas_financeiro: {
+        Args: { _from?: string; _to?: string }
+        Returns: {
+          participacao_pct: number
+          quantidade_consumida: number
+          sala_id: string
+          sala_nome: string
+          valor_consumido: number
+          valor_em_estoque: number
+        }[]
+      }
       criar_emprestimo: {
         Args: { _itens: Json; _observacao: string; _sala_origem: string }
         Returns: string
@@ -1052,6 +1063,17 @@ export type Database = {
       criar_solicitacao: {
         Args: { _itens: Json; _observacao: string }
         Returns: string
+      }
+      curva_abc: {
+        Args: { _from?: string; _sala?: string; _to?: string }
+        Returns: {
+          acumulado_pct: number
+          classe: string
+          participacao_pct: number
+          produto_id: string
+          produto_nome: string
+          valor: number
+        }[]
       }
       decidir_emprestimo: {
         Args: { _aprovar: boolean; _emp: string }
@@ -1087,6 +1109,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      evolucao_mensal_financeira: {
+        Args: { _meses?: number }
+        Returns: {
+          mes: string
+          quantidade_consumida: number
+          valor_compras: number
+          valor_consumido: number
+        }[]
       }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
       excluir_produto_sala: {
@@ -1183,6 +1214,7 @@ export type Database = {
       }
       marcar_senha_trocada: { Args: never; Returns: undefined }
       mark_conversation_read: { Args: { _conv: string }; Returns: undefined }
+      patrimonio_global: { Args: never; Returns: number }
       quitar_divida: {
         Args: { _divida: string; _quantidade: number }
         Returns: undefined
@@ -1215,6 +1247,16 @@ export type Database = {
         }
         Returns: string
       }
+      relatorio_categorias_financeiro: {
+        Args: { _from?: string; _sala?: string; _to?: string }
+        Returns: {
+          categoria_id: string
+          categoria_nome: string
+          participacao_pct: number
+          quantidade: number
+          valor: number
+        }[]
+      }
       relatorio_consumo: {
         Args: {
           _categoria?: string
@@ -1235,6 +1277,35 @@ export type Database = {
           valor: number
         }[]
       }
+      relatorio_consumo_financeiro: {
+        Args: {
+          _categoria?: string
+          _from?: string
+          _produto?: string
+          _sala?: string
+          _to?: string
+        }
+        Returns: {
+          categoria_id: string
+          categoria_nome: string
+          produto_id: string
+          produto_nome: string
+          quantidade: number
+          sala_id: string
+          sala_nome: string
+          valor: number
+        }[]
+      }
+      relatorio_custo_por_sala: {
+        Args: { _from?: string; _to?: string }
+        Returns: {
+          participacao_pct: number
+          quantidade: number
+          sala_id: string
+          sala_nome: string
+          valor: number
+        }[]
+      }
       relatorio_emprestimos_salas: {
         Args: never
         Returns: {
@@ -1244,6 +1315,16 @@ export type Database = {
           recebidos_unidades: number
           sala_id: string
           sala_nome: string
+        }[]
+      }
+      relatorio_top_produtos_financeiro: {
+        Args: { _from?: string; _limit?: number; _sala?: string; _to?: string }
+        Returns: {
+          participacao_pct: number
+          produto_id: string
+          produto_nome: string
+          quantidade: number
+          valor: number
         }[]
       }
       reset_sistema_total: { Args: { _caller?: string }; Returns: Json }
