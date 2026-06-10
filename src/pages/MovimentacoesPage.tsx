@@ -247,8 +247,6 @@ export default function MovimentacoesPage() {
               <TableHead>Produto</TableHead>
               <TableHead className="text-right w-[90px]">Qtd.</TableHead>
               <TableHead className="text-right w-[100px]">Saldo</TableHead>
-              <TableHead className="text-right w-[110px]">Custo unit.</TableHead>
-              <TableHead className="text-right w-[120px]">Valor (R$)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
