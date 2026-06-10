@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar } from "lucide-react";
+import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt } from "lucide-react";
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
@@ -88,6 +88,33 @@ export default function EstoquePage() {
 
   // Última entrada por (produto, sala)
   const [ultimas, setUltimas] = useState<Map<string, UltimaEntrada>>(new Map());
+
+  // Ficha financeira expandida
+  type EntradaHist = { id: string; data_entrada: string; quantidade: number; valor_unitario: number; valor_total: number; fornecedor: string | null; numero_nf: string | null; usuario_responsavel_nome: string | null };
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [history, setHistory] = useState<Map<string, EntradaHist[]>>(new Map());
+  const [historyLoading, setHistoryLoading] = useState<Set<string>>(new Set());
+
+  const toggleExpand = async (r: Row) => {
+    const key = `${r.produto_id}-${r.sala_id}`;
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+    if (!history.has(key)) {
+      setHistoryLoading((p) => new Set(p).add(key));
+      const { data } = await supabase
+        .from("entradas_estoque")
+        .select("id, data_entrada, quantidade, valor_unitario, valor_total, fornecedor, numero_nf, usuario_responsavel_nome")
+        .eq("produto_id", r.produto_id)
+        .eq("sala_id", r.sala_id)
+        .order("data_entrada", { ascending: false })
+        .limit(100);
+      setHistory((m) => new Map(m).set(key, (data as EntradaHist[]) ?? []));
+      setHistoryLoading((p) => { const n = new Set(p); n.delete(key); return n; });
+    }
+  };
 
   const load = async () => {
     const [{ data: s }, { data: e }, { data: c }, { data: ents }] = await Promise.all([
@@ -464,7 +491,8 @@ export default function EstoquePage() {
           </TableHeader>
           <TableBody>
             {filtered.map((r) => (
-              <TableRow key={`${r.produto_id}-${r.sala_id}`} className="table-row-hover">
+              <React.Fragment key={`${r.produto_id}-${r.sala_id}`}>
+              <TableRow className="table-row-hover">
                 {isMaster && (
                   <TableCell>
                     <Checkbox
@@ -474,7 +502,20 @@ export default function EstoquePage() {
                     />
                   </TableCell>
                 )}
-                <TableCell className="font-medium">{r.produto.nome} <span className="text-muted-foreground text-xs">({r.produto.unidade})</span></TableCell>
+                <TableCell className="font-medium">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(r)}
+                    className="inline-flex items-center gap-1.5 text-left hover:text-primary transition-colors"
+                    title="Ficha financeira"
+                  >
+                    {expanded.has(`${r.produto_id}-${r.sala_id}`)
+                      ? <ChevronDown className="size-4 text-muted-foreground" />
+                      : <ChevronRight className="size-4 text-muted-foreground" />}
+                    <span>{r.produto.nome}</span>
+                    <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
+                  </button>
+                </TableCell>
                 <TableCell>
                   {(r.produto as any)?.categoria?.nome
                     ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {(r.produto as any).categoria.nome}</Badge>
@@ -527,6 +568,18 @@ export default function EstoquePage() {
                   </TableCell>
                 )}
               </TableRow>
+              {expanded.has(`${r.produto_id}-${r.sala_id}`) && (
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableCell colSpan={isMaster ? 11 : 9} className="p-0">
+                    <FichaFinanceira
+                      row={r}
+                      loading={historyLoading.has(`${r.produto_id}-${r.sala_id}`)}
+                      entradas={history.get(`${r.produto_id}-${r.sala_id}`) ?? []}
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+            </React.Fragment>
             ))}
             {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 9} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
@@ -787,6 +840,122 @@ export default function EstoquePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+type EntradaHistRow = { id: string; data_entrada: string; quantidade: number; valor_unitario: number; valor_total: number; fornecedor: string | null; numero_nf: string | null; usuario_responsavel_nome: string | null };
+
+function FichaFinanceira({ row, loading, entradas }: { row: Row; loading: boolean; entradas: EntradaHistRow[] }) {
+  // Evolução de preços (asc por data)
+  const serie = useMemo(() => [...entradas].reverse(), [entradas]);
+  const total = entradas.length;
+  const totalQtdComprada = entradas.reduce((s, e) => s + Number(e.quantidade ?? 0), 0);
+  const totalInvestido = entradas.reduce((s, e) => s + Number(e.valor_total ?? 0), 0);
+
+  // Sparkline SVG
+  const sparkline = useMemo(() => {
+    if (serie.length < 2) return null;
+    const valores = serie.map((e) => Number(e.valor_unitario));
+    const min = Math.min(...valores);
+    const max = Math.max(...valores);
+    const w = 260, h = 50, pad = 4;
+    const dx = (w - pad * 2) / (serie.length - 1);
+    const range = max - min || 1;
+    const pts = valores.map((v, i) => `${pad + i * dx},${h - pad - ((v - min) / range) * (h - pad * 2)}`).join(" ");
+    return { w, h, pts, min, max, primeiro: valores[0], ultimo: valores[valores.length - 1] };
+  }, [serie]);
+
+  if (loading) {
+    return <div className="p-6 text-center text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin inline mr-2" />Carregando ficha financeira…</div>;
+  }
+
+  return (
+    <div className="p-4 md:p-5 space-y-4 border-t-2 border-primary/30">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <Receipt className="size-4 text-primary" />
+        Ficha financeira · {row.produto.nome} <span className="text-muted-foreground font-normal">· {row.sala.nome}</span>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="rounded-md border bg-card p-3">
+          <div className="text-[10px] uppercase text-muted-foreground">Estoque atual</div>
+          <div className="font-display text-lg font-bold">{row.quantidade} <span className="text-xs text-muted-foreground">{row.produto.unidade}</span></div>
+        </div>
+        <div className="rounded-md border bg-card p-3">
+          <div className="text-[10px] uppercase text-muted-foreground">Custo médio</div>
+          <div className="font-display text-lg font-bold">{row.custo_medio > 0 ? BRL(row.custo_medio) : "—"}</div>
+        </div>
+        <div className="rounded-md border bg-card p-3">
+          <div className="text-[10px] uppercase text-muted-foreground">Valor em estoque</div>
+          <div className="font-display text-lg font-bold text-success">{BRL(row.valor_total)}</div>
+        </div>
+        <div className="rounded-md border bg-card p-3">
+          <div className="text-[10px] uppercase text-muted-foreground">Total investido (histórico)</div>
+          <div className="font-display text-lg font-bold">{BRL(totalInvestido)}</div>
+          <div className="text-[10px] text-muted-foreground">{totalQtdComprada} unid. em {total} compra(s)</div>
+        </div>
+      </div>
+
+      {/* Evolução de preços */}
+      {sparkline && (
+        <div className="rounded-md border bg-card p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-semibold flex items-center gap-1.5"><TrendingUp className="size-3.5 text-primary" /> Evolução do preço unitário</div>
+            <div className="text-xs text-muted-foreground">
+              {BRL(sparkline.min)} → {BRL(sparkline.max)}
+              <span className={`ml-2 font-mono ${sparkline.ultimo > sparkline.primeiro ? "text-destructive" : "text-success"}`}>
+                {sparkline.ultimo > sparkline.primeiro ? "▲" : "▼"} {BRL(sparkline.ultimo)}
+              </span>
+            </div>
+          </div>
+          <svg width={sparkline.w} height={sparkline.h} className="overflow-visible">
+            <polyline points={sparkline.pts} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" />
+            {serie.map((_e, i) => {
+              const [x, y] = sparkline.pts.split(" ")[i].split(",").map(Number);
+              return <circle key={i} cx={x} cy={y} r={2.5} fill="hsl(var(--primary))" />;
+            })}
+          </svg>
+        </div>
+      )}
+
+      {/* Histórico */}
+      <div className="rounded-md border bg-card overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[140px]">Data</TableHead>
+              <TableHead className="text-right">Qtd</TableHead>
+              <TableHead className="text-right">V. unit.</TableHead>
+              <TableHead className="text-right">V. total</TableHead>
+              <TableHead>Fornecedor</TableHead>
+              <TableHead>NF</TableHead>
+              <TableHead>Usuário</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {entradas.map((e) => (
+              <TableRow key={e.id}>
+                <TableCell className="text-xs">{new Date(e.data_entrada).toLocaleString("pt-BR")}</TableCell>
+                <TableCell className="text-right font-mono">{e.quantidade}</TableCell>
+                <TableCell className="text-right font-mono">{BRL(Number(e.valor_unitario))}</TableCell>
+                <TableCell className="text-right font-mono font-semibold text-success">{BRL(Number(e.valor_total))}</TableCell>
+                <TableCell className="text-sm">{e.fornecedor ?? "—"}</TableCell>
+                <TableCell className="text-xs">{e.numero_nf ?? "—"}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{e.usuario_responsavel_nome ?? "—"}</TableCell>
+              </TableRow>
+            ))}
+            {entradas.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-6 text-sm">
+                  Nenhuma compra registrada para este produto nesta sala.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
