@@ -289,12 +289,13 @@ export default function MovimentacoesPage() {
                   <TableCell>{m.produto.nome}</TableCell>
                   <TableCell className={`text-right font-mono ${m.quantidade < 0 ? "text-destructive" : "text-success"}`}>{m.quantidade > 0 ? "+" : ""}{m.quantidade}</TableCell>
                   <TableCell className="text-right font-mono">{m.saldo_apos}</TableCell>
-                  <TableCell className="text-right font-mono text-muted-foreground">{BRL(m.custo_unitario_aplicado)}</TableCell>
-                  <TableCell className={`text-right font-mono font-medium ${m.quantidade < 0 ? "text-destructive" : "text-success"}`}>{BRL(m.valor_financeiro)}</TableCell>
+                  {isMaster && <TableCell className="text-right font-mono text-muted-foreground">{BRL(m.custo_unitario_aplicado)}</TableCell>}
+                  {isMaster && <TableCell className={`text-right font-mono font-medium ${m.quantidade < 0 ? "text-destructive" : "text-success"}`}>{BRL(m.valor_financeiro)}</TableCell>}
                 </TableRow>
               );
             })}
-            {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhuma movimentação encontrada com os filtros aplicados.</TableCell></TableRow>}
+            {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 9 : 7} className="text-center text-muted-foreground py-12">Nenhuma movimentação encontrada com os filtros aplicados.</TableCell></TableRow>}
+
           </TableBody>
         </Table>
       </div>
