@@ -89,7 +89,7 @@ export default function DividasPage() {
               <TableHead>Devedora → Credora</TableHead>
               <TableHead>Produto</TableHead>
               <TableHead className="text-right w-[120px]">Saldo</TableHead>
-              <TableHead className="text-right w-[140px]">Valor financeiro</TableHead>
+              {role === "master" && <TableHead className="text-right w-[140px]">Valor financeiro</TableHead>}
               {role === "master" && <TableHead className="text-right w-[120px]">Ação</TableHead>}
             </TableRow>
           </TableHeader>
