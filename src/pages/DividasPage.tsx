@@ -107,9 +107,11 @@ export default function DividasPage() {
                     {d.saldo} {d.produto.unidade}
                   </span>
                 </TableCell>
-                <TableCell className="text-right font-mono font-semibold text-destructive">
-                  {BRL(Number(d.valor_financeiro ?? 0))}
-                </TableCell>
+                {role === "master" && (
+                  <TableCell className="text-right font-mono font-semibold text-destructive">
+                    {BRL(Number(d.valor_financeiro ?? 0))}
+                  </TableCell>
+                )}
                 {role === "master" && (
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => { setEditing(d); setQtd(d.saldo); }}><Wallet className="size-4" /> Quitar</Button>
