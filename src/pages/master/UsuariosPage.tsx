@@ -15,8 +15,10 @@ import type { Sala, AppRole } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import CompanyLogoUploader from "@/components/CompanyLogoUploader";
+import { Checkbox } from "@/components/ui/checkbox";
+import UserSalasDialog from "@/components/UserSalasDialog";
 
-type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null };
+type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null; salas_count?: number };
 
 export default function UsuariosPage() {
   const { profile } = useAuth();
