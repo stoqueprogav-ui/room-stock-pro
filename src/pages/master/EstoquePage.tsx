@@ -528,7 +528,7 @@ export default function EstoquePage() {
                 )}
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 8 : 6} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 9} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
