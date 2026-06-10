@@ -323,6 +323,15 @@ export default function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UserSalasDialog
+        open={!!salasDialog}
+        onOpenChange={(o) => !o && setSalasDialog(null)}
+        userId={salasDialog?.id ?? null}
+        userNome={salasDialog?.nome}
+        salas={salas}
+        onSaved={load}
+      />
     </div>
   );
 }
