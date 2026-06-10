@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanyLogo } from "@/hooks/useCompanyLogo";
 import {
   Building2, Globe2, Package, DollarSign, TrendingUp, Crown, Layers,
-  ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, FileDown, FileSpreadsheet, Printer,
+  ArrowLeftRight, FileDown, FileSpreadsheet, Printer,
 } from "lucide-react";
 import { exportToExcel, exportReportPdf, printReport, type ExportColumn } from "@/lib/exporters";
 import { Button } from "@/components/ui/button";
