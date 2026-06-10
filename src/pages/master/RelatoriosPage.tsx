@@ -19,7 +19,7 @@ import {
   Building2, Globe2, Package, DollarSign, TrendingUp, Crown, Layers,
   ArrowLeftRight, FileDown, FileSpreadsheet, Printer,
 } from "lucide-react";
-import { exportToExcel, exportReportPdf, printReport, type ExportColumn } from "@/lib/exporters";
+import { exportToExcel, exportReportPdf, printReport, exportExecutiveExcel, exportExecutivePdf, type ExportColumn } from "@/lib/exporters";
 import { Button } from "@/components/ui/button";
 
 type Sala = { id: string; nome: string };
