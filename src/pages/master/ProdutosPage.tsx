@@ -240,6 +240,7 @@ export default function ProdutosPage() {
               <TableHead>Descrição</TableHead>
               <TableHead className="w-[90px]">Unidade</TableHead>
               <TableHead className="w-[90px] text-right">Mínimo</TableHead>
+              <TableHead className="w-[110px] text-right">Custo (R$)</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[140px] text-right">Ações</TableHead>
             </TableRow>
