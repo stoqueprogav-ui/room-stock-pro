@@ -756,10 +756,35 @@ export default function RelatoriosPage() {
 
         {/* ===== VALOR DE ESTOQUE ===== */}
         <TabsContent value="estoque" className="mt-4 space-y-4">
-          <Card className="p-4">
-            <div className="text-sm text-muted-foreground">Patrimônio total em estoque</div>
-            <div className="text-3xl font-semibold text-primary mt-1">{BRL(valorTotalEstoque)}</div>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">Patrimônio total em estoque</div>
+              <div className="text-3xl font-semibold text-primary mt-1">{BRL(valorTotalEstoque)}</div>
+              {valorizacao && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Base financeira: {NUM(valorizacao.itens_valorizados)} itens valorizados
+                </div>
+              )}
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">Produtos valorizados</div>
+              <div className="text-3xl font-semibold mt-1">
+                {valorizacao ? `${NUM(valorizacao.produtos_valorizados)} / ${NUM(valorizacao.produtos_total)}` : "—"}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {valorizacao ? `${valorizacao.percentual_valorizado}% do catálogo ativo` : ""}
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">Itens sem valorização financeira</div>
+              <div className="text-3xl font-semibold text-warning mt-1">
+                {valorizacao ? NUM(valorizacao.itens_sem_valor) : "—"}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Excluídos dos relatórios financeiros até receberem custo
+              </div>
+            </Card>
+          </div>
           <ChartCard title="Valor financeiro por sala (R$)">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={estoqueValor}>
@@ -775,7 +800,8 @@ export default function RelatoriosPage() {
             title="Valor de estoque por sala"
             cols={[
               { header: "Sala", key: "sala_nome" },
-              { header: "Itens", key: "total_itens", map: (r: any) => NUM(Number(r.total_itens)) },
+              { header: "Itens valorizados", key: "total_itens", map: (r: any) => NUM(Number(r.total_itens)) },
+              { header: "Itens sem valor", key: "itens_sem_valor", map: (r: any) => NUM(Number(r.itens_sem_valor ?? 0)) },
               { header: "Valor (R$)", key: "valor_total", map: (r: any) => BRL(Number(r.valor_total)) },
             ]}
             rows={estoqueValor}
