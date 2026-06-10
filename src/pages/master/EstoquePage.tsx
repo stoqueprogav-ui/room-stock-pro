@@ -114,7 +114,7 @@ export default function EstoquePage() {
         .eq("sala_id", r.sala_id)
         .order("data_entrada", { ascending: false })
         .limit(100);
-      setHistory((m) => new Map(m).set(key, (data as EntradaHist[]) ?? []));
+      setHistory((m) => new Map(m).set(key, ((data ?? []) as unknown) as EntradaHist[]));
       setHistoryLoading((p) => { const n = new Set(p); n.delete(key); return n; });
     }
   };
