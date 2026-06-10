@@ -16,6 +16,7 @@ import { Wallet, ArrowRight } from "lucide-react";
 type Divida = {
   id: string;
   saldo: number;
+  valor_financeiro?: number;
   sala_devedora_id: string;
   sala_credora_id: string;
   devedora: { nome: string };
@@ -33,7 +34,7 @@ export default function DividasPage() {
   const load = useCallback(async () => {
     let q = supabase
       .from("dividas")
-      .select(`id, saldo, sala_devedora_id, sala_credora_id,
+      .select(`id, saldo, valor_financeiro, sala_devedora_id, sala_credora_id,
                devedora:salas!dividas_sala_devedora_id_fkey(nome),
                credora:salas!dividas_sala_credora_id_fkey(nome),
                produto:produtos(nome, unidade)`)
@@ -55,9 +56,26 @@ export default function DividasPage() {
     toast.success("Dívida atualizada"); setEditing(null); load();
   };
 
+  const totalFinanceiro = rows.reduce((s, d) => s + Number(d.valor_financeiro ?? 0), 0);
+  const BRL = (v: number) => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
   return (
     <div className="space-y-4">
-      <PageHeader title="Dívidas entre salas" description="Saldo de produtos pendente de devolução, gerado por empréstimos aprovados." />
+      <PageHeader title="Dívidas entre salas" description="Saldo de produtos pendente de devolução, gerado por empréstimos aprovados. Inclui valor financeiro." />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="panel p-4">
+          <div className="text-xs text-muted-foreground">Dívidas em aberto</div>
+          <div className="font-display text-2xl font-bold mt-1">{rows.length}</div>
+        </div>
+        <div className="panel p-4">
+          <div className="text-xs text-muted-foreground">Itens devidos</div>
+          <div className="font-display text-2xl font-bold mt-1">{rows.reduce((s, d) => s + d.saldo, 0)}</div>
+        </div>
+        <div className="panel p-4">
+          <div className="text-xs text-muted-foreground">Valor financeiro total</div>
+          <div className="font-display text-2xl font-bold mt-1 text-destructive">{BRL(totalFinanceiro)}</div>
+        </div>
+      </div>
       <div className="panel overflow-x-auto">
         <Table>
           <TableHeader>
@@ -65,6 +83,7 @@ export default function DividasPage() {
               <TableHead>Devedora → Credora</TableHead>
               <TableHead>Produto</TableHead>
               <TableHead className="text-right w-[120px]">Saldo</TableHead>
+              <TableHead className="text-right w-[140px]">Valor financeiro</TableHead>
               {role === "master" && <TableHead className="text-right w-[120px]">Ação</TableHead>}
             </TableRow>
           </TableHeader>
@@ -82,6 +101,9 @@ export default function DividasPage() {
                     {d.saldo} {d.produto.unidade}
                   </span>
                 </TableCell>
+                <TableCell className="text-right font-mono font-semibold text-destructive">
+                  {BRL(Number(d.valor_financeiro ?? 0))}
+                </TableCell>
                 {role === "master" && (
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => { setEditing(d); setQtd(d.saldo); }}><Wallet className="size-4" /> Quitar</Button>
@@ -89,7 +111,7 @@ export default function DividasPage() {
                 )}
               </TableRow>
             ))}
-            {rows.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-12">Sem dívidas em aberto.</TableCell></TableRow>}
+            {rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Sem dívidas em aberto.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
