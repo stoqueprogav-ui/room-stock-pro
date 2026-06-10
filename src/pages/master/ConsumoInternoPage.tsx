@@ -63,19 +63,27 @@ export default function ConsumoInternoPage() {
   const [filtroMotivo, setFiltroMotivo] = useState("all");
 
   const reload = useCallback(async () => {
+    const fixedSala = role === "master" ? scopeSalaId : activeSalaId;
+    let consumoQuery = supabase.from("consumos_internos")
+      .select("id, created_at, quantidade, motivo, observacao, sala:salas(nome), produto:produtos(nome, unidade), usuario:profiles(nome)")
+      .order("created_at", { ascending: false }).limit(500);
+    if (fixedSala) consumoQuery = consumoQuery.eq("sala_id", fixedSala);
+
     const [s, c, p, l] = await Promise.all([
       supabase.from("salas").select("id, nome").order("nome"),
       supabase.from("categorias").select("id, nome").order("nome"),
       supabase.from("produtos").select("id, nome, unidade, categoria_id").eq("ativo", true).order("nome"),
-      supabase.from("consumos_internos")
-        .select("id, created_at, quantidade, motivo, observacao, sala:salas(nome), produto:produtos(nome, unidade), usuario:profiles(nome)")
-        .order("created_at", { ascending: false }).limit(500),
+      consumoQuery,
     ]);
     setSalas((s.data as any) ?? []);
     setCategorias((c.data as any) ?? []);
     setProdutos((p.data as any) ?? []);
     setConsumos((l.data as any) ?? []);
-  }, []);
+    if (fixedSala) {
+      setSalaId(fixedSala);
+      setFiltroSala(fixedSala);
+    }
+  }, [role, scopeSalaId, activeSalaId]);
 
   useEffect(() => { reload(); }, [reload]);
   useRealtimeSync(["consumos_internos", "estoque", "produtos"], reload, { debounceMs: 300 });
