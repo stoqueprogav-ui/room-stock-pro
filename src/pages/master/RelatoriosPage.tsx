@@ -299,6 +299,82 @@ export default function RelatoriosPage() {
     else printReport(cols, rows, meta);
   };
 
+  // ===== Resumo Executivo (Dashboard) =====
+  const chart1Ref = useRef<HTMLDivElement>(null);
+  const chart2Ref = useRef<HTMLDivElement>(null);
+  const chart3Ref = useRef<HTMLDivElement>(null);
+  const [execLoading, setExecLoading] = useState(false);
+
+  const kpisExec = [
+    { label: "Valor total em estoque", value: BRL(valorTotalEstoque) },
+    { label: "Consumo do mês (R$)", value: BRL(consumoMesAtual) },
+    { label: "Valor consumido no período", value: BRL(totalValor) },
+    { label: "Quantidade consumida", value: NUM(totalQtd) },
+    { label: "Sala líder em consumo", value: topSala ? `${topSala.sala} — ${BRL(topSala.valor)}` : "—" },
+    { label: "Produto mais consumido", value: topProduto ? `${topProduto.produto} (${NUM(topProduto.qtd)} un.)` : "—" },
+    { label: "Categoria líder", value: topCategoria ? `${topCategoria.cat} — ${BRL(topCategoria.valor)}` : "—" },
+    { label: "Maior estoque financeiro", value: salaMaiorEstoque ? `${salaMaiorEstoque.sala_nome} — ${BRL(Number(salaMaiorEstoque.valor_total))}` : "—" },
+  ];
+
+  const exportarExecutivoXLSX = () => {
+    exportExecutiveExcel(
+      "resumo_executivo",
+      [
+        { name: "Consumo por Sala", columns: [
+          { header: "Sala", key: "sala" },
+          { header: "Quantidade", key: "qtd" },
+          { header: "Valor (R$)", key: "valor", map: (r: any) => Number(r.valor).toFixed(2) },
+        ], rows: consumoPorSala },
+        { name: "Top Produtos", columns: [
+          { header: "Produto", key: "produto" },
+          { header: "Categoria", key: "categoria" },
+          { header: "Quantidade", key: "qtd" },
+          { header: "Valor (R$)", key: "valor", map: (r: any) => Number(r.valor).toFixed(2) },
+        ], rows: consumoPorProduto.slice(0, 50) },
+        { name: "Categorias", columns: [
+          { header: "Categoria", key: "cat" },
+          { header: "Quantidade", key: "qtd" },
+          { header: "Valor (R$)", key: "valor", map: (r: any) => Number(r.valor).toFixed(2) },
+        ], rows: consumoPorCategoria },
+        { name: "Valor de Estoque", columns: [
+          { header: "Sala", key: "sala_nome" },
+          { header: "Itens", key: "total_itens" },
+          { header: "Valor (R$)", key: "valor_total", map: (r: any) => Number(r.valor_total).toFixed(2) },
+        ], rows: estoqueValor },
+      ],
+      { title: "Resumo Executivo", subtitle, lines: kpisExec, user: profile?.nome ?? null, company: "Estoque Pro" },
+    );
+  };
+
+  const exportarExecutivoPDF = async () => {
+    setExecLoading(true);
+    try {
+      await exportExecutivePdf(
+        "resumo_executivo",
+        { title: "Resumo Executivo", subtitle, companyName: "Estoque Pro", logoUrl, user: profile?.nome ?? null, kpis: kpisExec },
+        [
+          { title: "Evolução mensal de consumo (R$)", element: chart1Ref.current },
+          { title: "Evolução mensal de empréstimos", element: chart2Ref.current },
+          { title: "Top 10 produtos consumidos (R$)", element: chart3Ref.current },
+        ],
+        [
+          { name: "Consumo por Sala", columns: [
+            { header: "Sala", key: "sala" },
+            { header: "Quantidade", key: "qtd", map: (r: any) => NUM(r.qtd) },
+            { header: "Valor", key: "valor", map: (r: any) => BRL(r.valor) },
+          ], rows: consumoPorSala },
+          { name: "Top Produtos", columns: [
+            { header: "Produto", key: "produto" },
+            { header: "Quantidade", key: "qtd", map: (r: any) => NUM(r.qtd) },
+            { header: "Valor", key: "valor", map: (r: any) => BRL(r.valor) },
+          ], rows: consumoPorProduto.slice(0, 30) },
+        ],
+      );
+    } finally { setExecLoading(false); }
+  };
+
+
+
   return (
     <div className="space-y-6">
       <PageHeader
