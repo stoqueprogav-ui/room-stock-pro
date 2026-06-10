@@ -93,6 +93,7 @@ export default function ProdutosPage() {
       descricao: p.descricao ?? "",
       unidade: p.unidade,
       estoque_minimo: p.estoque_minimo,
+      custo_unitario: Number((p as any).custo_unitario ?? 0),
       categoria_id: p.categoria_id ?? "",
       ativo: p.ativo !== false,
       sala_id: p.sala_id ?? "",
