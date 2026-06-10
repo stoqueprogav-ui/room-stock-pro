@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { PageHeader } from "@/components/AppLayout";
 import WelcomeAlerts from "@/components/WelcomeAlerts";
@@ -9,11 +10,12 @@ import { Boxes, AlertTriangle, Inbox, ArrowLeftRight, Wallet } from "lucide-reac
 
 export default function SalaOverview() {
   const { profile, role } = useAuth();
+  const { activeSalaId, activeSalaName } = useActiveSala();
   const [s, setS] = useState<any>(null);
 
   const reload = useCallback(async () => {
-    if (!profile?.sala_id) return;
-    const sala = profile.sala_id;
+    if (!activeSalaId) return;
+    const sala = activeSalaId;
     const [est, sol, emp, div] = await Promise.all([
       supabase.from("estoque").select("quantidade, produtos!inner(estoque_minimo, nome, ativo)").eq("sala_id", sala).eq("produtos.ativo", true),
       supabase.from("solicitacoes").select("id", { count: "exact", head: true }).eq("sala_id", sala).eq("status", "pendente"),
@@ -29,7 +31,7 @@ export default function SalaOverview() {
       emprestimosAprovar: aprovar,
       dividas: div.count ?? 0,
     });
-  }, [profile?.sala_id]);
+  }, [activeSalaId]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -39,7 +41,7 @@ export default function SalaOverview() {
     { debounceMs: 300 }
   );
 
-  if (!profile?.sala_id) return <div className="text-muted-foreground">Sua conta não tem sala vinculada.</div>;
+  if (!activeSalaId) return <div className="text-muted-foreground">Selecione uma sala para continuar.</div>;
 
   const cards = [
     { label: "Itens no estoque", value: s?.produtos ?? "…", icon: Boxes },
@@ -51,7 +53,7 @@ export default function SalaOverview() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Painel da Sala — Visão Geral" description={`Olá, ${profile.nome.split(" ")[0]} — visão geral da sua sala.`} />
+      <PageHeader title="Painel da Sala — Visão Geral" description={`Olá, ${profile?.nome.split(" ")[0]} — visão da sala ${activeSalaName ?? "ativa"}.`} />
       <WelcomeAlerts />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map(({ label, value, icon: Icon, danger }) => (
