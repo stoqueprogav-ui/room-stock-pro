@@ -199,27 +199,52 @@ export default function EstoquePage() {
     setMovRow(row);
     setMovQtd(0);
     setMovObs("");
+    setSaidaMotivo("Consumo interno");
+    setEntradaForm({ quantidade: 0, valor_unitario: Number(row.custo_medio || 0), fornecedor: "", numero_nf: "", observacao: "" });
     setMovOpen(true);
   };
 
   const confirmarMov = async () => {
     if (!movRow) return;
+
+    if (movTipo === "entrada") {
+      const qtd = Number(entradaForm.quantidade);
+      const vu = Number(entradaForm.valor_unitario);
+      if (!qtd || qtd <= 0) return toast.error("Quantidade inválida");
+      if (vu < 0) return toast.error("Valor unitário inválido");
+      setMovSaving(true);
+      const { error } = await supabase.rpc("registrar_entrada_estoque", {
+        _produto: movRow.produto_id,
+        _sala: movRow.sala_id,
+        _quantidade: qtd,
+        _valor_unitario: vu,
+        _fornecedor: entradaForm.fornecedor || null,
+        _numero_nf: entradaForm.numero_nf || null,
+        _data_entrada: new Date().toISOString(),
+        _observacao: entradaForm.observacao || null,
+      });
+      setMovSaving(false);
+      if (error) return toast.error(error.message);
+      toast.success(`Entrada de ${qtd} ${movRow.produto.unidade} registrada · CMP recalculado`);
+      setMovOpen(false);
+      load();
+      return;
+    }
+
+    // Saída
     if (!movQtd || movQtd <= 0) return toast.error("Quantidade inválida");
-
-    const atual = movRow.quantidade;
-    const novoSaldo = movTipo === "entrada" ? atual + movQtd : atual - movQtd;
+    const novoSaldo = movRow.quantidade - movQtd;
     if (novoSaldo < 0) return toast.error("Estoque insuficiente para esta saída");
-
     setMovSaving(true);
     const { error } = await supabase.rpc("ajustar_estoque", {
       _produto: movRow.produto_id,
       _sala: movRow.sala_id,
       _quantidade: novoSaldo,
-      _observacao: `${movTipo === "entrada" ? "Entrada" : "Saída"} rápida${movObs ? ` — ${movObs}` : ""}`,
+      _observacao: `Saída · ${saidaMotivo}${movObs ? ` — ${movObs}` : ""}`,
     });
     setMovSaving(false);
     if (error) return toast.error(error.message);
-    toast.success(`${movTipo === "entrada" ? "Entrada" : "Saída"} de ${movQtd} ${movRow.produto.unidade} registrada`);
+    toast.success(`Saída de ${movQtd} ${movRow.produto.unidade} registrada`);
     setMovOpen(false);
     load();
   };
