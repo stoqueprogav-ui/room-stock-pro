@@ -954,6 +954,10 @@ export type Database = {
         }
       }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
+      excluir_produto_sala: {
+        Args: { _produto: string; _sala: string }
+        Returns: Json
+      }
       excluir_sala: { Args: { _force?: boolean; _sala: string }; Returns: Json }
       get_or_create_direct_conversation: {
         Args: { _other: string }

@@ -55,7 +55,8 @@ export default function EstoquePage() {
   const [savingProd, setSavingProd] = useState(false);
 
   // Exclusão individual e em massa
-  const [confirmDel, setConfirmDel] = useState<Produto | null>(null);
+  const [confirmDel, setConfirmDel] = useState<{ produto: Produto; sala: Sala } | null>(null);
+  const [delMode, setDelMode] = useState<"sala" | "todas">("sala");
   const [delLoading, setDelLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulk, setConfirmBulk] = useState(false);
@@ -229,14 +230,21 @@ export default function EstoquePage() {
   const confirmarExclusao = async () => {
     if (!confirmDel) return;
     setDelLoading(true);
-    const { data, error } = await supabase.rpc("excluir_produto", { _produto: confirmDel.id });
+    let resp;
+    if (delMode === "sala") {
+      resp = await supabase.rpc("excluir_produto_sala", { _produto: confirmDel.produto.id, _sala: confirmDel.sala.id });
+    } else {
+      resp = await supabase.rpc("excluir_produto", { _produto: confirmDel.produto.id });
+    }
     setDelLoading(false);
+    const { data, error } = resp;
     if (error) return toast.error(error.message ?? "Não foi possível excluir");
     const res = (data as any) ?? {};
     if (res.modo === "desativado") toast.warning(res.mensagem ?? "Produto desativado (possui histórico ou estoque).");
-    else toast.success(res.mensagem ?? "Produto excluído");
-    setSelectedIds((prev) => { const n = new Set(prev); n.delete(confirmDel.id); return n; });
+    else toast.success(res.mensagem ?? "Operação concluída");
+    setSelectedIds((prev) => { const n = new Set(prev); n.delete(confirmDel.produto.id); return n; });
     setConfirmDel(null);
+    setDelMode("sala");
     load();
   };
 
@@ -442,7 +450,7 @@ export default function EstoquePage() {
                       <Button variant="ghost" size="icon" title="Editar produto" onClick={() => openEditProduto(r.produto)}>
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" title="Excluir produto" onClick={() => setConfirmDel(r.produto)}>
+                      <Button variant="ghost" size="icon" title="Excluir produto" onClick={() => { setDelMode("sala"); setConfirmDel({ produto: r.produto, sala: r.sala }); }}>
                         <Trash2 className="size-4 text-destructive" />
                       </Button>
                     </div>
@@ -595,30 +603,47 @@ export default function EstoquePage() {
       </Dialog>
 
       {/* Modal: Confirmar exclusão individual */}
-      <Dialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
+      <Dialog open={!!confirmDel} onOpenChange={(v) => { if (!v) { setConfirmDel(null); setDelMode("sala"); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="size-5" /> Excluir produto
+              <AlertTriangle className="size-5" /> Como deseja excluir este produto?
             </DialogTitle>
             <DialogDescription>
-              Você está prestes a excluir permanentemente o produto:
+              Escolha o escopo da exclusão. Os estoques de cada sala são independentes.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-1">
-            <div className="font-display font-bold text-base">{confirmDel?.nome}</div>
-            <div className="text-xs text-muted-foreground">
-              Esta ação removerá o produto de <strong>todas as salas</strong> vinculadas.
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Se houver histórico ou estoque, o produto será automaticamente <strong>desativado</strong> em vez de excluído, preservando os registros.
-            </div>
+            <div className="font-display font-bold text-base">{confirmDel?.produto.nome}</div>
+            <div className="text-xs text-muted-foreground">Sala atual: <strong>{confirmDel?.sala.nome}</strong></div>
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-start gap-2 p-3 rounded-md border cursor-pointer hover:bg-muted/40">
+              <input type="radio" name="delmode" className="mt-1" checked={delMode === "sala"} onChange={() => setDelMode("sala")} />
+              <div>
+                <div className="font-medium text-sm">Apenas desta sala ({confirmDel?.sala.nome})</div>
+                <div className="text-xs text-muted-foreground">
+                  Remove o produto somente do estoque desta sala. As demais salas não são afetadas. Histórico, requisições e empréstimos preservados.
+                </div>
+              </div>
+            </label>
+            {isMaster && (
+              <label className="flex items-start gap-2 p-3 rounded-md border cursor-pointer hover:bg-muted/40">
+                <input type="radio" name="delmode" className="mt-1" checked={delMode === "todas"} onChange={() => setDelMode("todas")} />
+                <div>
+                  <div className="font-medium text-sm">De todas as salas <span className="text-xs text-muted-foreground">(somente Master)</span></div>
+                  <div className="text-xs text-muted-foreground">
+                    Remove o produto de todos os estoques. Se houver histórico ou saldo, o produto é desativado em vez de apagado.
+                  </div>
+                </div>
+              </label>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDel(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setConfirmDel(null); setDelMode("sala"); }}>Cancelar</Button>
             <Button variant="destructive" onClick={confirmarExclusao} disabled={delLoading}>
               {delLoading && <Loader2 className="size-4 animate-spin" />}
-              <Trash2 className="size-4" /> Excluir produto
+              <Trash2 className="size-4" /> Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
