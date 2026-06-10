@@ -11,6 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Trash2, Search, FileDown, FileSpreadsheet, Printer } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { formatDateTime } from "@/lib/format";
 import { exportToExcel, exportToPdf, printElement } from "@/lib/exporters";
@@ -38,6 +41,9 @@ const MOTIVOS: { value: string; label: string }[] = [
 const motivoLabel = (m: string) => MOTIVOS.find((x) => x.value === m)?.label ?? m;
 
 export default function ConsumoInternoPage() {
+  const { role } = useAuth();
+  const { activeSalaId, activeSalaName } = useActiveSala();
+  const { scopeSalaId } = useMasterScope();
   const [salas, setSalas] = useState<Sala[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -57,19 +63,27 @@ export default function ConsumoInternoPage() {
   const [filtroMotivo, setFiltroMotivo] = useState("all");
 
   const reload = useCallback(async () => {
+    const fixedSala = role === "master" ? scopeSalaId : activeSalaId;
+    let consumoQuery = supabase.from("consumos_internos")
+      .select("id, created_at, quantidade, motivo, observacao, sala:salas(nome), produto:produtos(nome, unidade), usuario:profiles(nome)")
+      .order("created_at", { ascending: false }).limit(500);
+    if (fixedSala) consumoQuery = consumoQuery.eq("sala_id", fixedSala);
+
     const [s, c, p, l] = await Promise.all([
       supabase.from("salas").select("id, nome").order("nome"),
       supabase.from("categorias").select("id, nome").order("nome"),
       supabase.from("produtos").select("id, nome, unidade, categoria_id").eq("ativo", true).order("nome"),
-      supabase.from("consumos_internos")
-        .select("id, created_at, quantidade, motivo, observacao, sala:salas(nome), produto:produtos(nome, unidade), usuario:profiles(nome)")
-        .order("created_at", { ascending: false }).limit(500),
+      consumoQuery,
     ]);
     setSalas((s.data as any) ?? []);
     setCategorias((c.data as any) ?? []);
     setProdutos((p.data as any) ?? []);
     setConsumos((l.data as any) ?? []);
-  }, []);
+    if (fixedSala) {
+      setSalaId(fixedSala);
+      setFiltroSala(fixedSala);
+    }
+  }, [role, scopeSalaId, activeSalaId]);
 
   useEffect(() => { reload(); }, [reload]);
   useRealtimeSync(["consumos_internos", "estoque", "produtos"], reload, { debounceMs: 300 });
@@ -92,7 +106,8 @@ export default function ConsumoInternoPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!salaId || !produtoId || !quantidade || !motivo) {
+    const salaOperacao = role === "master" ? salaId : activeSalaId;
+    if (!salaOperacao || !produtoId || !quantidade || !motivo) {
       toast.error("Preencha sala, produto, quantidade e motivo");
       return;
     }
@@ -100,7 +115,7 @@ export default function ConsumoInternoPage() {
     if (!qtd || qtd <= 0) { toast.error("Quantidade inválida"); return; }
     setSaving(true);
     const { error } = await supabase.rpc("registrar_consumo_interno" as any, {
-      _sala: salaId, _produto: produtoId, _quantidade: qtd,
+      _sala: salaOperacao, _produto: produtoId, _quantidade: qtd,
       _motivo: motivo, _observacao: observacao || null,
     });
     setSaving(false);
@@ -129,8 +144,8 @@ export default function ConsumoInternoPage() {
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label>Sala de origem</Label>
-            <Select value={salaId} onValueChange={setSalaId}>
-              <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
+            <Select value={role === "master" ? salaId : (activeSalaId ?? "")} onValueChange={setSalaId} disabled={role !== "master"}>
+              <SelectTrigger><SelectValue placeholder={activeSalaName ?? "Selecione a sala"} /></SelectTrigger>
               <SelectContent>{salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
             </Select>
           </div>

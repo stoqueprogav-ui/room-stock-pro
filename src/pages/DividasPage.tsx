@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { Wallet, ArrowRight } from "lucide-react";
@@ -25,7 +26,8 @@ type Divida = {
 };
 
 export default function DividasPage() {
-  const { role, profile } = useAuth();
+  const { role } = useAuth();
+  const { activeSalaId } = useActiveSala();
   const { scopeSalaId } = useMasterScope();
   const [rows, setRows] = useState<Divida[]>([]);
   const [editing, setEditing] = useState<Divida | null>(null);
@@ -41,10 +43,12 @@ export default function DividasPage() {
       .order("saldo", { ascending: false });
     if (role === "master" && scopeSalaId) {
       q = q.or(`sala_devedora_id.eq.${scopeSalaId},sala_credora_id.eq.${scopeSalaId}`);
+    } else if (role !== "master" && activeSalaId) {
+      q = q.or(`sala_devedora_id.eq.${activeSalaId},sala_credora_id.eq.${activeSalaId}`);
     }
     const { data } = await q;
     setRows((data as any) ?? []);
-  }, [role, scopeSalaId]);
+  }, [role, scopeSalaId, activeSalaId]);
   useEffect(() => { load(); }, [load]);
   useRealtimeSync(["dividas", "emprestimos", "movimentacoes"], load, { debounceMs: 300 });
 

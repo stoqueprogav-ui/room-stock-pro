@@ -1015,6 +1015,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sala_ativa: {
+        Row: {
+          sala_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          sala_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          sala_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sala_ativa_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_salas: {
         Row: {
           created_at: string

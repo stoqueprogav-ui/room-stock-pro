@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, Re
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { toast } from "sonner";
 
 export type PendingRequisicao = {
@@ -94,6 +95,7 @@ function playBeep(kind: "info" | "warn" = "info") {
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user, role, profile } = useAuth();
+  const { activeSalaId } = useActiveSala();
   const navigate = useNavigate();
   const [requisicoes, setRequisicoes] = useState<PendingRequisicao[]>([]);
   const [emprestimosPendentes, setEmprestimosPendentes] = useState<PendingEmprestimo[]>([]);
@@ -183,12 +185,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       // admin / analista: empréstimos pendentes onde sua sala é a origem (precisa decidir)
       setRequisicoes([]);
       setEmprestimosAprovados([]);
-      if (!profile?.sala_id) { setEmprestimosPendentes([]); return; }
+      if (!activeSalaId) { setEmprestimosPendentes([]); return; }
       const { data: emps } = await supabase
         .from("emprestimos")
         .select("id, status, sala_origem_id, sala_destino_id, solicitante_id, created_at")
         .eq("status", "pendente")
-        .eq("sala_origem_id", profile.sala_id)
+        .eq("sala_origem_id", activeSalaId)
         .order("created_at", { ascending: false });
       let pend: PendingEmprestimo[] = [];
       if (emps?.length) {
@@ -234,14 +236,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         unread_count: c.unread_count ?? 0,
       })));
     } catch { /* noop */ }
-  }, [user, role, profile?.sala_id]);
+  }, [user, role, activeSalaId]);
 
   // initial load
   useEffect(() => {
     if (!user || !role) return;
     initialLoadedRef.current = false;
     refresh().then(() => { initialLoadedRef.current = true; });
-  }, [user, role, profile?.sala_id, refresh]);
+  }, [user, role, activeSalaId, refresh]);
 
   // Realtime subscriptions
   useEffect(() => {
@@ -289,7 +291,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         async (payload) => {
           const row: any = payload.new;
           const isMasterTarget = role === "master";
-          const isAdminOrigem = (role === "admin" || role === "analista") && profile?.sala_id === row.sala_origem_id;
+          const isAdminOrigem = (role === "admin" || role === "analista") && activeSalaId === row.sala_origem_id;
           if (!isMasterTarget && !isAdminOrigem) return;
           const [{ data: salaO }, { data: salaD }] = await Promise.all([
             supabase.from("salas").select("nome").eq("id", row.sala_origem_id).maybeSingle(),
@@ -364,7 +366,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, role, profile?.sala_id, soundEnabled, refresh, navigate]);
+  }, [user, role, activeSalaId, soundEnabled, refresh, navigate]);
 
   // ===== Estado de leitura / fechamento (persistente em localStorage) =====
   const [readIds, setReadIds] = useState<Set<string>>(() => loadSet(READ_KEY));

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ type Linha = {
 };
 
 export default function NovaRequisicao() {
-  const { profile } = useAuth();
+  const { activeSalaId, activeSalaName } = useActiveSala();
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [catFilter, setCatFilter] = useState<string>(""); // "" = nenhum (tela inicial), "all" = todas, ou id
@@ -37,16 +37,15 @@ export default function NovaRequisicao() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!profile?.sala_id) return;
+    if (!activeSalaId) return;
     (async () => {
-      const [{ data }, { data: cats }, { data: sala }] = await Promise.all([
+      const [{ data }, { data: cats }] = await Promise.all([
         supabase
           .from("estoque")
           .select("produto_id, quantidade, produtos!inner(nome, unidade, ativo, categoria_id, categoria:categorias(nome))")
-          .eq("sala_id", profile.sala_id)
+          .eq("sala_id", activeSalaId)
           .eq("produtos.ativo", true),
         supabase.from("categorias").select("*").order("nome"),
-        supabase.from("salas").select("nome").eq("id", profile.sala_id).maybeSingle(),
       ]);
       const list: Linha[] = (data ?? []).map((r: any) => ({
         produto_id: r.produto_id,
@@ -58,9 +57,9 @@ export default function NovaRequisicao() {
       })).sort((a: Linha, b: Linha) => a.nome.localeCompare(b.nome));
       setLinhas(list);
       setCategorias((cats as Categoria[]) ?? []);
-      setSalaNome((sala as any)?.nome ?? "");
+      setSalaNome(activeSalaName ?? "");
     })();
-  }, [profile]);
+  }, [activeSalaId, activeSalaName]);
 
   const setQtd = (id: string, q: number) => setCarrinho((c) => ({ ...c, [id]: q }));
 

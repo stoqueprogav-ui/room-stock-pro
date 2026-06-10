@@ -12,6 +12,7 @@ import { ClipboardList, Loader2, FileDown, FileSpreadsheet, Printer } from "luci
 import { formatDateTime } from "@/lib/format";
 import { exportToExcel, exportReportPdf, printReport } from "@/lib/exporters";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useCompanyLogo } from "@/hooks/useCompanyLogo";
 
 type Sala = { id: string; nome: string };
@@ -27,7 +28,8 @@ type Linha = {
 };
 
 export default function InventarioPage() {
-  const { profile } = useAuth();
+  const { profile, role } = useAuth();
+  const { salas: salasAutorizadas } = useActiveSala();
   const { logoUrl } = useCompanyLogo();
 
   const [salas, setSalas] = useState<Sala[]>([]);
@@ -49,11 +51,12 @@ export default function InventarioPage() {
         supabase.from("categorias").select("id, nome").order("nome"),
         supabase.from("produtos").select("id, nome, categoria_id").eq("ativo", true).order("nome"),
       ]);
-      setSalas((s.data as any) ?? []);
+      const allSalas = (s.data as any) ?? [];
+      setSalas(role === "master" ? allSalas : allSalas.filter((sala: Sala) => salasAutorizadas.some((a) => a.sala_id === sala.id)));
       setCategorias((c.data as any) ?? []);
       setProdutos((p.data as any) ?? []);
     })();
-  }, []);
+  }, [role, salasAutorizadas]);
 
   const produtosFiltrados = useMemo(
     () => (fCat === "all" ? produtos : produtos.filter((p) => p.categoria_id === fCat)),

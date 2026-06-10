@@ -18,7 +18,7 @@ import CompanyLogoUploader from "@/components/CompanyLogoUploader";
 import { Checkbox } from "@/components/ui/checkbox";
 import UserSalasDialog from "@/components/UserSalasDialog";
 
-type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null; salas_count?: number };
+type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null; salas_count?: number; sala_ids?: string[] };
 
 export default function UsuariosPage() {
   const { profile } = useAuth();
@@ -40,15 +40,19 @@ export default function UsuariosPage() {
       supabase.from("profiles").select("id, nome, email, sala_id, must_change_password, sala:salas(nome)"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("user_salas").select("user_id"),
+      supabase.from("user_salas").select("user_id, sala_id"),
     ]);
     const order: AppRole[] = ["master", "admin", "analista"];
     const counts = new Map<string, number>();
-    (us ?? []).forEach((r: any) => counts.set(r.user_id, (counts.get(r.user_id) ?? 0) + 1));
+    const salasByUser = new Map<string, string[]>();
+    (us ?? []).forEach((r: any) => {
+      counts.set(r.user_id, (counts.get(r.user_id) ?? 0) + 1);
+      salasByUser.set(r.user_id, [...(salasByUser.get(r.user_id) ?? []), r.sala_id]);
+    });
     const list: UserRow[] = (profs ?? []).map((p: any) => {
       const userRoles = (roles ?? []).filter((r: any) => r.user_id === p.id).map((r: any) => r.role);
       const role = (order.find((o) => userRoles.includes(o)) ?? "analista") as AppRole;
-      return { ...p, role, salas_count: counts.get(p.id) ?? 0 };
+      return { ...p, role, salas_count: counts.get(p.id) ?? 0, sala_ids: salasByUser.get(p.id) ?? [] };
     });
     list.sort((a, b) => a.nome.localeCompare(b.nome));
     setUsers(list);
@@ -59,7 +63,7 @@ export default function UsuariosPage() {
   // Lista visível conforme escopo: em sala específica, mostra masters + usuários daquela sala
   const visibleUsers = useMemo(() => {
     if (isGlobal) return users;
-    return users.filter((u) => u.role === "master" || u.sala_id === scopeSalaId);
+    return users.filter((u) => u.role === "master" || u.sala_ids?.includes(scopeSalaId ?? ""));
   }, [users, isGlobal, scopeSalaId]);
 
   const salaAtualNome = useMemo(

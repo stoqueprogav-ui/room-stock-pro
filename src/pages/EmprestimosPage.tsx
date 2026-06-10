@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Check, X, ArrowRight, Archive, Printer, UserCheck, Eye, Undo2, MessageCircle, Search, ChevronDown, Package, Repeat, Filter, Calendar, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { formatDateTime } from "@/lib/format";
@@ -35,7 +36,8 @@ type Emp = {
 };
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
-  const { role, profile } = useAuth();
+  const { role } = useAuth();
+  const { activeSalaId } = useActiveSala();
   const navigate = useNavigate();
   const { scopeSalaId } = useMasterScope();
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
@@ -101,14 +103,14 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   };
 
   const podeDecidir = (e: Emp) =>
-    role === "admin" && profile?.sala_id === e.sala_origem_id;
+    role === "admin" && activeSalaId === e.sala_origem_id;
 
   const pendenteTotal = (e: Emp) =>
     (e.itens ?? []).reduce((s, it) => s + (it.quantidade - (it.quantidade_devolvida ?? 0)), 0);
 
   const list = useMemo(() => {
     let l = rows.filter((r) => r.status === tab);
-    if (approveOnly) l = l.filter((r) => r.sala_origem_id === profile?.sala_id);
+    if (approveOnly) l = l.filter((r) => r.sala_origem_id === activeSalaId);
     if (dataIni) l = l.filter((e) => e.created_at >= dataIni);
     if (dataFim) l = l.filter((e) => e.created_at <= dataFim + "T23:59:59");
     if (busca.trim()) {
@@ -124,7 +126,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
       );
     }
     return l;
-  }, [rows, tab, approveOnly, profile?.sala_id, busca, dataIni, dataFim]);
+  }, [rows, tab, approveOnly, activeSalaId, busca, dataIni, dataFim]);
 
   const filtrosAtivos = !!(dataIni || dataFim);
 
@@ -217,7 +219,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         id={revisarId}
         canDecide={!!revisarId && (rows.find((r) => r.id === revisarId)?.status === "pendente") && (() => {
           const e = rows.find((r) => r.id === revisarId);
-          return !!e && role === "admin" && profile?.sala_id === e.sala_origem_id;
+          return !!e && role === "admin" && activeSalaId === e.sala_origem_id;
         })()}
         onDecidir={async (id, ap) => { await decidir(id, ap); }}
       />
