@@ -74,11 +74,27 @@ export default function EstoquePage() {
   const [movObs, setMovObs] = useState("");
   const [movSaving, setMovSaving] = useState(false);
 
+  // Entrada (compra) – formulário completo
+  const [entradaForm, setEntradaForm] = useState({
+    quantidade: 0,
+    valor_unitario: 0,
+    fornecedor: "",
+    numero_nf: "",
+    observacao: "",
+  });
+
+  // Saída – motivo + observação
+  const [saidaMotivo, setSaidaMotivo] = useState<string>("Consumo interno");
+
+  // Última entrada por (produto, sala)
+  const [ultimas, setUltimas] = useState<Map<string, UltimaEntrada>>(new Map());
+
   const load = async () => {
-    const [{ data: s }, { data: e }, { data: c }] = await Promise.all([
+    const [{ data: s }, { data: e }, { data: c }, { data: ents }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
+      supabase.from("estoque").select("produto_id, sala_id, quantidade, custo_medio, valor_total, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
       supabase.from("categorias").select("*").order("nome"),
+      supabase.from("entradas_estoque").select("produto_id, sala_id, valor_unitario, fornecedor, data_entrada").order("data_entrada", { ascending: false }).limit(2000),
     ]);
     setSalas((s as Sala[]) ?? []);
     setCategorias((c as Categoria[]) ?? []);
@@ -86,14 +102,22 @@ export default function EstoquePage() {
       produto_id: r.produto_id,
       sala_id: r.sala_id,
       quantidade: r.quantidade,
+      custo_medio: Number(r.custo_medio ?? 0),
+      valor_total: Number(r.valor_total ?? 0),
       produto: r.produtos,
       sala: r.salas,
     }));
     setRows(mapped);
+    const map = new Map<string, UltimaEntrada>();
+    (ents ?? []).forEach((row: any) => {
+      const k = `${row.produto_id}-${row.sala_id}`;
+      if (!map.has(k)) map.set(k, { data: row.data_entrada, valor_unitario: Number(row.valor_unitario), fornecedor: row.fornecedor });
+    });
+    setUltimas(map);
   };
 
   useEffect(() => { load(); }, []);
-  useRealtimeSync(["estoque", "produtos", "movimentacoes", "salas", "categorias"], () => { load(); }, { debounceMs: 250 });
+  useRealtimeSync(["estoque", "produtos", "movimentacoes", "salas", "categorias", "entradas_estoque"], () => { load(); }, { debounceMs: 250 });
 
   useEffect(() => {
     if (!isMaster && profile?.sala_id) setSalaFilterUI(profile.sala_id);
