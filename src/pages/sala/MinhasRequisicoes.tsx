@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { PageHeader } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -24,7 +24,7 @@ type Req = {
 };
 
 export default function MinhasRequisicoes() {
-  const { profile } = useAuth();
+  const { activeSalaId } = useActiveSala();
   const [rows, setRows] = useState<Req[]>([]);
   const [busca, setBusca] = useState("");
   const [statusF, setStatusF] = useState<string>("todos");
@@ -33,16 +33,16 @@ export default function MinhasRequisicoes() {
   const [showFilters, setShowFilters] = useState(false);
 
   const load = useCallback(async () => {
-    if (!profile?.sala_id) return;
+    if (!activeSalaId) return;
     const { data } = await supabase
       .from("solicitacoes")
       .select(`id, status, observacao, created_at, decidido_em,
                usuario:profiles!solicitacoes_usuario_id_fkey(nome),
                itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade, categoria:categorias(nome)))`)
-      .eq("sala_id", profile.sala_id)
+      .eq("sala_id", activeSalaId)
       .order("created_at", { ascending: false });
     setRows((data as any) ?? []);
-  }, [profile?.sala_id]);
+  }, [activeSalaId]);
   useEffect(() => { load(); }, [load]);
   useRealtimeSync(["solicitacoes", "solicitacao_itens"], load, { debounceMs: 300 });
 
