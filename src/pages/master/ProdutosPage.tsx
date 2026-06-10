@@ -63,14 +63,23 @@ export default function ProdutosPage() {
 
   const load = async () => {
     const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
-      supabase.from("produtos").select("*, categoria:categorias(id, nome), sala:salas(id, nome)").order("nome"),
+      // View master-only retorna todas as colunas (inclusive custo_unitario)
+      supabase.from("v_produtos_master" as any).select("*").order("nome"),
       supabase.from("salas").select("*").order("nome"),
       supabase.from("categorias").select("*").order("nome"),
     ]);
-    setProdutos((p as any) ?? []);
+    const catMap = new Map((c ?? []).map((x: any) => [x.id, x]));
+    const salaMap = new Map((s ?? []).map((x: any) => [x.id, x]));
+    const enriched = ((p as any[]) ?? []).map((row: any) => ({
+      ...row,
+      categoria: row.categoria_id ? catMap.get(row.categoria_id) ?? null : null,
+      sala: row.sala_id ? salaMap.get(row.sala_id) ?? null : null,
+    }));
+    setProdutos(enriched);
     setSalas((s as Sala[]) ?? []);
     setCategorias((c as Categoria[]) ?? []);
   };
+
   useEffect(() => { load(); }, []);
 
   const resetSalasQty = (salasList: Sala[]) => {
