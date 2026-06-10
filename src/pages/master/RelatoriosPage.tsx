@@ -322,6 +322,8 @@ export default function RelatoriosPage() {
     { label: "Produto mais consumido", value: topProduto ? `${topProduto.produto} (${NUM(topProduto.qtd)} un.)` : "—" },
     { label: "Categoria líder", value: topCategoria ? `${topCategoria.cat} — ${BRL(topCategoria.valor)}` : "—" },
     { label: "Maior estoque financeiro", value: salaMaiorEstoque ? `${salaMaiorEstoque.sala_nome} — ${BRL(Number(salaMaiorEstoque.valor_total))}` : "—" },
+    { label: "Produtos valorizados", value: valorizacao ? `${NUM(valorizacao.produtos_valorizados)} de ${NUM(valorizacao.produtos_total)} (${valorizacao.percentual_valorizado}%)` : "—" },
+    { label: "Itens sem valorização", value: valorizacao ? `${NUM(valorizacao.itens_sem_valor)} un.` : "—" },
   ];
 
   const exportarExecutivoXLSX = () => {
