@@ -1015,6 +1015,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_salas: {
+        Row: {
+          created_at: string
+          sala_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          sala_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          sala_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_salas_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1022,6 +1048,10 @@ export type Database = {
     Functions: {
       _recalc_estoque_valor: {
         Args: { _produto: string; _sala: string }
+        Returns: undefined
+      }
+      admin_set_user_salas: {
+        Args: { _salas: string[]; _user: string }
         Returns: undefined
       }
       ajustar_estoque: {
@@ -1164,6 +1194,14 @@ export type Database = {
           type: Database["public"]["Enums"]["conversation_type"]
           unread_count: number
           updated_at: string
+        }[]
+      }
+      listar_minhas_salas: {
+        Args: never
+        Returns: {
+          ativa: boolean
+          sala_id: string
+          sala_nome: string
         }[]
       }
       listar_system_logs: {
@@ -1338,6 +1376,11 @@ export type Database = {
           _conv: string
         }
         Returns: string
+      }
+      set_minha_sala_ativa: { Args: { _sala: string }; Returns: undefined }
+      user_has_sala_access: {
+        Args: { _sala: string; _user: string }
+        Returns: boolean
       }
       valor_estoque_por_sala: {
         Args: never

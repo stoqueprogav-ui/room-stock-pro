@@ -9,6 +9,7 @@ import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeConte
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import NotificationsBell from "@/components/NotificationsBell";
 import MasterScopeSwitcher from "@/components/MasterScopeSwitcher";
+import ActiveSalaSwitcher from "@/components/ActiveSalaSwitcher";
 import FloatingChat from "@/components/FloatingChat";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -245,7 +246,7 @@ function AppLayoutInner() {
             )}
           </div>
           <div className="flex items-center gap-3 ml-auto">
-            {role === "master" && <MasterScopeSwitcher />}
+            {role === "master" ? <MasterScopeSwitcher /> : <ActiveSalaSwitcher />}
             <NotificationsBell />
             <Badge variant="secondary" className="hidden sm:inline-flex">{ROLE_LABEL[role]}</Badge>
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="md:hidden">

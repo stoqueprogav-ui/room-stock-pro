@@ -15,8 +15,10 @@ import type { Sala, AppRole } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import CompanyLogoUploader from "@/components/CompanyLogoUploader";
+import { Checkbox } from "@/components/ui/checkbox";
+import UserSalasDialog from "@/components/UserSalasDialog";
 
-type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null };
+type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null; salas_count?: number };
 
 export default function UsuariosPage() {
   const { profile } = useAuth();
@@ -25,24 +27,28 @@ export default function UsuariosPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, sala_id: "" });
+  const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, salas: [] as string[] });
   const [saving, setSaving] = useState(false);
   const [createdInfo, setCreatedInfo] = useState<{ nome: string; email: string; password: string } | null>(null);
   const [resetOpen, setResetOpen] = useState<UserRow | null>(null);
   const [resetPwd, setResetPwd] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [salasDialog, setSalasDialog] = useState<UserRow | null>(null);
 
   const load = async () => {
-    const [{ data: profs }, { data: roles }, { data: ss }] = await Promise.all([
+    const [{ data: profs }, { data: roles }, { data: ss }, { data: us }] = await Promise.all([
       supabase.from("profiles").select("id, nome, email, sala_id, must_change_password, sala:salas(nome)"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("salas").select("*").order("nome"),
+      supabase.from("user_salas").select("user_id"),
     ]);
     const order: AppRole[] = ["master", "admin", "analista"];
+    const counts = new Map<string, number>();
+    (us ?? []).forEach((r: any) => counts.set(r.user_id, (counts.get(r.user_id) ?? 0) + 1));
     const list: UserRow[] = (profs ?? []).map((p: any) => {
       const userRoles = (roles ?? []).filter((r: any) => r.user_id === p.id).map((r: any) => r.role);
       const role = (order.find((o) => userRoles.includes(o)) ?? "analista") as AppRole;
-      return { ...p, role };
+      return { ...p, role, salas_count: counts.get(p.id) ?? 0 };
     });
     list.sort((a, b) => a.nome.localeCompare(b.nome));
     setUsers(list);
@@ -63,30 +69,39 @@ export default function UsuariosPage() {
 
   const openNovo = () => {
     // Em sala específica, pré-vincula automaticamente
-    setForm({ nome: "", email: "", password: "", role: "analista", sala_id: isGlobal ? "" : (scopeSalaId ?? "") });
+    setForm({ nome: "", email: "", password: "", role: "analista", salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []) });
     setOpen(true);
+  };
+
+  const toggleFormSala = (id: string) => {
+    setForm((f) => ({ ...f, salas: f.salas.includes(id) ? f.salas.filter((x) => x !== id) : [...f.salas, id] }));
   };
 
   const criar = async () => {
     if (!form.email || !form.password || !form.nome) return toast.error("Preencha nome, email e senha");
-    if (form.role !== "master" && !form.sala_id) return toast.error("Admin/Analista exige sala");
+    if (form.role !== "master" && form.salas.length === 0) return toast.error("Selecione ao menos uma sala");
     setSaving(true);
+    const primary = form.role === "master" ? null : form.salas[0];
     const { data, error } = await supabase.functions.invoke("admin-create-user", {
       body: {
         nome: form.nome,
         email: form.email.trim(),
         password: form.password,
         role: form.role,
-        sala_id: form.role === "master" ? null : form.sala_id,
+        sala_id: primary,
       },
     });
+    const payload = (data ?? {}) as { ok?: boolean; error?: string; step?: string; user_id?: string };
+    if (error) { setSaving(false); return toast.error(`Erro de rede: ${error.message}`); }
+    if (!payload.ok) { setSaving(false); return toast.error(payload.error ?? "Falha ao criar usuário"); }
+    // Atribui todas as salas autorizadas
+    if (form.role !== "master" && payload.user_id) {
+      await supabase.rpc("admin_set_user_salas", { _user: payload.user_id, _salas: form.salas });
+    }
     setSaving(false);
-    const payload = (data ?? {}) as { ok?: boolean; error?: string; step?: string };
-    if (error) return toast.error(`Erro de rede: ${error.message}`);
-    if (!payload.ok) return toast.error(payload.error ?? "Falha ao criar usuário");
     setCreatedInfo({ nome: form.nome, email: form.email.trim(), password: form.password });
     setOpen(false);
-    setForm({ nome: "", email: "", password: "", role: "analista", sala_id: "" });
+    setForm({ nome: "", email: "", password: "", role: "analista", salas: [] });
     setTimeout(load, 400);
   };
 
@@ -97,11 +112,6 @@ export default function UsuariosPage() {
     toast.success("Perfil atualizado"); load();
   };
 
-  const updateSala = async (u: UserRow, salaId: string | null) => {
-    const { error } = await supabase.from("profiles").update({ sala_id: salaId }).eq("id", u.id);
-    if (error) return toast.error(error.message);
-    toast.success("Sala atualizada"); load();
-  };
 
   const remover = async (u: UserRow) => {
     const { data, error } = await supabase.functions.invoke("admin-delete-user", {
@@ -178,17 +188,14 @@ export default function UsuariosPage() {
                   </Select>
                 </TableCell>
                 <TableCell>
-                  <Select
-                    value={u.sala_id ?? "none"}
-                    onValueChange={(v) => updateSala(u, v === "none" ? null : v)}
-                    disabled={u.role === "master"}
-                  >
-                    <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— sem sala —</SelectItem>
-                      {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {u.role === "master" ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Globe2 className="size-3.5" /> Todas as salas</span>
+                  ) : (
+                    <Button variant="outline" size="sm" className="h-8" onClick={() => setSalasDialog(u)}>
+                      <Building2 className="size-3.5" />
+                      {u.salas_count ? `${u.salas_count} sala${u.salas_count > 1 ? "s" : ""}` : "Definir salas"}
+                    </Button>
+                  )}
                 </TableCell>
                 <TableCell>
                   {u.must_change_password ? (
@@ -239,34 +246,41 @@ export default function UsuariosPage() {
                 Será vinculado automaticamente à sala <span className="font-medium text-foreground">{salaAtualNome}</span>.
               </div>
             )}
-            <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
-            <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Senha provisória</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
               <div className="space-y-2">
                 <Label>Perfil</Label>
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {/* Em modo sala, não permite criar Master por aqui (Master é global) */}
                     {isGlobal && <SelectItem value="master">Master</SelectItem>}
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="analista">Analista</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Sala</Label>
-                <Select
-                  value={form.sala_id}
-                  onValueChange={(v) => setForm({ ...form, sala_id: v })}
-                  disabled={form.role === "master" || !isGlobal}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
             </div>
+            <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Senha provisória</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
+            {form.role !== "master" && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Building2 className="size-3.5 text-primary" /> Salas autorizadas</Label>
+                <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
+                  {salas.length === 0 && <div className="text-xs text-muted-foreground px-2 py-2">Nenhuma sala cadastrada.</div>}
+                  {salas.map((s) => (
+                    <label key={s.id} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer">
+                      <Checkbox
+                        checked={form.salas.includes(s.id)}
+                        onCheckedChange={() => toggleFormSala(s.id)}
+                        disabled={!isGlobal && s.id !== scopeSalaId && !form.salas.includes(s.id)}
+                      />
+                      <span className="text-sm flex-1">{s.nome}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="text-xs text-muted-foreground">{form.salas.length} sala{form.salas.length === 1 ? "" : "s"} selecionada{form.salas.length === 1 ? "" : "s"}.</div>
+              </div>
+            )}
             <div className="text-xs text-muted-foreground flex items-center gap-2">Pré-visualização: <RoleBadge role={form.role} /></div>
           </div>
           <DialogFooter>
@@ -309,6 +323,15 @@ export default function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UserSalasDialog
+        open={!!salasDialog}
+        onOpenChange={(o) => !o && setSalasDialog(null)}
+        userId={salasDialog?.id ?? null}
+        userNome={salasDialog?.nome}
+        salas={salas}
+        onSaved={load}
+      />
     </div>
   );
 }
