@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 
 export type ExportColumn<T> = { header: string; key: keyof T | string; map?: (row: T) => any };
 
