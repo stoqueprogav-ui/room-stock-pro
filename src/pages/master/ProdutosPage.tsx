@@ -343,6 +343,13 @@ export default function ProdutosPage() {
               </div>
               <div className="space-y-2"><Label>Estoque mínimo</Label><Input type="number" min={0} value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} /></div>
             </div>
+            <div className="space-y-2">
+              <Label>Custo unitário (R$)</Label>
+              <Input type="number" min={0} step="0.01" value={form.custo_unitario}
+                onChange={(e) => setForm({ ...form, custo_unitario: Number(e.target.value) })}
+                placeholder="0,00" />
+              <p className="text-xs text-muted-foreground">Usado nos relatórios financeiros. Histórico de alterações é registrado automaticamente.</p>
+            </div>
 
             {editing && (
               <div className="space-y-3 pt-3 border-t">
