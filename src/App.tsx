@@ -98,7 +98,7 @@ function MovimentacoesRouter() {
   return role === "master" ? <MovimentacoesMasterPage /> : <MovimentacoesPage />;
 }
 
-function MasterOnly({ children }: { children: JSX.Element }) {
+function MasterOnly({ children }: { children: React.ReactElement }) {
   const { role, loading } = useAuth();
   if (loading) return null;
   if (role !== "master") return <Navigate to="/app" replace />;
