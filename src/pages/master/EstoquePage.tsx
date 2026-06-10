@@ -450,7 +450,7 @@ export default function EstoquePage() {
                       <Button variant="ghost" size="icon" title="Editar produto" onClick={() => openEditProduto(r.produto)}>
                         <Pencil className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" title="Excluir produto" onClick={() => setConfirmDel(r.produto)}>
+                      <Button variant="ghost" size="icon" title="Excluir produto" onClick={() => { setDelMode("sala"); setConfirmDel({ produto: r.produto, sala: r.sala }); }}>
                         <Trash2 className="size-4 text-destructive" />
                       </Button>
                     </div>
