@@ -112,7 +112,7 @@ export default function RelatoriosPage() {
       ]);
       setSalas((ss.data as Sala[]) ?? []);
       setCategorias((cc.data as Categoria[]) ?? []);
-      setProdutos((pp.data as Produto[]) ?? []);
+      setProdutos(((pp.data ?? []) as unknown) as Produto[]);
       setEstoqueValor((ev.data as EstoqueValorRow[]) ?? []);
       setEmpSalas((es.data as EmpSalaRow[]) ?? []);
       const vzRow = Array.isArray(vz.data) ? (vz.data as any[])[0] : (vz.data as any);
