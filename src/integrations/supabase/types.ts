@@ -608,11 +608,50 @@ export type Database = {
           },
         ]
       }
+      produto_custo_historico: {
+        Row: {
+          alterado_em: string
+          alterado_por: string | null
+          alterado_por_nome: string | null
+          id: string
+          produto_id: string
+          valor_anterior: number | null
+          valor_novo: number
+        }
+        Insert: {
+          alterado_em?: string
+          alterado_por?: string | null
+          alterado_por_nome?: string | null
+          id?: string
+          produto_id: string
+          valor_anterior?: number | null
+          valor_novo: number
+        }
+        Update: {
+          alterado_em?: string
+          alterado_por?: string | null
+          alterado_por_nome?: string | null
+          id?: string
+          produto_id?: string
+          valor_anterior?: number | null
+          valor_novo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produto_custo_historico_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produtos: {
         Row: {
           ativo: boolean
           categoria_id: string | null
           created_at: string
+          custo_unitario: number
           descricao: string | null
           estoque_minimo: number
           id: string
@@ -625,6 +664,7 @@ export type Database = {
           ativo?: boolean
           categoria_id?: string | null
           created_at?: string
+          custo_unitario?: number
           descricao?: string | null
           estoque_minimo?: number
           id?: string
@@ -637,6 +677,7 @@ export type Database = {
           ativo?: boolean
           categoria_id?: string | null
           created_at?: string
+          custo_unitario?: number
           descricao?: string | null
           estoque_minimo?: number
           id?: string
@@ -1067,6 +1108,37 @@ export type Database = {
         Args: { _emp: string; _itens: Json; _observacao?: string }
         Returns: string
       }
+      relatorio_consumo: {
+        Args: {
+          _categoria?: string
+          _from?: string
+          _produto?: string
+          _sala?: string
+          _to?: string
+        }
+        Returns: {
+          categoria_id: string
+          categoria_nome: string
+          custo_unitario: number
+          produto_id: string
+          produto_nome: string
+          quantidade: number
+          sala_id: string
+          sala_nome: string
+          valor: number
+        }[]
+      }
+      relatorio_emprestimos_salas: {
+        Args: never
+        Returns: {
+          emprestados_qtd: number
+          emprestados_unidades: number
+          recebidos_qtd: number
+          recebidos_unidades: number
+          sala_id: string
+          sala_nome: string
+        }[]
+      }
       reset_sistema_total: { Args: { _caller?: string }; Returns: Json }
       seed_categorias_padrao: { Args: never; Returns: undefined }
       send_message: {
@@ -1078,6 +1150,15 @@ export type Database = {
           _conv: string
         }
         Returns: string
+      }
+      valor_estoque_por_sala: {
+        Args: never
+        Returns: {
+          sala_id: string
+          sala_nome: string
+          total_itens: number
+          valor_total: number
+        }[]
       }
     }
     Enums: {

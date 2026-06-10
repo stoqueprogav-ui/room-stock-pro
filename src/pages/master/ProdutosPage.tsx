@@ -27,7 +27,7 @@ export default function ProdutosPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Produto | null>(null);
-  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, categoria_id: "", ativo: true, sala_id: "" as string });
+  const [form, setForm] = useState({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, custo_unitario: 0, categoria_id: "", ativo: true, sala_id: "" as string });
 
   // Escopo do produto
   const [escopo, setEscopo] = useState<Escopo>("global");
@@ -79,7 +79,7 @@ export default function ProdutosPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, categoria_id: "", ativo: true, sala_id: "" });
+    setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, custo_unitario: 0, categoria_id: "", ativo: true, sala_id: "" });
     setEscopo("global");
     setSalaUnica("");
     setQtdInicialSala(0);
@@ -93,6 +93,7 @@ export default function ProdutosPage() {
       descricao: p.descricao ?? "",
       unidade: p.unidade,
       estoque_minimo: p.estoque_minimo,
+      custo_unitario: Number((p as any).custo_unitario ?? 0),
       categoria_id: p.categoria_id ?? "",
       ativo: p.ativo !== false,
       sala_id: p.sala_id ?? "",
@@ -109,6 +110,7 @@ export default function ProdutosPage() {
       descricao: form.descricao || null,
       unidade: (form.unidade || "Unidade").trim(),
       estoque_minimo: Number(form.estoque_minimo) || 0,
+      custo_unitario: Number(form.custo_unitario) || 0,
       categoria_id: form.categoria_id,
     };
 
@@ -238,6 +240,7 @@ export default function ProdutosPage() {
               <TableHead>Descrição</TableHead>
               <TableHead className="w-[90px]">Unidade</TableHead>
               <TableHead className="w-[90px] text-right">Mínimo</TableHead>
+              <TableHead className="w-[110px] text-right">Custo (R$)</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[140px] text-right">Ações</TableHead>
             </TableRow>
@@ -261,6 +264,7 @@ export default function ProdutosPage() {
                   <TableCell className="text-muted-foreground max-w-md truncate">{p.descricao ?? "—"}</TableCell>
                   <TableCell>{p.unidade}</TableCell>
                   <TableCell className="text-right font-mono text-warning">{p.estoque_minimo}</TableCell>
+                  <TableCell className="text-right font-mono">{Number((p as any).custo_unitario ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                   <TableCell>
                     {inativo
                       ? <Badge className="bg-muted text-muted-foreground border">Inativo</Badge>
@@ -283,7 +287,7 @@ export default function ProdutosPage() {
                 </TableRow>
               );
             })}
-            {lista.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
+            {lista.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -338,6 +342,13 @@ export default function ProdutosPage() {
                 )}
               </div>
               <div className="space-y-2"><Label>Estoque mínimo</Label><Input type="number" min={0} value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} /></div>
+            </div>
+            <div className="space-y-2">
+              <Label>Custo unitário (R$)</Label>
+              <Input type="number" min={0} step="0.01" value={form.custo_unitario}
+                onChange={(e) => setForm({ ...form, custo_unitario: Number(e.target.value) })}
+                placeholder="0,00" />
+              <p className="text-xs text-muted-foreground">Usado nos relatórios financeiros. Histórico de alterações é registrado automaticamente.</p>
             </div>
 
             {editing && (

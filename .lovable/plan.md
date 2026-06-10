@@ -1,67 +1,58 @@
-# Plano — Plataforma de Gestão Operacional
+# Plano — Central Analítica Executiva
 
-Esse é um pacote grande (8 módulos). Vou propor uma divisão em **4 fases** para entregar valor rápido e validar cada parte antes de avançar. Confirme quais fases quer que eu execute (pode ser tudo de uma vez, mas o resultado fica mais sólido em etapas).
+Escopo grande. Vou entregar em **fases** para garantir qualidade. Confirme antes de iniciar.
 
-## Fase 1 — Consumo Interno (núcleo novo)
+## Fase 1 — Fundação financeira (base de tudo)
 
-**Backend (migration):**
-- Nova tabela `consumos_internos` (sala_id, produto_id, quantidade, motivo, observacao, usuario_id, created_at).
-- Enum `motivo_consumo`: Consumo Interno, Evento, Uso Administrativo, Uso Operacional, Perda, Avaria, Descarte, Outro.
-- Novo tipo em `movimentacoes.tipo`: `consumo_interno`.
-- RPC `registrar_consumo_interno(_sala, _produto, _qtd, _motivo, _obs)`:
-  - Verifica role master, baixa estoque, insere movimentação, insere consumo, chama `log_event`.
-- RLS + GRANTs.
+Sem custo unitário cadastrado, nenhum relatório financeiro funciona. Esta fase é obrigatória primeiro.
 
-**Frontend:**
-- Novo menu **Consumo Interno** (master).
-- Página com formulário (sala → categoria → produto → quantidade → motivo → observação) + lista/busca dos consumos registrados.
+1. **Migração de banco**:
+   - Adicionar `custo_unitario NUMERIC(12,2) DEFAULT 0` em `produtos`.
+   - Criar tabela `produto_custo_historico` (produto_id, valor_anterior, valor_novo, alterado_por, alterado_em) com RLS + GRANTs.
+   - Trigger em `produtos` que grava histórico quando `custo_unitario` muda.
+   - Função `valor_estoque_por_sala()` e `valor_consumido(periodo, filtros)` (SECURITY DEFINER).
+2. **UI Produtos**: campo "Custo unitário (R$)" no cadastro/edição + aba "Histórico de custo" no card expandido.
 
-## Fase 2 — Inventário
+## Fase 2 — Limpeza e renomeação
 
-**Backend:**
-- Tabela `inventarios` (codigo `INV-AAAA-0000`, sala_id nullable, data_referencia, total_itens, criado_por).
-- Tabela `inventario_itens` (inventario_id, produto_id, sala_id, categoria_id, quantidade, unidade).
-- RPC `gerar_inventario(_sala, _categoria, _produto)` → cria snapshot a partir do `estoque` atual.
+- Renomear menu "Relatório de Inventário" → **"Inventário"** (`AppLayout.tsx`).
+- Remover da Central Analítica os atalhos: Inventários, Consumo Interno, Movimentações, Requisições, Empréstimos, Auditoria, Dívidas.
 
-**Frontend:**
-- Menu **Inventário** com filtros (sala, categoria, produto, data), tabela, exportar PDF (jsPDF + autotable) e Excel (xlsx — já posso adicionar a dependência).
-- Submenu **Histórico** listando inventários salvos com consulta posterior.
+## Fase 3 — Central Analítica reconstruída
 
-## Fase 3 — Central de Relatórios
+Nova `RelatoriosPage.tsx` em **abas**, cada uma com filtros (período, sala, categoria), tabela + gráficos (Recharts) + exportação PDF/Excel/Impressão:
 
-Reaproveita a página `RelatoriosPage` existente, transformando em hub com abas:
+| Aba | Conteúdo |
+|---|---|
+| **Dashboard Executivo** | KPIs (valor total estoque, consumo do mês, sala/produto/categoria líder), evolução mensal consumo & custo, Top 10 produtos, Top 10 salas |
+| **Empréstimos** | Sala que mais empresta/solicita, pendentes/devolvidos/arquivados, rankings credoras/devedoras, evolução mensal |
+| **Ranking de Salas** | Top 10: requisições, consumo, empréstimos pegos, empréstimos feitos, custo |
+| **Consumo por Sala** | Qtde, movimentações, requisições, empréstimos, % global, valor R$ |
+| **Produtos Mais Consumidos** | Top 10 com filtros global/sala/categoria/período |
+| **Comparativo entre Salas** | Matriz produto × sala |
+| **Financeiro de Consumo** | Qtde × valor com filtros |
+| **Custo por Sala** | Ranking R$ |
+| **Categorias** | Qtde, valor, % |
+| **Curva ABC** | Classificação A/B/C automática |
+| **Valor de Estoques** | Valor por sala + total consolidado |
 
-1. **Inventário** (link p/ fase 2)
-2. **Consumo Interno** — lista + filtros + ranking
-3. **Consumo por Sala** — ranking com filtro Hoje/Semana/Mês/Ano/Personalizado
-4. **Produtos Mais Consumidos** — ranking com filtros sala/categoria/período
-5. **Requisições** — totais por sala, aprovadas/rejeitadas/arquivadas, top produtos
-6. **Empréstimos** — quem mais empresta/pega, totais emprestados/devolvidos/pendentes
-7. **Movimentações / Produtos / Salas / Auditoria** — atalhos com filtros + export
+## Fase 4 — Exportação executiva
 
-Cada aba: filtros, tabela, **Exportar PDF**, **Exportar Excel**, **Imprimir**.
-
-## Fase 4 — Dashboard Gerencial do Master
-
-Nova aba no `MasterOverview` (ou rota `/app/dashboard-gerencial`):
-- KPIs: produtos, itens em estoque, movimentações do mês, requisições do mês, empréstimos ativos, consumos internos do mês.
-- Gráficos (recharts — já no projeto):
-  - Consumo por sala (barras)
-  - Consumo por categoria (pizza)
-  - Requisições por período (linha)
-  - Empréstimos por período (linha)
-  - Consumo interno por período (área)
-- Top salas consumidoras e top produtos consumidos.
-
-## Dependências a adicionar
-- `xlsx` (export Excel) — `jspdf` e `jspdf-autotable` (provavelmente já há jsPDF; checo na hora).
+- Estender `exporters.ts`:
+  - `exportExecutiveExcel`: 4 abas (Resumo, Dados, Indicadores, Gráficos como imagens).
+  - PDF com **Resumo Executivo** no topo + gráficos renderizados via `html2canvas` da área visível.
+- Cabeçalho padrão (já existe) + rodapé já existente.
 
 ## Detalhes técnicos
-- Realtime via `useRealtimeSync` em todas as novas telas.
-- Todas as RPCs como `SECURITY DEFINER` + checagem `has_role(... 'master')`.
-- Auditoria via `log_event` em cada operação relevante.
-- Exports respeitam os filtros ativos.
 
----
+- Dependências novas: `html2canvas` (gráficos no PDF). `recharts` já presente.
+- Todos os cálculos financeiros em SQL/RPC para performance (não no cliente).
+- Cache de resultados por sessão (useMemo) ao trocar de aba.
 
-**Pergunta:** Posso executar tudo (Fases 1–4) em sequência agora, ou prefere que eu entregue Fase 1 primeiro e valide antes das próximas? Recomendo começar pela Fase 1 + Fase 2 — são as fundações que alimentam os relatórios e o dashboard.
+## Tamanho estimado
+
+~15 arquivos novos/editados, 2 migrações. Vou executar **fase por fase**, validando cada uma antes da próxima.
+
+## Pergunta antes de começar
+
+Posso iniciar pela **Fase 1 (custo unitário + histórico)**? Sem ela as fases financeiras (10–16, 22) não têm dados reais — mostrariam tudo zerado. Se preferir, posso começar pelas fases não-financeiras (2, 3 parcial, 4) e deixar custos para depois.
