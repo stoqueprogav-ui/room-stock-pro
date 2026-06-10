@@ -43,10 +43,12 @@ export default function UsuariosPage() {
       supabase.from("user_salas").select("user_id"),
     ]);
     const order: AppRole[] = ["master", "admin", "analista"];
+    const counts = new Map<string, number>();
+    (us ?? []).forEach((r: any) => counts.set(r.user_id, (counts.get(r.user_id) ?? 0) + 1));
     const list: UserRow[] = (profs ?? []).map((p: any) => {
       const userRoles = (roles ?? []).filter((r: any) => r.user_id === p.id).map((r: any) => r.role);
       const role = (order.find((o) => userRoles.includes(o)) ?? "analista") as AppRole;
-      return { ...p, role };
+      return { ...p, role, salas_count: counts.get(p.id) ?? 0 };
     });
     list.sort((a, b) => a.nome.localeCompare(b.nome));
     setUsers(list);
@@ -67,30 +69,39 @@ export default function UsuariosPage() {
 
   const openNovo = () => {
     // Em sala específica, pré-vincula automaticamente
-    setForm({ nome: "", email: "", password: "", role: "analista", sala_id: isGlobal ? "" : (scopeSalaId ?? "") });
+    setForm({ nome: "", email: "", password: "", role: "analista", salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []) });
     setOpen(true);
+  };
+
+  const toggleFormSala = (id: string) => {
+    setForm((f) => ({ ...f, salas: f.salas.includes(id) ? f.salas.filter((x) => x !== id) : [...f.salas, id] }));
   };
 
   const criar = async () => {
     if (!form.email || !form.password || !form.nome) return toast.error("Preencha nome, email e senha");
-    if (form.role !== "master" && !form.sala_id) return toast.error("Admin/Analista exige sala");
+    if (form.role !== "master" && form.salas.length === 0) return toast.error("Selecione ao menos uma sala");
     setSaving(true);
+    const primary = form.role === "master" ? null : form.salas[0];
     const { data, error } = await supabase.functions.invoke("admin-create-user", {
       body: {
         nome: form.nome,
         email: form.email.trim(),
         password: form.password,
         role: form.role,
-        sala_id: form.role === "master" ? null : form.sala_id,
+        sala_id: primary,
       },
     });
+    const payload = (data ?? {}) as { ok?: boolean; error?: string; step?: string; user_id?: string };
+    if (error) { setSaving(false); return toast.error(`Erro de rede: ${error.message}`); }
+    if (!payload.ok) { setSaving(false); return toast.error(payload.error ?? "Falha ao criar usuário"); }
+    // Atribui todas as salas autorizadas
+    if (form.role !== "master" && payload.user_id) {
+      await supabase.rpc("admin_set_user_salas", { _user: payload.user_id, _salas: form.salas });
+    }
     setSaving(false);
-    const payload = (data ?? {}) as { ok?: boolean; error?: string; step?: string };
-    if (error) return toast.error(`Erro de rede: ${error.message}`);
-    if (!payload.ok) return toast.error(payload.error ?? "Falha ao criar usuário");
     setCreatedInfo({ nome: form.nome, email: form.email.trim(), password: form.password });
     setOpen(false);
-    setForm({ nome: "", email: "", password: "", role: "analista", sala_id: "" });
+    setForm({ nome: "", email: "", password: "", role: "analista", salas: [] });
     setTimeout(load, 400);
   };
 
