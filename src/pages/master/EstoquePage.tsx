@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt } from "lucide-react";
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
@@ -35,7 +36,8 @@ function getStatus(q: number, p: Produto): StatusKind {
 }
 
 export default function EstoquePage() {
-  const { role, profile } = useAuth();
+  const { role } = useAuth();
+  const { activeSalaId } = useActiveSala();
   const isMaster = role === "master";
   const masterScope = useMasterScope();
 
@@ -147,12 +149,12 @@ export default function EstoquePage() {
   useRealtimeSync(["estoque", "produtos", "movimentacoes", "salas", "categorias", "entradas_estoque"], () => { load(); }, { debounceMs: 250 });
 
   useEffect(() => {
-    if (!isMaster && profile?.sala_id) setSalaFilterUI(profile.sala_id);
-  }, [isMaster, profile]);
+    if (!isMaster && activeSalaId) setSalaFilterUI(activeSalaId);
+  }, [isMaster, activeSalaId]);
 
   const effectiveSalaFilter: string = isMaster
     ? (masterScope.scopeSalaId ?? "all")
-    : (profile?.sala_id ?? "all");
+    : (activeSalaId ?? "all");
 
   const filtered = useMemo(() => {
     const base = rows
