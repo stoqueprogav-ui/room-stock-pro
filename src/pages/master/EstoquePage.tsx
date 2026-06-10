@@ -484,9 +484,9 @@ export default function EstoquePage() {
               <TableHead>Sala</TableHead>
               <TableHead className="text-right w-[90px]">Qtd</TableHead>
               <TableHead className="text-right w-[70px]">Mín.</TableHead>
-              <TableHead className="text-right w-[110px]">CMP</TableHead>
-              <TableHead className="text-right w-[120px]">V. estoque</TableHead>
-              <TableHead className="w-[150px]">Última compra</TableHead>
+              {isMaster && <TableHead className="text-right w-[110px]">CMP</TableHead>}
+              {isMaster && <TableHead className="text-right w-[120px]">V. estoque</TableHead>}
+              {isMaster && <TableHead className="w-[150px]">Última compra</TableHead>}
               <TableHead className="w-[120px]">Status</TableHead>
               {isMaster && <TableHead className="w-[320px] text-right">Ações</TableHead>}
             </TableRow>
@@ -505,18 +505,25 @@ export default function EstoquePage() {
                   </TableCell>
                 )}
                 <TableCell className="font-medium">
-                  <button
-                    type="button"
-                    onClick={() => toggleExpand(r)}
-                    className="inline-flex items-center gap-1.5 text-left hover:text-primary transition-colors"
-                    title="Ficha financeira"
-                  >
-                    {expanded.has(`${r.produto_id}-${r.sala_id}`)
-                      ? <ChevronDown className="size-4 text-muted-foreground" />
-                      : <ChevronRight className="size-4 text-muted-foreground" />}
-                    <span>{r.produto.nome}</span>
-                    <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
-                  </button>
+                  {isMaster ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(r)}
+                      className="inline-flex items-center gap-1.5 text-left hover:text-primary transition-colors"
+                      title="Ficha financeira"
+                    >
+                      {expanded.has(`${r.produto_id}-${r.sala_id}`)
+                        ? <ChevronDown className="size-4 text-muted-foreground" />
+                        : <ChevronRight className="size-4 text-muted-foreground" />}
+                      <span>{r.produto.nome}</span>
+                      <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span>{r.produto.nome}</span>
+                      <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell>
                   {(r.produto as any)?.categoria?.nome
@@ -526,20 +533,22 @@ export default function EstoquePage() {
                 <TableCell>{r.sala.nome}</TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
-                <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>
-                <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>
-                <TableCell className="text-xs">
-                  {(() => {
-                    const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
-                    if (!u) return <span className="text-muted-foreground">Sem compras</span>;
-                    return (
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
-                        <div className="font-mono">{BRL(u.valor_unitario)}{u.fornecedor ? ` · ${u.fornecedor}` : ""}</div>
-                      </div>
-                    );
-                  })()}
-                </TableCell>
+                {isMaster && <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>}
+                {isMaster && <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>}
+                {isMaster && (
+                  <TableCell className="text-xs">
+                    {(() => {
+                      const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
+                      if (!u) return <span className="text-muted-foreground">Sem compras</span>;
+                      return (
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
+                          <div className="font-mono">{BRL(u.valor_unitario)}{u.fornecedor ? ` · ${u.fornecedor}` : ""}</div>
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                )}
                 <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
                 {isMaster && (
                   <TableCell className="text-right">
@@ -570,9 +579,9 @@ export default function EstoquePage() {
                   </TableCell>
                 )}
               </TableRow>
-              {expanded.has(`${r.produto_id}-${r.sala_id}`) && (
+              {isMaster && expanded.has(`${r.produto_id}-${r.sala_id}`) && (
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableCell colSpan={isMaster ? 11 : 9} className="p-0">
+                  <TableCell colSpan={11} className="p-0">
                     <FichaFinanceira
                       row={r}
                       loading={historyLoading.has(`${r.produto_id}-${r.sala_id}`)}
@@ -583,7 +592,7 @@ export default function EstoquePage() {
               )}
             </React.Fragment>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 9} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 6} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
