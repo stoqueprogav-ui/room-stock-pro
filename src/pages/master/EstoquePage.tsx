@@ -567,6 +567,18 @@ export default function EstoquePage() {
                   </TableCell>
                 )}
               </TableRow>
+              {expanded.has(`${r.produto_id}-${r.sala_id}`) && (
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableCell colSpan={isMaster ? 11 : 9} className="p-0">
+                    <FichaFinanceira
+                      row={r}
+                      loading={historyLoading.has(`${r.produto_id}-${r.sala_id}`)}
+                      entradas={history.get(`${r.produto_id}-${r.sala_id}`) ?? []}
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+            </React.Fragment>
             ))}
             {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 9} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
