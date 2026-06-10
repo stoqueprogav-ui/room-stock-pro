@@ -9,6 +9,7 @@ import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeConte
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import NotificationsBell from "@/components/NotificationsBell";
 import MasterScopeSwitcher from "@/components/MasterScopeSwitcher";
+import ActiveSalaSwitcher from "@/components/ActiveSalaSwitcher";
 import FloatingChat from "@/components/FloatingChat";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
