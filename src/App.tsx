@@ -91,7 +91,6 @@ const App = () => (
 );
 
 function MovimentacoesRouter() {
-  const { useAuth } = require("./contexts/AuthContext");
   const { role } = useAuth();
   return role === "master" ? <MovimentacoesMasterPage /> : <MovimentacoesPage />;
 }
