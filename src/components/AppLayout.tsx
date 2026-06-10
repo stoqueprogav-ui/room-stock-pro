@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
-  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle, MapPin, Settings, Globe2, Trash2, ClipboardCheck, LineChart, PackagePlus,
+  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle, MapPin, Settings, Globe2, Trash2, ClipboardCheck, LineChart,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
@@ -38,7 +38,6 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
     items.push(
       { to: "/app/produtos", label: "Produtos", icon: Package },
       { to: "/app/estoque", label: "Estoque", icon: Boxes },
-      { to: "/app/entradas", label: "Entradas (compras)", icon: PackagePlus },
       { to: "/app/requisicoes", label: "Requisições", icon: Inbox, badgeKey: "requisicoes" },
       {
         label: "Empréstimos", icon: ArrowLeftRight,

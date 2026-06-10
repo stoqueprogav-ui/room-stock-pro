@@ -11,15 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X } from "lucide-react";
+import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar } from "lucide-react";
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-type Row = { produto_id: string; sala_id: string; quantidade: number; produto: Produto; sala: Sala };
+type Row = { produto_id: string; sala_id: string; quantidade: number; custo_medio: number; valor_total: number; produto: Produto; sala: Sala };
+type UltimaEntrada = { data: string; valor_unitario: number; fornecedor: string | null };
 type StatusKind = "ok" | "baixo" | "critico";
 type SortKey = "nome" | "quantidade" | "menor";
+
+const BRL = (v: number) => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const MOTIVOS_SAIDA = ["Consumo interno", "Quebra/Avaria", "Vencido", "Uso em evento", "Ajuste de inventário", "Outros"];
 
 const UNIDADES_PRESET = ["Unidade", "Caixa", "Fardo", "Pacote", "Kit", "Litro", "Galão", "Rolo", "Par", "Metro"];
 
@@ -70,11 +74,27 @@ export default function EstoquePage() {
   const [movObs, setMovObs] = useState("");
   const [movSaving, setMovSaving] = useState(false);
 
+  // Entrada (compra) – formulário completo
+  const [entradaForm, setEntradaForm] = useState({
+    quantidade: 0,
+    valor_unitario: 0,
+    fornecedor: "",
+    numero_nf: "",
+    observacao: "",
+  });
+
+  // Saída – motivo + observação
+  const [saidaMotivo, setSaidaMotivo] = useState<string>("Consumo interno");
+
+  // Última entrada por (produto, sala)
+  const [ultimas, setUltimas] = useState<Map<string, UltimaEntrada>>(new Map());
+
   const load = async () => {
-    const [{ data: s }, { data: e }, { data: c }] = await Promise.all([
+    const [{ data: s }, { data: e }, { data: c }, { data: ents }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
+      supabase.from("estoque").select("produto_id, sala_id, quantidade, custo_medio, valor_total, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
       supabase.from("categorias").select("*").order("nome"),
+      supabase.from("entradas_estoque").select("produto_id, sala_id, valor_unitario, fornecedor, data_entrada").order("data_entrada", { ascending: false }).limit(2000),
     ]);
     setSalas((s as Sala[]) ?? []);
     setCategorias((c as Categoria[]) ?? []);
@@ -82,14 +102,22 @@ export default function EstoquePage() {
       produto_id: r.produto_id,
       sala_id: r.sala_id,
       quantidade: r.quantidade,
+      custo_medio: Number(r.custo_medio ?? 0),
+      valor_total: Number(r.valor_total ?? 0),
       produto: r.produtos,
       sala: r.salas,
     }));
     setRows(mapped);
+    const map = new Map<string, UltimaEntrada>();
+    (ents ?? []).forEach((row: any) => {
+      const k = `${row.produto_id}-${row.sala_id}`;
+      if (!map.has(k)) map.set(k, { data: row.data_entrada, valor_unitario: Number(row.valor_unitario), fornecedor: row.fornecedor });
+    });
+    setUltimas(map);
   };
 
   useEffect(() => { load(); }, []);
-  useRealtimeSync(["estoque", "produtos", "movimentacoes", "salas", "categorias"], () => { load(); }, { debounceMs: 250 });
+  useRealtimeSync(["estoque", "produtos", "movimentacoes", "salas", "categorias", "entradas_estoque"], () => { load(); }, { debounceMs: 250 });
 
   useEffect(() => {
     if (!isMaster && profile?.sala_id) setSalaFilterUI(profile.sala_id);
@@ -171,27 +199,52 @@ export default function EstoquePage() {
     setMovRow(row);
     setMovQtd(0);
     setMovObs("");
+    setSaidaMotivo("Consumo interno");
+    setEntradaForm({ quantidade: 0, valor_unitario: Number(row.custo_medio || 0), fornecedor: "", numero_nf: "", observacao: "" });
     setMovOpen(true);
   };
 
   const confirmarMov = async () => {
     if (!movRow) return;
+
+    if (movTipo === "entrada") {
+      const qtd = Number(entradaForm.quantidade);
+      const vu = Number(entradaForm.valor_unitario);
+      if (!qtd || qtd <= 0) return toast.error("Quantidade inválida");
+      if (vu < 0) return toast.error("Valor unitário inválido");
+      setMovSaving(true);
+      const { error } = await supabase.rpc("registrar_entrada_estoque", {
+        _produto: movRow.produto_id,
+        _sala: movRow.sala_id,
+        _quantidade: qtd,
+        _valor_unitario: vu,
+        _fornecedor: entradaForm.fornecedor || null,
+        _numero_nf: entradaForm.numero_nf || null,
+        _data_entrada: new Date().toISOString(),
+        _observacao: entradaForm.observacao || null,
+      });
+      setMovSaving(false);
+      if (error) return toast.error(error.message);
+      toast.success(`Entrada de ${qtd} ${movRow.produto.unidade} registrada · CMP recalculado`);
+      setMovOpen(false);
+      load();
+      return;
+    }
+
+    // Saída
     if (!movQtd || movQtd <= 0) return toast.error("Quantidade inválida");
-
-    const atual = movRow.quantidade;
-    const novoSaldo = movTipo === "entrada" ? atual + movQtd : atual - movQtd;
+    const novoSaldo = movRow.quantidade - movQtd;
     if (novoSaldo < 0) return toast.error("Estoque insuficiente para esta saída");
-
     setMovSaving(true);
     const { error } = await supabase.rpc("ajustar_estoque", {
       _produto: movRow.produto_id,
       _sala: movRow.sala_id,
       _quantidade: novoSaldo,
-      _observacao: `${movTipo === "entrada" ? "Entrada" : "Saída"} rápida${movObs ? ` — ${movObs}` : ""}`,
+      _observacao: `Saída · ${saidaMotivo}${movObs ? ` — ${movObs}` : ""}`,
     });
     setMovSaving(false);
     if (error) return toast.error(error.message);
-    toast.success(`${movTipo === "entrada" ? "Entrada" : "Saída"} de ${movQtd} ${movRow.produto.unidade} registrada`);
+    toast.success(`Saída de ${movQtd} ${movRow.produto.unidade} registrada`);
     setMovOpen(false);
     load();
   };
@@ -398,11 +451,14 @@ export default function EstoquePage() {
                 </TableHead>
               )}
               <TableHead>Produto</TableHead>
-              <TableHead className="w-[130px]">Categoria</TableHead>
+              <TableHead className="w-[120px]">Categoria</TableHead>
               <TableHead>Sala</TableHead>
-              <TableHead className="text-right w-[110px]">Quantidade</TableHead>
-              <TableHead className="text-right w-[80px]">Mín.</TableHead>
-              <TableHead className="w-[130px]">Status</TableHead>
+              <TableHead className="text-right w-[90px]">Qtd</TableHead>
+              <TableHead className="text-right w-[70px]">Mín.</TableHead>
+              <TableHead className="text-right w-[110px]">CMP</TableHead>
+              <TableHead className="text-right w-[120px]">V. estoque</TableHead>
+              <TableHead className="w-[150px]">Última compra</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
               {isMaster && <TableHead className="w-[320px] text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
@@ -427,6 +483,20 @@ export default function EstoquePage() {
                 <TableCell>{r.sala.nome}</TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
+                <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>
+                <TableCell className="text-xs">
+                  {(() => {
+                    const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
+                    if (!u) return <span className="text-muted-foreground">Sem compras</span>;
+                    return (
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
+                        <div className="font-mono">{BRL(u.valor_unitario)}{u.fornecedor ? ` · ${u.fornecedor}` : ""}</div>
+                      </div>
+                    );
+                  })()}
+                </TableCell>
                 <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
                 {isMaster && (
                   <TableCell className="text-right">
@@ -458,7 +528,7 @@ export default function EstoquePage() {
                 )}
               </TableRow>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 8 : 6} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 9} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -483,11 +553,11 @@ export default function EstoquePage() {
 
       {/* Modal: Entrada/Saída rápida */}
       <Dialog open={movOpen} onOpenChange={setMovOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {movTipo === "entrada"
-                ? <><ArrowDownToLine className="size-5 text-success" /> Entrada de produto</>
+                ? <><ArrowDownToLine className="size-5 text-success" /> Entrada de estoque (compra)</>
                 : <><ArrowUpFromLine className="size-5 text-destructive" /> Saída de produto</>}
             </DialogTitle>
             <DialogDescription>
@@ -495,47 +565,94 @@ export default function EstoquePage() {
                 <>
                   <span className="font-medium text-foreground">{movRow.produto.nome}</span>
                   {" · "}{movRow.sala.nome}
-                  {" · estoque atual: "}
+                  {" · saldo atual: "}
                   <span className="font-mono text-foreground">{movRow.quantidade} {movRow.produto.unidade}</span>
+                  {movTipo === "entrada" && movRow.custo_medio > 0 && (
+                    <> · CMP atual: <span className="font-mono text-foreground">{BRL(movRow.custo_medio)}</span></>
+                  )}
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label>Quantidade</Label>
-              <Input
-                type="number"
-                min={1}
-                autoFocus
-                value={movQtd || ""}
-                onChange={(e) => setMovQtd(Number(e.target.value))}
-                onKeyDown={(e) => { if (e.key === "Enter" && movQtd > 0) confirmarMov(); }}
-              />
-              {movRow && movQtd > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  Novo saldo: <span className="font-mono text-foreground font-semibold">
-                    {movTipo === "entrada" ? movRow.quantidade + movQtd : movRow.quantidade - movQtd}
-                  </span>
+
+          {movTipo === "entrada" ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Quantidade *</Label>
+                  <Input type="number" min={1} autoFocus value={entradaForm.quantidade || ""}
+                    onChange={(e) => setEntradaForm({ ...entradaForm, quantidade: Number(e.target.value) })} />
                 </div>
-              )}
+                <div className="space-y-2">
+                  <Label>Valor unitário (R$) *</Label>
+                  <Input type="number" min={0} step="0.01" value={entradaForm.valor_unitario || ""}
+                    onChange={(e) => setEntradaForm({ ...entradaForm, valor_unitario: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div className="rounded-md bg-success/10 border border-success/30 px-3 py-2 text-sm flex items-center justify-between">
+                <span className="text-muted-foreground">Valor total da compra</span>
+                <span className="font-display font-bold text-lg text-success">
+                  {BRL(Number(entradaForm.quantidade || 0) * Number(entradaForm.valor_unitario || 0))}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Fornecedor</Label>
+                  <Input value={entradaForm.fornecedor} onChange={(e) => setEntradaForm({ ...entradaForm, fornecedor: e.target.value })} placeholder="Ex: Atacadão" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Número da NF</Label>
+                  <Input value={entradaForm.numero_nf} onChange={(e) => setEntradaForm({ ...entradaForm, numero_nf: e.target.value })} placeholder="Ex: 000123456" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Observação</Label>
+                <Textarea value={entradaForm.observacao} onChange={(e) => setEntradaForm({ ...entradaForm, observacao: e.target.value })} rows={2} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Observação (opcional)</Label>
-              <Textarea value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Ex: Compra NF 1234 / Uso evento X" rows={2} />
+          ) : (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Quantidade *</Label>
+                <Input type="number" min={1} autoFocus value={movQtd || ""}
+                  onChange={(e) => setMovQtd(Number(e.target.value))}
+                  onKeyDown={(e) => { if (e.key === "Enter" && movQtd > 0) confirmarMov(); }} />
+                {movRow && movQtd > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    Novo saldo: <span className="font-mono text-foreground font-semibold">{movRow.quantidade - movQtd}</span>
+                    {movRow.custo_medio > 0 && (
+                      <> · valor da saída: <span className="font-mono text-foreground">{BRL(movQtd * movRow.custo_medio)}</span></>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Motivo *</Label>
+                <Select value={saidaMotivo} onValueChange={setSaidaMotivo}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MOTIVOS_SAIDA.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Observação</Label>
+                <Textarea value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Detalhes opcionais" rows={2} />
+              </div>
             </div>
-          </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setMovOpen(false)}>Cancelar</Button>
             <Button
               onClick={confirmarMov}
-              disabled={movSaving || movQtd <= 0}
+              disabled={movSaving || (movTipo === "entrada" ? entradaForm.quantidade <= 0 : movQtd <= 0)}
               className={movTipo === "saida"
                 ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                 : "bg-success hover:bg-success/90 text-success-foreground"}
             >
               {movSaving && <Loader2 className="size-4 animate-spin" />}
-              {movTipo === "entrada" ? "Confirmar entrada" : "Confirmar saída"}
+              {movTipo === "entrada" ? "Registrar entrada" : "Confirmar saída"}
             </Button>
           </DialogFooter>
         </DialogContent>
