@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { formatDateTime } from "@/lib/format";
@@ -56,7 +57,8 @@ const TIPO_OPTIONS = [
 ];
 
 export default function MovimentacoesPage() {
-  const { role, profile } = useAuth();
+  const { role } = useAuth();
+  const { activeSalaId } = useActiveSala();
   const { scopeSalaId } = useMasterScope();
   const PAGE_SIZE = 100;
   const [rows, setRows] = useState<Mov[]>([]);
@@ -152,10 +154,10 @@ export default function MovimentacoesPage() {
   useEffect(() => {
     if (role === "master") {
       setSalaFilter(scopeSalaId ?? "all");
-    } else if (profile?.sala_id) {
-      setSalaFilter(profile.sala_id);
+    } else if (activeSalaId) {
+      setSalaFilter(activeSalaId);
     }
-  }, [role, profile, scopeSalaId]);
+  }, [role, activeSalaId, scopeSalaId]);
 
   const filtered = useMemo(() => {
     return rows
