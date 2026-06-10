@@ -5,6 +5,7 @@ import {
   Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle, MapPin, Settings, Globe2, Trash2, ClipboardCheck, LineChart,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { ActiveSalaProvider, useActiveSala } from "@/contexts/ActiveSalaContext";
 import { MasterScopeProvider, useMasterScope } from "@/contexts/MasterScopeContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import NotificationsBell from "@/components/NotificationsBell";
@@ -92,15 +93,18 @@ const ROLE_LABEL: Record<string, string> = { master: "Master", admin: "Administr
 export default function AppLayout() {
   return (
     <MasterScopeProvider>
-      <NotificationsProvider>
-        <AppLayoutInner />
-      </NotificationsProvider>
+      <ActiveSalaProvider>
+        <NotificationsProvider>
+          <AppLayoutInner />
+        </NotificationsProvider>
+      </ActiveSalaProvider>
     </MasterScopeProvider>
   );
 }
 
 function AppLayoutInner() {
   const { user, role, profile, loading, signOut } = useAuth();
+  const { activeSalaId, activeSalaName, loading: salaLoading, selectionRequired, salas, chooseSala } = useActiveSala();
   const { scopeReady, scopeSalaId } = useMasterScope();
   const navigate = useNavigate();
   const location = useLocation();
@@ -112,11 +116,12 @@ function AppLayoutInner() {
 
   // Carrega nome da sala em foco (master) ou da sala do usuário (admin/analista)
   useEffect(() => {
-    const targetSala = role === "master" ? scopeSalaId : profile?.sala_id ?? null;
+    if (role !== "master") { setSalaNome(activeSalaName); return; }
+    const targetSala = scopeSalaId;
     if (!targetSala) { setSalaNome(null); return; }
     supabase.from("salas").select("nome").eq("id", targetSala).maybeSingle()
       .then(({ data }) => setSalaNome((data as any)?.nome ?? null));
-  }, [role, scopeSalaId, profile?.sala_id]);
+  }, [role, scopeSalaId, activeSalaName]);
 
   // Carrega contadores de pendências para badges
   const loadCounts = useCallback(async () => {
@@ -126,12 +131,12 @@ function AppLayoutInner() {
       if (scopeSalaId) q = q.eq("sala_id", scopeSalaId);
       const { count } = await q;
       setPendCounts((p) => ({ ...p, requisicoes: count ?? 0 }));
-    } else if (role === "admin" && profile?.sala_id) {
+    } else if (role === "admin" && activeSalaId) {
       const { count } = await supabase
         .from("emprestimos")
         .select("id", { count: "exact", head: true })
         .eq("status", "pendente")
-        .eq("sala_origem_id", profile.sala_id);
+        .eq("sala_origem_id", activeSalaId);
       setPendCounts((p) => ({ ...p, emprestimosAprovar: count ?? 0 }));
     }
     // contagem global de mensagens não lidas em conversas
@@ -140,7 +145,7 @@ function AppLayoutInner() {
       const total = (data ?? []).reduce((s: number, c: any) => s + (c.unread_count ?? 0), 0);
       setPendCounts((p) => ({ ...p, chat: total }));
     } catch { /* noop */ }
-  }, [role, scopeSalaId, profile?.sala_id]);
+  }, [role, scopeSalaId, activeSalaId]);
 
   useEffect(() => {
     loadCounts();
@@ -167,6 +172,18 @@ function AppLayoutInner() {
         </div>
       </div>
     );
+  }
+
+  if (role !== "master" && salaLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-background">
+        <Loader2 className="size-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (role !== "master" && selectionRequired) {
+    return <SalaSelectionScreen nome={profile?.nome ?? ""} email={profile?.email ?? ""} salas={salas} onChoose={chooseSala} onSignOut={signOut} />;
   }
 
   // Força troca de senha no primeiro login / após reset pelo Master
@@ -233,7 +250,9 @@ function AppLayoutInner() {
             <span className="font-display font-bold">Estoque Pro</span>
           </div>
           <div className="hidden md:flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Painel · {ROLE_LABEL[role]}</span>
+            <span className="text-muted-foreground">Usuário: <span className="text-foreground font-medium">{profile?.nome ?? "—"}</span></span>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="text-muted-foreground">Perfil: <span className="text-foreground font-medium">{ROLE_LABEL[role]}</span></span>
             <span className="text-muted-foreground/40">·</span>
             {role === "master" && scopeSalaId === null ? (
               <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
@@ -241,7 +260,7 @@ function AppLayoutInner() {
               </Badge>
             ) : (
               <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
-                <MapPin className="size-3" /> Sala: {salaNome ?? "—"}
+                <MapPin className="size-3" /> Sala Atual: {salaNome ?? "—"}
               </Badge>
             )}
           </div>
