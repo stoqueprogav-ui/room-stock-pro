@@ -466,42 +466,60 @@ export default function RelatoriosPage() {
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="mt-4 space-y-4">
+          <Card className="p-3 flex flex-wrap items-center gap-2 justify-between">
+            <div className="text-sm font-medium">Resumo Executivo — exporte um relatório completo com KPIs, gráficos e tabelas</div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={exportarExecutivoXLSX}>
+                <FileSpreadsheet className="size-4 mr-1.5" /> Excel executivo
+              </Button>
+              <Button size="sm" onClick={exportarExecutivoPDF} disabled={execLoading}>
+                <FileDown className="size-4 mr-1.5" /> {execLoading ? "Gerando PDF…" : "PDF executivo"}
+              </Button>
+            </div>
+          </Card>
           <div className="grid lg:grid-cols-2 gap-4">
-            <ChartCard title="Evolução mensal de consumo (R$)">
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={evolucaoMensal}>
+            <div ref={chart1Ref}>
+              <ChartCard title="Evolução mensal de consumo (R$)">
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={evolucaoMensal}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: any) => BRL(Number(v))} />
+                    <Line type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
+            <div ref={chart2Ref}>
+              <ChartCard title="Evolução mensal de empréstimos">
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={empMensal}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="count" stroke="hsl(var(--accent))" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
+          </div>
+          <div ref={chart3Ref}>
+            <ChartCard title="Top 10 produtos consumidos (R$)">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={consumoPorProduto.slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="produto" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={70} interval={0} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: any) => BRL(Number(v))} />
-                  <Line type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartCard>
-            <ChartCard title="Evolução mensal de empréstimos">
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={empMensal}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="count" stroke="hsl(var(--accent))" strokeWidth={2} />
-                </LineChart>
+                  <Bar dataKey="valor" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </ChartCard>
           </div>
-          <ChartCard title="Top 10 produtos consumidos (R$)">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={consumoPorProduto.slice(0, 10)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="produto" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={70} interval={0} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: any) => BRL(Number(v))} />
-                <Bar dataKey="valor" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
         </TabsContent>
+
 
         {/* ===== EMPRÉSTIMOS ===== */}
         <TabsContent value="emprestimos" className="mt-4 space-y-4">
