@@ -20,6 +20,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useCompanyLogo } from "@/hooks/useCompanyLogo";
 
 type BadgeKey = "requisicoes" | "emprestimosAprovar" | "chat";
+type ActiveSalaOption = { sala_id: string; sala_nome: string; ativa: boolean };
 type NavItem = {
   to?: string;
   label: string;
@@ -278,6 +279,71 @@ function AppLayoutInner() {
         </div>
       </main>
       <FloatingChat />
+    </div>
+  );
+}
+
+function SalaSelectionScreen({
+  nome, email, salas, onChoose, onSignOut,
+}: {
+  nome: string;
+  email: string;
+  salas: ActiveSalaOption[];
+  onChoose: (salaId: string) => Promise<boolean>;
+  onSignOut: () => Promise<void>;
+}) {
+  const [choosing, setChoosing] = useState<string | null>(null);
+
+  const escolher = async (salaId: string) => {
+    setChoosing(salaId);
+    const ok = await onChoose(salaId);
+    if (!ok) setChoosing(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="border-b border-border bg-card/60 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-md bg-gradient-primary grid place-items-center text-primary-foreground">
+              <Boxes className="size-5" />
+            </div>
+            <div>
+              <div className="font-display font-bold">Estoque Pro</div>
+              <div className="text-xs text-muted-foreground">{email}</div>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={onSignOut}><LogOut className="size-4" /> Sair</Button>
+        </div>
+      </header>
+      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-10 animate-fade-in">
+        <div className="space-y-2 mb-8">
+          <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight uppercase">Selecione a sala</h1>
+          <p className="text-lg text-foreground">Bem-vindo {nome || "usuário"}</p>
+          <p className="text-muted-foreground">Escolha a sala que deseja acessar:</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {salas.map((s) => (
+            <button
+              key={s.sala_id}
+              type="button"
+              onClick={() => escolher(s.sala_id)}
+              disabled={!!choosing}
+              className="panel p-5 text-left group hover:border-primary/60 transition-colors disabled:opacity-70"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="size-10 rounded-md bg-muted grid place-items-center text-primary mb-3">
+                    <Building2 className="size-5" />
+                  </div>
+                  <div className="font-display text-lg font-semibold">{s.sala_nome}</div>
+                </div>
+                {choosing === s.sala_id ? <Loader2 className="size-4 animate-spin text-primary" /> : <ChevronDown className="size-4 text-muted-foreground -rotate-90 group-hover:text-primary" />}
+              </div>
+            </button>
+          ))}
+        </div>
+      </main>
     </div>
   );
 }
