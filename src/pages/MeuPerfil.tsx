@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { PageHeader } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +13,8 @@ import { User, KeyRound, Save } from "lucide-react";
 
 export default function MeuPerfil() {
   const { profile, role, refreshProfile } = useAuth();
+  const { activeSalaName, salas } = useActiveSala();
   const [nome, setNome] = useState(profile?.nome ?? "");
-  const [salaNome, setSalaNome] = useState<string>("—");
   const [savingNome, setSavingNome] = useState(false);
 
   const [atual, setAtual] = useState("");
@@ -22,14 +23,6 @@ export default function MeuPerfil() {
   const [savingPwd, setSavingPwd] = useState(false);
 
   useEffect(() => { setNome(profile?.nome ?? ""); }, [profile?.nome]);
-
-  useEffect(() => {
-    (async () => {
-      if (!profile?.sala_id) { setSalaNome("—"); return; }
-      const { data } = await supabase.from("salas").select("nome").eq("id", profile.sala_id).maybeSingle();
-      setSalaNome(data?.nome ?? "—");
-    })();
-  }, [profile?.sala_id]);
 
   const salvarNome = async () => {
     if (!nome.trim()) return toast.error("Nome obrigatório");
@@ -90,10 +83,15 @@ export default function MeuPerfil() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Sala vinculada</Label>
-              <Input value={salaNome} readOnly disabled />
+              <Label>Sala atual</Label>
+              <Input value={role === "master" ? "Todas as salas" : (activeSalaName ?? "—")} readOnly disabled />
             </div>
           </div>
+          {role !== "master" && (
+            <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Salas autorizadas:</span> {salas.map((s) => s.sala_nome).join(", ") || "—"}
+            </div>
+          )}
           <div>
             <Button onClick={salvarNome} disabled={savingNome || nome === profile?.nome}>
               <Save className="size-4" /> {savingNome ? "Salvando…" : "Salvar nome"}
