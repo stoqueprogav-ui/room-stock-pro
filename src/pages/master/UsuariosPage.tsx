@@ -40,7 +40,7 @@ export default function UsuariosPage() {
       supabase.from("profiles").select("id, nome, email, sala_id, must_change_password, sala:salas(nome)"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("user_salas").select("user_id"),
+      supabase.from("user_salas").select("user_id, sala_id"),
     ]);
     const order: AppRole[] = ["master", "admin", "analista"];
     const counts = new Map<string, number>();
