@@ -98,6 +98,7 @@ export default function EstoquePage() {
   const [historyLoading, setHistoryLoading] = useState<Set<string>>(new Set());
 
   const toggleExpand = async (r: Row) => {
+    if (!isMaster) return; // ficha financeira é exclusiva do master
     const key = `${r.produto_id}-${r.sala_id}`;
     setExpanded((prev) => {
       const n = new Set(prev);
@@ -107,7 +108,7 @@ export default function EstoquePage() {
     if (!history.has(key)) {
       setHistoryLoading((p) => new Set(p).add(key));
       const { data } = await supabase
-        .from("entradas_estoque")
+        .from("v_entradas_estoque_master" as any)
         .select("id, data_entrada, quantidade, valor_unitario, valor_total, fornecedor, numero_nf, usuario_responsavel_nome")
         .eq("produto_id", r.produto_id)
         .eq("sala_id", r.sala_id)
@@ -119,11 +120,17 @@ export default function EstoquePage() {
   };
 
   const load = async () => {
+    const estoqueQuery = isMaster
+      ? supabase.from("v_estoque_master" as any).select("produto_id, sala_id, quantidade, custo_medio, valor_total, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true)
+      : supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos!inner(id, nome, descricao, unidade, estoque_minimo, categoria_id, ativo, sala_id, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true);
+    const entradasQuery = isMaster
+      ? supabase.from("v_entradas_estoque_master" as any).select("produto_id, sala_id, valor_unitario, fornecedor, data_entrada").order("data_entrada", { ascending: false }).limit(2000)
+      : Promise.resolve({ data: [] as any[] });
     const [{ data: s }, { data: e }, { data: c }, { data: ents }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("estoque").select("produto_id, sala_id, quantidade, custo_medio, valor_total, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
+      estoqueQuery,
       supabase.from("categorias").select("*").order("nome"),
-      supabase.from("entradas_estoque").select("produto_id, sala_id, valor_unitario, fornecedor, data_entrada").order("data_entrada", { ascending: false }).limit(2000),
+      entradasQuery,
     ]);
     setSalas((s as Sala[]) ?? []);
     setCategorias((c as Categoria[]) ?? []);
@@ -144,6 +151,7 @@ export default function EstoquePage() {
     });
     setUltimas(map);
   };
+
 
   useEffect(() => { load(); }, []);
   useRealtimeSync(["estoque", "produtos", "movimentacoes", "salas", "categorias", "entradas_estoque"], () => { load(); }, { debounceMs: 250 });
