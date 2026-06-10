@@ -32,7 +32,7 @@ export default function DashboardGerencial() {
     const days = parseInt(periodo, 10);
     const since = fromDays(days);
 
-    const [prods, estoque, mov, req, emp, cons] = await Promise.all([
+    const [prods, estoque, mov, req, emp, cons, vz] = await Promise.all([
       supabase.from("produtos").select("id", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("estoque").select("quantidade"),
       supabase.from("movimentacoes").select("id", { count: "exact", head: true }).gte("created_at", since),
@@ -41,7 +41,10 @@ export default function DashboardGerencial() {
       supabase.from("consumos_internos")
         .select("id, created_at, quantidade, motivo, sala:salas(nome), produto:produtos(nome, categoria:categorias(nome))")
         .gte("created_at", since),
+      supabase.rpc("estatisticas_valorizacao"),
     ]);
+    const vzRow = Array.isArray(vz.data) ? (vz.data as any[])[0] : (vz.data as any);
+    if (vzRow) setValorizacao(vzRow);
 
     const unidades = ((estoque.data as any[]) ?? []).reduce((s, r) => s + (r.quantidade ?? 0), 0);
     const consData = (cons.data as any[]) ?? [];
