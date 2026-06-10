@@ -264,6 +264,7 @@ export default function ProdutosPage() {
                   <TableCell className="text-muted-foreground max-w-md truncate">{p.descricao ?? "—"}</TableCell>
                   <TableCell>{p.unidade}</TableCell>
                   <TableCell className="text-right font-mono text-warning">{p.estoque_minimo}</TableCell>
+                  <TableCell className="text-right font-mono">{Number((p as any).custo_unitario ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                   <TableCell>
                     {inativo
                       ? <Badge className="bg-muted text-muted-foreground border">Inativo</Badge>
