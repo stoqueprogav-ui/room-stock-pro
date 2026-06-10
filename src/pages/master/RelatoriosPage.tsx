@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
@@ -19,7 +19,7 @@ import {
   Building2, Globe2, Package, DollarSign, TrendingUp, Crown, Layers,
   ArrowLeftRight, FileDown, FileSpreadsheet, Printer,
 } from "lucide-react";
-import { exportToExcel, exportReportPdf, printReport, type ExportColumn } from "@/lib/exporters";
+import { exportToExcel, exportReportPdf, printReport, exportExecutiveExcel, exportExecutivePdf, type ExportColumn } from "@/lib/exporters";
 import { Button } from "@/components/ui/button";
 
 type Sala = { id: string; nome: string };
@@ -299,6 +299,82 @@ export default function RelatoriosPage() {
     else printReport(cols, rows, meta);
   };
 
+  // ===== Resumo Executivo (Dashboard) =====
+  const chart1Ref = useRef<HTMLDivElement>(null);
+  const chart2Ref = useRef<HTMLDivElement>(null);
+  const chart3Ref = useRef<HTMLDivElement>(null);
+  const [execLoading, setExecLoading] = useState(false);
+
+  const kpisExec = [
+    { label: "Valor total em estoque", value: BRL(valorTotalEstoque) },
+    { label: "Consumo do mês (R$)", value: BRL(consumoMesAtual) },
+    { label: "Valor consumido no período", value: BRL(totalValor) },
+    { label: "Quantidade consumida", value: NUM(totalQtd) },
+    { label: "Sala líder em consumo", value: topSala ? `${topSala.sala} — ${BRL(topSala.valor)}` : "—" },
+    { label: "Produto mais consumido", value: topProduto ? `${topProduto.produto} (${NUM(topProduto.qtd)} un.)` : "—" },
+    { label: "Categoria líder", value: topCategoria ? `${topCategoria.cat} — ${BRL(topCategoria.valor)}` : "—" },
+    { label: "Maior estoque financeiro", value: salaMaiorEstoque ? `${salaMaiorEstoque.sala_nome} — ${BRL(Number(salaMaiorEstoque.valor_total))}` : "—" },
+  ];
+
+  const exportarExecutivoXLSX = () => {
+    exportExecutiveExcel(
+      "resumo_executivo",
+      [
+        { name: "Consumo por Sala", columns: [
+          { header: "Sala", key: "sala" },
+          { header: "Quantidade", key: "qtd" },
+          { header: "Valor (R$)", key: "valor", map: (r: any) => Number(r.valor).toFixed(2) },
+        ], rows: consumoPorSala },
+        { name: "Top Produtos", columns: [
+          { header: "Produto", key: "produto" },
+          { header: "Categoria", key: "categoria" },
+          { header: "Quantidade", key: "qtd" },
+          { header: "Valor (R$)", key: "valor", map: (r: any) => Number(r.valor).toFixed(2) },
+        ], rows: consumoPorProduto.slice(0, 50) },
+        { name: "Categorias", columns: [
+          { header: "Categoria", key: "cat" },
+          { header: "Quantidade", key: "qtd" },
+          { header: "Valor (R$)", key: "valor", map: (r: any) => Number(r.valor).toFixed(2) },
+        ], rows: consumoPorCategoria },
+        { name: "Valor de Estoque", columns: [
+          { header: "Sala", key: "sala_nome" },
+          { header: "Itens", key: "total_itens" },
+          { header: "Valor (R$)", key: "valor_total", map: (r: any) => Number(r.valor_total).toFixed(2) },
+        ], rows: estoqueValor },
+      ],
+      { title: "Resumo Executivo", subtitle, lines: kpisExec, user: profile?.nome ?? null, company: "Estoque Pro" },
+    );
+  };
+
+  const exportarExecutivoPDF = async () => {
+    setExecLoading(true);
+    try {
+      await exportExecutivePdf(
+        "resumo_executivo",
+        { title: "Resumo Executivo", subtitle, companyName: "Estoque Pro", logoUrl, user: profile?.nome ?? null, kpis: kpisExec },
+        [
+          { title: "Evolução mensal de consumo (R$)", element: chart1Ref.current },
+          { title: "Evolução mensal de empréstimos", element: chart2Ref.current },
+          { title: "Top 10 produtos consumidos (R$)", element: chart3Ref.current },
+        ],
+        [
+          { name: "Consumo por Sala", columns: [
+            { header: "Sala", key: "sala" },
+            { header: "Quantidade", key: "qtd", map: (r: any) => NUM(r.qtd) },
+            { header: "Valor", key: "valor", map: (r: any) => BRL(r.valor) },
+          ], rows: consumoPorSala },
+          { name: "Top Produtos", columns: [
+            { header: "Produto", key: "produto" },
+            { header: "Quantidade", key: "qtd", map: (r: any) => NUM(r.qtd) },
+            { header: "Valor", key: "valor", map: (r: any) => BRL(r.valor) },
+          ], rows: consumoPorProduto.slice(0, 30) },
+        ],
+      );
+    } finally { setExecLoading(false); }
+  };
+
+
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -390,42 +466,60 @@ export default function RelatoriosPage() {
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="mt-4 space-y-4">
+          <Card className="p-3 flex flex-wrap items-center gap-2 justify-between">
+            <div className="text-sm font-medium">Resumo Executivo — exporte um relatório completo com KPIs, gráficos e tabelas</div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={exportarExecutivoXLSX}>
+                <FileSpreadsheet className="size-4 mr-1.5" /> Excel executivo
+              </Button>
+              <Button size="sm" onClick={exportarExecutivoPDF} disabled={execLoading}>
+                <FileDown className="size-4 mr-1.5" /> {execLoading ? "Gerando PDF…" : "PDF executivo"}
+              </Button>
+            </div>
+          </Card>
           <div className="grid lg:grid-cols-2 gap-4">
-            <ChartCard title="Evolução mensal de consumo (R$)">
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={evolucaoMensal}>
+            <div ref={chart1Ref}>
+              <ChartCard title="Evolução mensal de consumo (R$)">
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={evolucaoMensal}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: any) => BRL(Number(v))} />
+                    <Line type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
+            <div ref={chart2Ref}>
+              <ChartCard title="Evolução mensal de empréstimos">
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={empMensal}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="count" stroke="hsl(var(--accent))" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
+          </div>
+          <div ref={chart3Ref}>
+            <ChartCard title="Top 10 produtos consumidos (R$)">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={consumoPorProduto.slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="produto" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={70} interval={0} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: any) => BRL(Number(v))} />
-                  <Line type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartCard>
-            <ChartCard title="Evolução mensal de empréstimos">
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={empMensal}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="count" stroke="hsl(var(--accent))" strokeWidth={2} />
-                </LineChart>
+                  <Bar dataKey="valor" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </ChartCard>
           </div>
-          <ChartCard title="Top 10 produtos consumidos (R$)">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={consumoPorProduto.slice(0, 10)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="produto" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={70} interval={0} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: any) => BRL(Number(v))} />
-                <Bar dataKey="valor" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
         </TabsContent>
+
 
         {/* ===== EMPRÉSTIMOS ===== */}
         <TabsContent value="emprestimos" className="mt-4 space-y-4">
