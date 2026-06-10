@@ -77,7 +77,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setProfile(null);
     setRole(null);
-    try { localStorage.removeItem("master_scope_sala_id"); } catch {}
+    try {
+      localStorage.removeItem("master_scope_sala_id");
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.startsWith("active_sala_selected:")) sessionStorage.removeItem(key);
+      });
+    } catch {}
   };
 
   const refreshProfile = async () => {
