@@ -74,13 +74,19 @@ export default function MovimentacoesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const isMaster = role === "master";
   const buildQuery = useCallback((before?: string) => {
-    let q = supabase
-      .from("movimentacoes")
-      .select(`id, created_at, tipo, quantidade, saldo_apos, observacao, sala_id, referencia_tipo, referencia_id,
+    const baseCols = `id, created_at, tipo, quantidade, saldo_apos, observacao, sala_id, referencia_tipo, referencia_id,
+               produto:produtos(nome, unidade), sala:salas(nome),
+               usuario:profiles!movimentacoes_usuario_id_fkey(nome)`;
+    const masterCols = `id, created_at, tipo, quantidade, saldo_apos, observacao, sala_id, referencia_tipo, referencia_id,
                custo_unitario_aplicado, valor_financeiro,
                produto:produtos(nome, unidade), sala:salas(nome),
-               usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
+               usuario:profiles!movimentacoes_usuario_id_fkey(nome)`;
+    const tbl = isMaster ? "v_movimentacoes_master" : "movimentacoes";
+    let q = supabase
+      .from(tbl as any)
+      .select(isMaster ? masterCols : baseCols)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
     if (before) q = q.lt("created_at", before);
@@ -89,7 +95,8 @@ export default function MovimentacoesPage() {
     if (dataInicial) q = q.gte("created_at", `${dataInicial}T00:00:00`);
     if (dataFinal) q = q.lte("created_at", `${dataFinal}T23:59:59`);
     return q;
-  }, [salaFilter, tipoFilter, dataInicial, dataFinal]);
+  }, [salaFilter, tipoFilter, dataInicial, dataFinal, isMaster]);
+
 
   // Para movimentações originadas de uma solicitação/empréstimo, busca quem foi o solicitante original
   const enrichOriginadores = useCallback(async (list: Mov[]): Promise<Mov[]> => {
