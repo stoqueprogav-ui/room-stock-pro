@@ -54,7 +54,6 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
         children: [
           { to: "/app/relatorios", label: "Central Analítica", icon: LineChart },
           { to: "/app/movimentacoes", label: "Movimentações", icon: History },
-          { to: "/app/auditoria", label: "Auditoria", icon: FileSearch },
         ],
       },
       { to: "/app/chat", label: "Chat", icon: MessageCircle, badgeKey: "chat" },
