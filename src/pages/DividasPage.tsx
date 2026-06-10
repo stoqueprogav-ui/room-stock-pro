@@ -33,21 +33,13 @@ export default function DividasPage() {
   const [editing, setEditing] = useState<Divida | null>(null);
   const [qtd, setQtd] = useState(0);
 
-  const isMaster = role === "master";
   const load = useCallback(async () => {
-    const cols = isMaster
-      ? `id, saldo, valor_financeiro, sala_devedora_id, sala_credora_id,
-               devedora:salas!dividas_sala_devedora_id_fkey(nome),
-               credora:salas!dividas_sala_credora_id_fkey(nome),
-               produto:produtos(nome, unidade)`
-      : `id, saldo, sala_devedora_id, sala_credora_id,
-               devedora:salas!dividas_sala_devedora_id_fkey(nome),
-               credora:salas!dividas_sala_credora_id_fkey(nome),
-               produto:produtos(nome, unidade)`;
-    const tbl = isMaster ? "v_dividas_master" : "dividas";
     let q = supabase
-      .from(tbl as any)
-      .select(cols)
+      .from("dividas")
+      .select(`id, saldo, valor_financeiro, sala_devedora_id, sala_credora_id,
+               devedora:salas!dividas_sala_devedora_id_fkey(nome),
+               credora:salas!dividas_sala_credora_id_fkey(nome),
+               produto:produtos(nome, unidade)`)
       .order("saldo", { ascending: false });
     if (role === "master" && scopeSalaId) {
       q = q.or(`sala_devedora_id.eq.${scopeSalaId},sala_credora_id.eq.${scopeSalaId}`);
@@ -56,10 +48,9 @@ export default function DividasPage() {
     }
     const { data } = await q;
     setRows((data as any) ?? []);
-  }, [role, scopeSalaId, activeSalaId, isMaster]);
+  }, [role, scopeSalaId, activeSalaId]);
   useEffect(() => { load(); }, [load]);
   useRealtimeSync(["dividas", "emprestimos", "movimentacoes"], load, { debounceMs: 300 });
-
 
 
   const quitar = async () => {
@@ -74,8 +65,8 @@ export default function DividasPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Dívidas entre salas" description={isMaster ? "Saldo de produtos pendente de devolução, gerado por empréstimos aprovados. Inclui valor financeiro." : "Saldo de produtos pendente de devolução, gerado por empréstimos aprovados."} />
-      <div className={`grid grid-cols-1 ${isMaster ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
+      <PageHeader title="Dívidas entre salas" description="Saldo de produtos pendente de devolução, gerado por empréstimos aprovados. Inclui valor financeiro." />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="panel p-4">
           <div className="text-xs text-muted-foreground">Dívidas em aberto</div>
           <div className="font-display text-2xl font-bold mt-1">{rows.length}</div>
@@ -84,12 +75,10 @@ export default function DividasPage() {
           <div className="text-xs text-muted-foreground">Itens devidos</div>
           <div className="font-display text-2xl font-bold mt-1">{rows.reduce((s, d) => s + d.saldo, 0)}</div>
         </div>
-        {isMaster && (
-          <div className="panel p-4">
-            <div className="text-xs text-muted-foreground">Valor financeiro total</div>
-            <div className="font-display text-2xl font-bold mt-1 text-destructive">{BRL(totalFinanceiro)}</div>
-          </div>
-        )}
+        <div className="panel p-4">
+          <div className="text-xs text-muted-foreground">Valor financeiro total</div>
+          <div className="font-display text-2xl font-bold mt-1 text-destructive">{BRL(totalFinanceiro)}</div>
+        </div>
       </div>
       <div className="panel overflow-x-auto">
         <Table>
@@ -98,8 +87,8 @@ export default function DividasPage() {
               <TableHead>Devedora → Credora</TableHead>
               <TableHead>Produto</TableHead>
               <TableHead className="text-right w-[120px]">Saldo</TableHead>
-              {isMaster && <TableHead className="text-right w-[140px]">Valor financeiro</TableHead>}
-              {isMaster && <TableHead className="text-right w-[120px]">Ação</TableHead>}
+              <TableHead className="text-right w-[140px]">Valor financeiro</TableHead>
+              {role === "master" && <TableHead className="text-right w-[120px]">Ação</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -116,18 +105,15 @@ export default function DividasPage() {
                     {d.saldo} {d.produto.unidade}
                   </span>
                 </TableCell>
-                {isMaster && (
-                  <TableCell className="text-right font-mono font-semibold text-destructive">
-                    {BRL(Number(d.valor_financeiro ?? 0))}
-                  </TableCell>
-                )}
-                {isMaster && (
+                <TableCell className="text-right font-mono font-semibold text-destructive">
+                  {BRL(Number(d.valor_financeiro ?? 0))}
+                </TableCell>
+                {role === "master" && (
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => { setEditing(d); setQtd(d.saldo); }}><Wallet className="size-4" /> Quitar</Button>
                   </TableCell>
                 )}
               </TableRow>
-
             ))}
             {rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Sem dívidas em aberto.</TableCell></TableRow>}
           </TableBody>

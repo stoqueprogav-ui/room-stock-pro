@@ -98,7 +98,6 @@ export default function EstoquePage() {
   const [historyLoading, setHistoryLoading] = useState<Set<string>>(new Set());
 
   const toggleExpand = async (r: Row) => {
-    if (!isMaster) return; // ficha financeira é exclusiva do master
     const key = `${r.produto_id}-${r.sala_id}`;
     setExpanded((prev) => {
       const n = new Set(prev);
@@ -108,29 +107,23 @@ export default function EstoquePage() {
     if (!history.has(key)) {
       setHistoryLoading((p) => new Set(p).add(key));
       const { data } = await supabase
-        .from("v_entradas_estoque_master" as any)
+        .from("entradas_estoque")
         .select("id, data_entrada, quantidade, valor_unitario, valor_total, fornecedor, numero_nf, usuario_responsavel_nome")
         .eq("produto_id", r.produto_id)
         .eq("sala_id", r.sala_id)
         .order("data_entrada", { ascending: false })
         .limit(100);
-      setHistory((m) => new Map(m).set(key, ((data ?? []) as unknown) as EntradaHist[]));
+      setHistory((m) => new Map(m).set(key, (data as EntradaHist[]) ?? []));
       setHistoryLoading((p) => { const n = new Set(p); n.delete(key); return n; });
     }
   };
 
   const load = async () => {
-    const estoqueQuery = isMaster
-      ? supabase.from("v_estoque_master" as any).select("produto_id, sala_id, quantidade, custo_medio, valor_total, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true)
-      : supabase.from("estoque").select("produto_id, sala_id, quantidade, produtos!inner(id, nome, descricao, unidade, estoque_minimo, categoria_id, ativo, sala_id, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true);
-    const entradasQuery = isMaster
-      ? supabase.from("v_entradas_estoque_master" as any).select("produto_id, sala_id, valor_unitario, fornecedor, data_entrada").order("data_entrada", { ascending: false }).limit(2000)
-      : Promise.resolve({ data: [] as any[] });
     const [{ data: s }, { data: e }, { data: c }, { data: ents }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      estoqueQuery,
+      supabase.from("estoque").select("produto_id, sala_id, quantidade, custo_medio, valor_total, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
       supabase.from("categorias").select("*").order("nome"),
-      entradasQuery,
+      supabase.from("entradas_estoque").select("produto_id, sala_id, valor_unitario, fornecedor, data_entrada").order("data_entrada", { ascending: false }).limit(2000),
     ]);
     setSalas((s as Sala[]) ?? []);
     setCategorias((c as Categoria[]) ?? []);
@@ -151,7 +144,6 @@ export default function EstoquePage() {
     });
     setUltimas(map);
   };
-
 
   useEffect(() => { load(); }, []);
   useRealtimeSync(["estoque", "produtos", "movimentacoes", "salas", "categorias", "entradas_estoque"], () => { load(); }, { debounceMs: 250 });
@@ -492,9 +484,8 @@ export default function EstoquePage() {
               <TableHead>Sala</TableHead>
               <TableHead className="text-right w-[90px]">Qtd</TableHead>
               <TableHead className="text-right w-[70px]">Mín.</TableHead>
-              {isMaster && <TableHead className="text-right w-[110px]">CMP</TableHead>}
-              {isMaster && <TableHead className="text-right w-[120px]">V. estoque</TableHead>}
-
+              <TableHead className="text-right w-[110px]">CMP</TableHead>
+              <TableHead className="text-right w-[120px]">V. estoque</TableHead>
               <TableHead className="w-[150px]">Última compra</TableHead>
               <TableHead className="w-[120px]">Status</TableHead>
               {isMaster && <TableHead className="w-[320px] text-right">Ações</TableHead>}
@@ -514,27 +505,19 @@ export default function EstoquePage() {
                   </TableCell>
                 )}
                 <TableCell className="font-medium">
-                  {isMaster ? (
-                    <button
-                      type="button"
-                      onClick={() => toggleExpand(r)}
-                      className="inline-flex items-center gap-1.5 text-left hover:text-primary transition-colors"
-                      title="Ficha financeira"
-                    >
-                      {expanded.has(`${r.produto_id}-${r.sala_id}`)
-                        ? <ChevronDown className="size-4 text-muted-foreground" />
-                        : <ChevronRight className="size-4 text-muted-foreground" />}
-                      <span>{r.produto.nome}</span>
-                      <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
-                    </button>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span>{r.produto.nome}</span>
-                      <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
-                    </span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(r)}
+                    className="inline-flex items-center gap-1.5 text-left hover:text-primary transition-colors"
+                    title="Ficha financeira"
+                  >
+                    {expanded.has(`${r.produto_id}-${r.sala_id}`)
+                      ? <ChevronDown className="size-4 text-muted-foreground" />
+                      : <ChevronRight className="size-4 text-muted-foreground" />}
+                    <span>{r.produto.nome}</span>
+                    <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
+                  </button>
                 </TableCell>
-
                 <TableCell>
                   {(r.produto as any)?.categoria?.nome
                     ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {(r.produto as any).categoria.nome}</Badge>
@@ -543,13 +526,12 @@ export default function EstoquePage() {
                 <TableCell>{r.sala.nome}</TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
-                {isMaster && <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>}
-                {isMaster && <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>}
+                <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>
                 <TableCell className="text-xs">
                   {(() => {
                     const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
-                    if (!u) return <span className="text-muted-foreground">{isMaster ? "Sem compras" : "—"}</span>;
-                    if (!isMaster) return <span className="text-muted-foreground"><Calendar className="size-3 inline" /> {new Date(u.data).toLocaleDateString("pt-BR")}</span>;
+                    if (!u) return <span className="text-muted-foreground">Sem compras</span>;
                     return (
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
@@ -558,7 +540,6 @@ export default function EstoquePage() {
                     );
                   })()}
                 </TableCell>
-
                 <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
                 {isMaster && (
                   <TableCell className="text-right">
@@ -591,7 +572,7 @@ export default function EstoquePage() {
               </TableRow>
               {expanded.has(`${r.produto_id}-${r.sala_id}`) && (
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableCell colSpan={isMaster ? 11 : 7} className="p-0">
+                  <TableCell colSpan={isMaster ? 11 : 9} className="p-0">
                     <FichaFinanceira
                       row={r}
                       loading={historyLoading.has(`${r.produto_id}-${r.sala_id}`)}
@@ -602,8 +583,7 @@ export default function EstoquePage() {
               )}
             </React.Fragment>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 7} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
-
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 9} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>

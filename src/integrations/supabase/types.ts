@@ -99,13 +99,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "consumos_internos_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "consumos_internos_sala_id_fkey"
             columns: ["sala_id"]
             isOneToOne: false
@@ -278,24 +271,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "devolucao_itens_emprestimo_item_id_fkey"
-            columns: ["emprestimo_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_emprestimo_itens_master"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "devolucao_itens_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devolucao_itens_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
             referencedColumns: ["id"]
           },
         ]
@@ -369,13 +348,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "dividas_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "dividas_sala_credora_id_fkey"
             columns: ["sala_credora_id"]
             isOneToOne: false
@@ -432,13 +404,6 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "emprestimo_itens_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
             referencedColumns: ["id"]
           },
         ]
@@ -569,13 +534,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "entradas_estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "entradas_estoque_sala_id_fkey"
             columns: ["sala_id"]
             isOneToOne: false
@@ -618,13 +576,6 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
             referencedColumns: ["id"]
           },
           {
@@ -732,13 +683,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "movimentacoes_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "movimentacoes_sala_id_fkey"
             columns: ["sala_id"]
             isOneToOne: false
@@ -788,13 +732,6 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "produto_custo_historico_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
             referencedColumns: ["id"]
           },
         ]
@@ -937,13 +874,6 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "solicitacao_itens_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
             referencedColumns: ["id"]
           },
           {
@@ -1139,484 +1069,7 @@ export type Database = {
       }
     }
     Views: {
-      v_devolucao_itens_master: {
-        Row: {
-          devolucao_id: string | null
-          emprestimo_item_id: string | null
-          id: string | null
-          produto_id: string | null
-          quantidade: number | null
-          valor_total: number | null
-          valor_unitario_aplicado: number | null
-        }
-        Insert: {
-          devolucao_id?: string | null
-          emprestimo_item_id?: string | null
-          id?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          valor_total?: number | null
-          valor_unitario_aplicado?: number | null
-        }
-        Update: {
-          devolucao_id?: string | null
-          emprestimo_item_id?: string | null
-          id?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          valor_total?: number | null
-          valor_unitario_aplicado?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "devolucao_itens_devolucao_id_fkey"
-            columns: ["devolucao_id"]
-            isOneToOne: false
-            referencedRelation: "devolucoes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devolucao_itens_emprestimo_item_id_fkey"
-            columns: ["emprestimo_item_id"]
-            isOneToOne: false
-            referencedRelation: "emprestimo_itens"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devolucao_itens_emprestimo_item_id_fkey"
-            columns: ["emprestimo_item_id"]
-            isOneToOne: false
-            referencedRelation: "v_emprestimo_itens_master"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devolucao_itens_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devolucao_itens_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_dividas_master: {
-        Row: {
-          id: string | null
-          produto_id: string | null
-          sala_credora_id: string | null
-          sala_devedora_id: string | null
-          saldo: number | null
-          updated_at: string | null
-          valor_financeiro: number | null
-        }
-        Insert: {
-          id?: string | null
-          produto_id?: string | null
-          sala_credora_id?: string | null
-          sala_devedora_id?: string | null
-          saldo?: number | null
-          updated_at?: string | null
-          valor_financeiro?: number | null
-        }
-        Update: {
-          id?: string | null
-          produto_id?: string | null
-          sala_credora_id?: string | null
-          sala_devedora_id?: string | null
-          saldo?: number | null
-          updated_at?: string | null
-          valor_financeiro?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dividas_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dividas_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dividas_sala_credora_id_fkey"
-            columns: ["sala_credora_id"]
-            isOneToOne: false
-            referencedRelation: "salas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dividas_sala_devedora_id_fkey"
-            columns: ["sala_devedora_id"]
-            isOneToOne: false
-            referencedRelation: "salas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_emprestimo_itens_master: {
-        Row: {
-          emprestimo_id: string | null
-          id: string | null
-          produto_id: string | null
-          quantidade: number | null
-          quantidade_devolvida: number | null
-          valor_total: number | null
-          valor_unitario_aplicado: number | null
-        }
-        Insert: {
-          emprestimo_id?: string | null
-          id?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          quantidade_devolvida?: number | null
-          valor_total?: number | null
-          valor_unitario_aplicado?: number | null
-        }
-        Update: {
-          emprestimo_id?: string | null
-          id?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          quantidade_devolvida?: number | null
-          valor_total?: number | null
-          valor_unitario_aplicado?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "emprestimo_itens_emprestimo_id_fkey"
-            columns: ["emprestimo_id"]
-            isOneToOne: false
-            referencedRelation: "emprestimos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "emprestimo_itens_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "emprestimo_itens_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_entradas_estoque_master: {
-        Row: {
-          created_at: string | null
-          data_entrada: string | null
-          fornecedor: string | null
-          id: string | null
-          numero_nf: string | null
-          observacao: string | null
-          produto_id: string | null
-          quantidade: number | null
-          sala_id: string | null
-          usuario_responsavel: string | null
-          usuario_responsavel_nome: string | null
-          valor_total: number | null
-          valor_unitario: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          data_entrada?: string | null
-          fornecedor?: string | null
-          id?: string | null
-          numero_nf?: string | null
-          observacao?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          sala_id?: string | null
-          usuario_responsavel?: string | null
-          usuario_responsavel_nome?: string | null
-          valor_total?: number | null
-          valor_unitario?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          data_entrada?: string | null
-          fornecedor?: string | null
-          id?: string | null
-          numero_nf?: string | null
-          observacao?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          sala_id?: string | null
-          usuario_responsavel?: string | null
-          usuario_responsavel_nome?: string | null
-          valor_total?: number | null
-          valor_unitario?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "entradas_estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entradas_estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entradas_estoque_sala_id_fkey"
-            columns: ["sala_id"]
-            isOneToOne: false
-            referencedRelation: "salas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_estoque_master: {
-        Row: {
-          custo_medio: number | null
-          id: string | null
-          produto_id: string | null
-          quantidade: number | null
-          sala_id: string | null
-          updated_at: string | null
-          valor_total: number | null
-        }
-        Insert: {
-          custo_medio?: number | null
-          id?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          sala_id?: string | null
-          updated_at?: string | null
-          valor_total?: number | null
-        }
-        Update: {
-          custo_medio?: number | null
-          id?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          sala_id?: string | null
-          updated_at?: string | null
-          valor_total?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "estoque_sala_id_fkey"
-            columns: ["sala_id"]
-            isOneToOne: false
-            referencedRelation: "salas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_movimentacoes_master: {
-        Row: {
-          created_at: string | null
-          custo_unitario_aplicado: number | null
-          id: string | null
-          observacao: string | null
-          produto_id: string | null
-          quantidade: number | null
-          referencia_id: string | null
-          referencia_tipo: string | null
-          sala_id: string | null
-          saldo_apos: number | null
-          tipo: Database["public"]["Enums"]["movimentacao_tipo"] | null
-          usuario_id: string | null
-          valor_financeiro: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          custo_unitario_aplicado?: number | null
-          id?: string | null
-          observacao?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          referencia_id?: string | null
-          referencia_tipo?: string | null
-          sala_id?: string | null
-          saldo_apos?: number | null
-          tipo?: Database["public"]["Enums"]["movimentacao_tipo"] | null
-          usuario_id?: string | null
-          valor_financeiro?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          custo_unitario_aplicado?: number | null
-          id?: string | null
-          observacao?: string | null
-          produto_id?: string | null
-          quantidade?: number | null
-          referencia_id?: string | null
-          referencia_tipo?: string | null
-          sala_id?: string | null
-          saldo_apos?: number | null
-          tipo?: Database["public"]["Enums"]["movimentacao_tipo"] | null
-          usuario_id?: string | null
-          valor_financeiro?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "movimentacoes_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "movimentacoes_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "movimentacoes_sala_id_fkey"
-            columns: ["sala_id"]
-            isOneToOne: false
-            referencedRelation: "salas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "movimentacoes_usuario_id_fkey"
-            columns: ["usuario_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_produto_custo_historico_master: {
-        Row: {
-          alterado_em: string | null
-          alterado_por: string | null
-          alterado_por_nome: string | null
-          id: string | null
-          produto_id: string | null
-          valor_anterior: number | null
-          valor_novo: number | null
-        }
-        Insert: {
-          alterado_em?: string | null
-          alterado_por?: string | null
-          alterado_por_nome?: string | null
-          id?: string | null
-          produto_id?: string | null
-          valor_anterior?: number | null
-          valor_novo?: number | null
-        }
-        Update: {
-          alterado_em?: string | null
-          alterado_por?: string | null
-          alterado_por_nome?: string | null
-          id?: string | null
-          produto_id?: string | null
-          valor_anterior?: number | null
-          valor_novo?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "produto_custo_historico_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "produtos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "produto_custo_historico_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
-            referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_produtos_master: {
-        Row: {
-          ativo: boolean | null
-          categoria_id: string | null
-          created_at: string | null
-          custo_unitario: number | null
-          descricao: string | null
-          estoque_minimo: number | null
-          id: string | null
-          nome: string | null
-          sala_id: string | null
-          unidade: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          ativo?: boolean | null
-          categoria_id?: string | null
-          created_at?: string | null
-          custo_unitario?: number | null
-          descricao?: string | null
-          estoque_minimo?: number | null
-          id?: string | null
-          nome?: string | null
-          sala_id?: string | null
-          unidade?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          ativo?: boolean | null
-          categoria_id?: string | null
-          created_at?: string | null
-          custo_unitario?: number | null
-          descricao?: string | null
-          estoque_minimo?: number | null
-          id?: string | null
-          nome?: string | null
-          sala_id?: string | null
-          unidade?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "produtos_categoria_id_fkey"
-            columns: ["categoria_id"]
-            isOneToOne: false
-            referencedRelation: "categorias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "produtos_sala_id_fkey"
-            columns: ["sala_id"]
-            isOneToOne: false
-            referencedRelation: "salas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       _recalc_estoque_valor: {
@@ -1917,24 +1370,6 @@ export type Database = {
           sala_id: string
           sala_nome: string
           valor: number
-        }[]
-      }
-      relatorio_consumo_operacional: {
-        Args: {
-          _categoria?: string
-          _from?: string
-          _produto?: string
-          _sala?: string
-          _to?: string
-        }
-        Returns: {
-          categoria_id: string
-          categoria_nome: string
-          produto_id: string
-          produto_nome: string
-          quantidade: number
-          sala_id: string
-          sala_nome: string
         }[]
       }
       relatorio_custo_por_sala: {

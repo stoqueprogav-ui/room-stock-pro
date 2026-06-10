@@ -1,6 +1,4 @@
-import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -56,21 +54,21 @@ const App = () => (
               <Route index element={<Index />} />
               <Route path="escolher-sala" element={<EscolherSala />} />
               {/* Master */}
-              <Route path="salas" element={<MasterOnly><SalasPage /></MasterOnly>} />
-              <Route path="produtos" element={<MasterOnly><ProdutosPage /></MasterOnly>} />
-              <Route path="estoque" element={<MasterOnly><EstoquePage /></MasterOnly>} />
-              <Route path="requisicoes" element={<MasterOnly><RequisicoesPage /></MasterOnly>} />
+              <Route path="salas" element={<SalasPage />} />
+              <Route path="produtos" element={<ProdutosPage />} />
+              <Route path="estoque" element={<EstoquePage />} />
+              <Route path="requisicoes" element={<RequisicoesPage />} />
               {/* Compatibilidade com link antigo */}
               <Route path="solicitacoes" element={<Navigate to="/app/requisicoes" replace />} />
-              <Route path="usuarios" element={<MasterOnly><UsuariosPage /></MasterOnly>} />
-              <Route path="categorias" element={<MasterOnly><CategoriasPage /></MasterOnly>} />
-              <Route path="relatorios" element={<MasterOnly><RelatoriosPage /></MasterOnly>} />
-              <Route path="configuracoes" element={<MasterOnly><ConfiguracoesPage /></MasterOnly>} />
+              <Route path="usuarios" element={<UsuariosPage />} />
+              <Route path="categorias" element={<CategoriasPage />} />
+              <Route path="relatorios" element={<RelatoriosPage />} />
+              <Route path="configuracoes" element={<ConfiguracoesPage />} />
               <Route path="auditoria" element={<Navigate to="/app/movimentacoes" replace />} />
-              <Route path="consumo-interno" element={<MasterOnly><ConsumoInternoPage /></MasterOnly>} />
-              <Route path="inventario" element={<MasterOnly><InventarioPage /></MasterOnly>} />
-              <Route path="dashboard-gerencial" element={<MasterOnly><DashboardGerencial /></MasterOnly>} />
-              <Route path="entradas" element={<MasterOnly><EntradasEstoquePage /></MasterOnly>} />
+              <Route path="consumo-interno" element={<ConsumoInternoPage />} />
+              <Route path="inventario" element={<InventarioPage />} />
+              <Route path="dashboard-gerencial" element={<DashboardGerencial />} />
+              <Route path="entradas" element={<EntradasEstoquePage />} />
               {/* Compartilhado */}
               <Route path="emprestimos" element={<EmprestimosPage />} />
               <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />
@@ -86,7 +84,6 @@ const App = () => (
               <Route path="meu-perfil" element={<MeuPerfil />} />
               <Route path="chat" element={<ChatPage />} />
             </Route>
-
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
@@ -99,14 +96,6 @@ function MovimentacoesRouter() {
   const { role } = useAuth();
   return role === "master" ? <MovimentacoesMasterPage /> : <MovimentacoesPage />;
 }
-
-function MasterOnly({ children }: { children: React.ReactElement }) {
-  const { role, loading } = useAuth();
-  if (loading) return null;
-  if (role !== "master") return <Navigate to="/app" replace />;
-  return children;
-}
-
 
 export default App;
 
