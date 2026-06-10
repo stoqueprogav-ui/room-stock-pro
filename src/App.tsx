@@ -63,7 +63,7 @@ const App = () => (
               <Route path="categorias" element={<CategoriasPage />} />
               <Route path="relatorios" element={<RelatoriosPage />} />
               <Route path="configuracoes" element={<ConfiguracoesPage />} />
-              <Route path="auditoria" element={<AuditoriaPage />} />
+              <Route path="auditoria" element={<Navigate to="/app/movimentacoes" replace />} />
               <Route path="consumo-interno" element={<ConsumoInternoPage />} />
               <Route path="inventario" element={<InventarioPage />} />
               <Route path="dashboard-gerencial" element={<DashboardGerencial />} />
