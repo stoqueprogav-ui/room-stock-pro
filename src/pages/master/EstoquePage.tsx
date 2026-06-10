@@ -886,7 +886,12 @@ function FichaFinanceira({ row, loading, entradas }: { row: Row; loading: boolea
           <div className="font-display text-lg font-bold">{row.quantidade} <span className="text-xs text-muted-foreground">{row.produto.unidade}</span></div>
         </div>
         <div className="rounded-md border bg-card p-3">
-          <div className="text-[10px] uppercase text-muted-foreground">Custo médio</div>
+          <div className="text-[10px] uppercase text-muted-foreground flex items-center justify-between gap-1">
+            <span>Custo médio</span>
+            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${row.custo_medio > 0 ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
+              {row.custo_medio > 0 ? "Valorizado" : "Sem valorização"}
+            </span>
+          </div>
           <div className="font-display text-lg font-bold">{row.custo_medio > 0 ? BRL(row.custo_medio) : "—"}</div>
         </div>
         <div className="rounded-md border bg-card p-3">
