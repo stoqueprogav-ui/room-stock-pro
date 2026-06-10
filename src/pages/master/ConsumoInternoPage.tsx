@@ -11,6 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Trash2, Search, FileDown, FileSpreadsheet, Printer } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
+import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { formatDateTime } from "@/lib/format";
 import { exportToExcel, exportToPdf, printElement } from "@/lib/exporters";
@@ -38,6 +41,9 @@ const MOTIVOS: { value: string; label: string }[] = [
 const motivoLabel = (m: string) => MOTIVOS.find((x) => x.value === m)?.label ?? m;
 
 export default function ConsumoInternoPage() {
+  const { role } = useAuth();
+  const { activeSalaId, activeSalaName } = useActiveSala();
+  const { scopeSalaId } = useMasterScope();
   const [salas, setSalas] = useState<Sala[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
