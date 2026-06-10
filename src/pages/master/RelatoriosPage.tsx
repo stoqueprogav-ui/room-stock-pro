@@ -105,7 +105,7 @@ export default function RelatoriosPage() {
       const [ss, cc, pp, ev, es, vz] = await Promise.all([
         supabase.from("salas").select("id, nome").order("nome"),
         supabase.from("categorias").select("id, nome").order("nome"),
-        supabase.from("produtos").select("id, nome, custo_unitario, categoria_id").order("nome"),
+        supabase.from("v_produtos_master" as any).select("id, nome, custo_unitario, categoria_id").order("nome"),
         supabase.rpc("valor_estoque_por_sala"),
         supabase.rpc("relatorio_emprestimos_salas"),
         supabase.rpc("estatisticas_valorizacao"),
