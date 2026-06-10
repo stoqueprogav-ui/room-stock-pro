@@ -110,6 +110,7 @@ export default function ProdutosPage() {
       descricao: form.descricao || null,
       unidade: (form.unidade || "Unidade").trim(),
       estoque_minimo: Number(form.estoque_minimo) || 0,
+      custo_unitario: Number(form.custo_unitario) || 0,
       categoria_id: form.categoria_id,
     };
 
