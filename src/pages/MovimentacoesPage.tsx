@@ -75,6 +75,7 @@ export default function MovimentacoesPage() {
     let q = supabase
       .from("movimentacoes")
       .select(`id, created_at, tipo, quantidade, saldo_apos, observacao, sala_id, referencia_tipo, referencia_id,
+               custo_unitario_aplicado, valor_financeiro,
                produto:produtos(nome, unidade), sala:salas(nome),
                usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
       .order("created_at", { ascending: false })
