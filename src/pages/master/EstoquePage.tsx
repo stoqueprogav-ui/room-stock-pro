@@ -491,7 +491,8 @@ export default function EstoquePage() {
           </TableHeader>
           <TableBody>
             {filtered.map((r) => (
-              <TableRow key={`${r.produto_id}-${r.sala_id}`} className="table-row-hover">
+              <React.Fragment key={`${r.produto_id}-${r.sala_id}`}>
+              <TableRow className="table-row-hover">
                 {isMaster && (
                   <TableCell>
                     <Checkbox
