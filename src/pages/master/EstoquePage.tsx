@@ -553,11 +553,11 @@ export default function EstoquePage() {
 
       {/* Modal: Entrada/Saída rápida */}
       <Dialog open={movOpen} onOpenChange={setMovOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {movTipo === "entrada"
-                ? <><ArrowDownToLine className="size-5 text-success" /> Entrada de produto</>
+                ? <><ArrowDownToLine className="size-5 text-success" /> Entrada de estoque (compra)</>
                 : <><ArrowUpFromLine className="size-5 text-destructive" /> Saída de produto</>}
             </DialogTitle>
             <DialogDescription>
@@ -565,47 +565,94 @@ export default function EstoquePage() {
                 <>
                   <span className="font-medium text-foreground">{movRow.produto.nome}</span>
                   {" · "}{movRow.sala.nome}
-                  {" · estoque atual: "}
+                  {" · saldo atual: "}
                   <span className="font-mono text-foreground">{movRow.quantidade} {movRow.produto.unidade}</span>
+                  {movTipo === "entrada" && movRow.custo_medio > 0 && (
+                    <> · CMP atual: <span className="font-mono text-foreground">{BRL(movRow.custo_medio)}</span></>
+                  )}
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label>Quantidade</Label>
-              <Input
-                type="number"
-                min={1}
-                autoFocus
-                value={movQtd || ""}
-                onChange={(e) => setMovQtd(Number(e.target.value))}
-                onKeyDown={(e) => { if (e.key === "Enter" && movQtd > 0) confirmarMov(); }}
-              />
-              {movRow && movQtd > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  Novo saldo: <span className="font-mono text-foreground font-semibold">
-                    {movTipo === "entrada" ? movRow.quantidade + movQtd : movRow.quantidade - movQtd}
-                  </span>
+
+          {movTipo === "entrada" ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Quantidade *</Label>
+                  <Input type="number" min={1} autoFocus value={entradaForm.quantidade || ""}
+                    onChange={(e) => setEntradaForm({ ...entradaForm, quantidade: Number(e.target.value) })} />
                 </div>
-              )}
+                <div className="space-y-2">
+                  <Label>Valor unitário (R$) *</Label>
+                  <Input type="number" min={0} step="0.01" value={entradaForm.valor_unitario || ""}
+                    onChange={(e) => setEntradaForm({ ...entradaForm, valor_unitario: Number(e.target.value) })} />
+                </div>
+              </div>
+              <div className="rounded-md bg-success/10 border border-success/30 px-3 py-2 text-sm flex items-center justify-between">
+                <span className="text-muted-foreground">Valor total da compra</span>
+                <span className="font-display font-bold text-lg text-success">
+                  {BRL(Number(entradaForm.quantidade || 0) * Number(entradaForm.valor_unitario || 0))}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Fornecedor</Label>
+                  <Input value={entradaForm.fornecedor} onChange={(e) => setEntradaForm({ ...entradaForm, fornecedor: e.target.value })} placeholder="Ex: Atacadão" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Número da NF</Label>
+                  <Input value={entradaForm.numero_nf} onChange={(e) => setEntradaForm({ ...entradaForm, numero_nf: e.target.value })} placeholder="Ex: 000123456" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Observação</Label>
+                <Textarea value={entradaForm.observacao} onChange={(e) => setEntradaForm({ ...entradaForm, observacao: e.target.value })} rows={2} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Observação (opcional)</Label>
-              <Textarea value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Ex: Compra NF 1234 / Uso evento X" rows={2} />
+          ) : (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Quantidade *</Label>
+                <Input type="number" min={1} autoFocus value={movQtd || ""}
+                  onChange={(e) => setMovQtd(Number(e.target.value))}
+                  onKeyDown={(e) => { if (e.key === "Enter" && movQtd > 0) confirmarMov(); }} />
+                {movRow && movQtd > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    Novo saldo: <span className="font-mono text-foreground font-semibold">{movRow.quantidade - movQtd}</span>
+                    {movRow.custo_medio > 0 && (
+                      <> · valor da saída: <span className="font-mono text-foreground">{BRL(movQtd * movRow.custo_medio)}</span></>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Motivo *</Label>
+                <Select value={saidaMotivo} onValueChange={setSaidaMotivo}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MOTIVOS_SAIDA.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Observação</Label>
+                <Textarea value={movObs} onChange={(e) => setMovObs(e.target.value)} placeholder="Detalhes opcionais" rows={2} />
+              </div>
             </div>
-          </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setMovOpen(false)}>Cancelar</Button>
             <Button
               onClick={confirmarMov}
-              disabled={movSaving || movQtd <= 0}
+              disabled={movSaving || (movTipo === "entrada" ? entradaForm.quantidade <= 0 : movQtd <= 0)}
               className={movTipo === "saida"
                 ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                 : "bg-success hover:bg-success/90 text-success-foreground"}
             >
               {movSaving && <Loader2 className="size-4 animate-spin" />}
-              {movTipo === "entrada" ? "Confirmar entrada" : "Confirmar saída"}
+              {movTipo === "entrada" ? "Registrar entrada" : "Confirmar saída"}
             </Button>
           </DialogFooter>
         </DialogContent>
