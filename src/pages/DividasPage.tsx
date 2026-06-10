@@ -33,13 +33,21 @@ export default function DividasPage() {
   const [editing, setEditing] = useState<Divida | null>(null);
   const [qtd, setQtd] = useState(0);
 
+  const isMaster = role === "master";
   const load = useCallback(async () => {
-    let q = supabase
-      .from("dividas")
-      .select(`id, saldo, valor_financeiro, sala_devedora_id, sala_credora_id,
+    const cols = isMaster
+      ? `id, saldo, valor_financeiro, sala_devedora_id, sala_credora_id,
                devedora:salas!dividas_sala_devedora_id_fkey(nome),
                credora:salas!dividas_sala_credora_id_fkey(nome),
-               produto:produtos(nome, unidade)`)
+               produto:produtos(nome, unidade)`
+      : `id, saldo, sala_devedora_id, sala_credora_id,
+               devedora:salas!dividas_sala_devedora_id_fkey(nome),
+               credora:salas!dividas_sala_credora_id_fkey(nome),
+               produto:produtos(nome, unidade)`;
+    const tbl = isMaster ? "v_dividas_master" : "dividas";
+    let q = supabase
+      .from(tbl as any)
+      .select(cols)
       .order("saldo", { ascending: false });
     if (role === "master" && scopeSalaId) {
       q = q.or(`sala_devedora_id.eq.${scopeSalaId},sala_credora_id.eq.${scopeSalaId}`);
@@ -48,9 +56,10 @@ export default function DividasPage() {
     }
     const { data } = await q;
     setRows((data as any) ?? []);
-  }, [role, scopeSalaId, activeSalaId]);
+  }, [role, scopeSalaId, activeSalaId, isMaster]);
   useEffect(() => { load(); }, [load]);
   useRealtimeSync(["dividas", "emprestimos", "movimentacoes"], load, { debounceMs: 300 });
+
 
 
   const quitar = async () => {
