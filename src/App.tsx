@@ -98,5 +98,13 @@ function MovimentacoesRouter() {
   return role === "master" ? <MovimentacoesMasterPage /> : <MovimentacoesPage />;
 }
 
+function MasterOnly({ children }: { children: JSX.Element }) {
+  const { role, loading } = useAuth();
+  if (loading) return null;
+  if (role !== "master") return <Navigate to="/app" replace />;
+  return children;
+}
+
+
 export default App;
 
