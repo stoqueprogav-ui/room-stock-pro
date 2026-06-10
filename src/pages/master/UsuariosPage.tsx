@@ -27,18 +27,20 @@ export default function UsuariosPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, sala_id: "" });
+  const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, salas: [] as string[] });
   const [saving, setSaving] = useState(false);
   const [createdInfo, setCreatedInfo] = useState<{ nome: string; email: string; password: string } | null>(null);
   const [resetOpen, setResetOpen] = useState<UserRow | null>(null);
   const [resetPwd, setResetPwd] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [salasDialog, setSalasDialog] = useState<UserRow | null>(null);
 
   const load = async () => {
-    const [{ data: profs }, { data: roles }, { data: ss }] = await Promise.all([
+    const [{ data: profs }, { data: roles }, { data: ss }, { data: us }] = await Promise.all([
       supabase.from("profiles").select("id, nome, email, sala_id, must_change_password, sala:salas(nome)"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("salas").select("*").order("nome"),
+      supabase.from("user_salas").select("user_id"),
     ]);
     const order: AppRole[] = ["master", "admin", "analista"];
     const list: UserRow[] = (profs ?? []).map((p: any) => {
