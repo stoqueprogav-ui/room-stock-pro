@@ -20,11 +20,16 @@ type Mov = {
   sala_id: string;
   referencia_tipo: string | null;
   referencia_id: string | null;
+  custo_unitario_aplicado: number | null;
+  valor_financeiro: number | null;
   produto: { nome: string; unidade: string };
   sala: { nome: string };
   usuario: { nome: string } | null;
   originador?: { nome: string } | null;
 };
+
+const BRL = (v: number | null | undefined) =>
+  v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 
 const TIPO_LABEL: Record<string, { label: string; cls: string }> = {
@@ -70,6 +75,7 @@ export default function MovimentacoesPage() {
     let q = supabase
       .from("movimentacoes")
       .select(`id, created_at, tipo, quantidade, saldo_apos, observacao, sala_id, referencia_tipo, referencia_id,
+               custo_unitario_aplicado, valor_financeiro,
                produto:produtos(nome, unidade), sala:salas(nome),
                usuario:profiles!movimentacoes_usuario_id_fkey(nome)`)
       .order("created_at", { ascending: false })
@@ -237,13 +243,15 @@ export default function MovimentacoesPage() {
               <TableHead>Sala</TableHead>
               <TableHead className="w-[170px]">Operação</TableHead>
               <TableHead>Produto</TableHead>
-              <TableHead className="text-right w-[100px]">Qtd.</TableHead>
+              <TableHead className="text-right w-[90px]">Qtd.</TableHead>
               <TableHead className="text-right w-[100px]">Saldo</TableHead>
+              <TableHead className="text-right w-[110px]">Custo unit.</TableHead>
+              <TableHead className="text-right w-[120px]">Valor (R$)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="py-12 text-center"><Loader2 className="size-5 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="py-12 text-center"><Loader2 className="size-5 animate-spin mx-auto text-primary" /></TableCell></TableRow>
             )}
             {filtered.map((m) => {
               const tipoCfg = TIPO_LABEL[m.tipo] ?? { label: m.tipo, cls: "" };
@@ -270,10 +278,12 @@ export default function MovimentacoesPage() {
                   <TableCell>{m.produto.nome}</TableCell>
                   <TableCell className={`text-right font-mono ${m.quantidade < 0 ? "text-destructive" : "text-success"}`}>{m.quantidade > 0 ? "+" : ""}{m.quantidade}</TableCell>
                   <TableCell className="text-right font-mono">{m.saldo_apos}</TableCell>
+                  <TableCell className="text-right font-mono text-muted-foreground">{BRL(m.custo_unitario_aplicado)}</TableCell>
+                  <TableCell className={`text-right font-mono font-medium ${m.quantidade < 0 ? "text-destructive" : "text-success"}`}>{BRL(m.valor_financeiro)}</TableCell>
                 </TableRow>
               );
             })}
-            {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhuma movimentação encontrada com os filtros aplicados.</TableCell></TableRow>}
+            {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhuma movimentação encontrada com os filtros aplicados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
