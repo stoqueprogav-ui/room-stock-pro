@@ -42,7 +42,11 @@ type EmpSalaRow = {
 };
 
 type EstoqueValorRow = {
-  sala_id: string; sala_nome: string; total_itens: number; valor_total: number;
+  sala_id: string; sala_nome: string; total_itens: number; itens_sem_valor: number; valor_total: number;
+};
+type ValorizacaoStats = {
+  produtos_valorizados: number; produtos_sem_valor: number; produtos_total: number;
+  percentual_valorizado: number; itens_valorizados: number; itens_sem_valor: number; patrimonio_total: number;
 };
 
 const PIE_COLORS = [
@@ -87,6 +91,7 @@ export default function RelatoriosPage() {
   const [empSalas, setEmpSalas] = useState<EmpSalaRow[]>([]);
   const [empStatus, setEmpStatus] = useState<{ status: string; count: number }[]>([]);
   const [estoqueValor, setEstoqueValor] = useState<EstoqueValorRow[]>([]);
+  const [valorizacao, setValorizacao] = useState<ValorizacaoStats | null>(null);
   const [reqPorSala, setReqPorSala] = useState<{ sala_id: string; sala_nome: string; total: number }[]>([]);
   const [empMensal, setEmpMensal] = useState<{ mes: string; count: number }[]>([]);
 
@@ -97,18 +102,21 @@ export default function RelatoriosPage() {
   // Bases (salas, categorias, produtos, valor estoque, emp por sala)
   useEffect(() => {
     (async () => {
-      const [ss, cc, pp, ev, es] = await Promise.all([
+      const [ss, cc, pp, ev, es, vz] = await Promise.all([
         supabase.from("salas").select("id, nome").order("nome"),
         supabase.from("categorias").select("id, nome").order("nome"),
         supabase.from("produtos").select("id, nome, custo_unitario, categoria_id").order("nome"),
         supabase.rpc("valor_estoque_por_sala"),
         supabase.rpc("relatorio_emprestimos_salas"),
+        supabase.rpc("estatisticas_valorizacao"),
       ]);
       setSalas((ss.data as Sala[]) ?? []);
       setCategorias((cc.data as Categoria[]) ?? []);
       setProdutos((pp.data as Produto[]) ?? []);
       setEstoqueValor((ev.data as EstoqueValorRow[]) ?? []);
       setEmpSalas((es.data as EmpSalaRow[]) ?? []);
+      const vzRow = Array.isArray(vz.data) ? (vz.data as any[])[0] : (vz.data as any);
+      if (vzRow) setValorizacao(vzRow as ValorizacaoStats);
     })();
   }, []);
 
@@ -314,6 +322,8 @@ export default function RelatoriosPage() {
     { label: "Produto mais consumido", value: topProduto ? `${topProduto.produto} (${NUM(topProduto.qtd)} un.)` : "—" },
     { label: "Categoria líder", value: topCategoria ? `${topCategoria.cat} — ${BRL(topCategoria.valor)}` : "—" },
     { label: "Maior estoque financeiro", value: salaMaiorEstoque ? `${salaMaiorEstoque.sala_nome} — ${BRL(Number(salaMaiorEstoque.valor_total))}` : "—" },
+    { label: "Produtos valorizados", value: valorizacao ? `${NUM(valorizacao.produtos_valorizados)} de ${NUM(valorizacao.produtos_total)} (${valorizacao.percentual_valorizado}%)` : "—" },
+    { label: "Itens sem valorização", value: valorizacao ? `${NUM(valorizacao.itens_sem_valor)} un.` : "—" },
   ];
 
   const exportarExecutivoXLSX = () => {
@@ -746,10 +756,35 @@ export default function RelatoriosPage() {
 
         {/* ===== VALOR DE ESTOQUE ===== */}
         <TabsContent value="estoque" className="mt-4 space-y-4">
-          <Card className="p-4">
-            <div className="text-sm text-muted-foreground">Patrimônio total em estoque</div>
-            <div className="text-3xl font-semibold text-primary mt-1">{BRL(valorTotalEstoque)}</div>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">Patrimônio total em estoque</div>
+              <div className="text-3xl font-semibold text-primary mt-1">{BRL(valorTotalEstoque)}</div>
+              {valorizacao && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Base financeira: {NUM(valorizacao.itens_valorizados)} itens valorizados
+                </div>
+              )}
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">Produtos valorizados</div>
+              <div className="text-3xl font-semibold mt-1">
+                {valorizacao ? `${NUM(valorizacao.produtos_valorizados)} / ${NUM(valorizacao.produtos_total)}` : "—"}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {valorizacao ? `${valorizacao.percentual_valorizado}% do catálogo ativo` : ""}
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">Itens sem valorização financeira</div>
+              <div className="text-3xl font-semibold text-warning mt-1">
+                {valorizacao ? NUM(valorizacao.itens_sem_valor) : "—"}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Excluídos dos relatórios financeiros até receberem custo
+              </div>
+            </Card>
+          </div>
           <ChartCard title="Valor financeiro por sala (R$)">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={estoqueValor}>
@@ -765,7 +800,8 @@ export default function RelatoriosPage() {
             title="Valor de estoque por sala"
             cols={[
               { header: "Sala", key: "sala_nome" },
-              { header: "Itens", key: "total_itens", map: (r: any) => NUM(Number(r.total_itens)) },
+              { header: "Itens valorizados", key: "total_itens", map: (r: any) => NUM(Number(r.total_itens)) },
+              { header: "Itens sem valor", key: "itens_sem_valor", map: (r: any) => NUM(Number(r.itens_sem_valor ?? 0)) },
               { header: "Valor (R$)", key: "valor_total", map: (r: any) => BRL(Number(r.valor_total)) },
             ]}
             rows={estoqueValor}

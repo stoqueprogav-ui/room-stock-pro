@@ -20,6 +20,7 @@ function fromDays(d: number) {
 export default function DashboardGerencial() {
   const [periodo, setPeriodo] = useState("30");
   const [kpis, setKpis] = useState({ produtos: 0, unidadesEstoque: 0, movMes: 0, reqMes: 0, empAtivos: 0, consumosMes: 0 });
+  const [valorizacao, setValorizacao] = useState<{ produtos_valorizados: number; produtos_sem_valor: number; produtos_total: number; percentual_valorizado: number; itens_valorizados: number; itens_sem_valor: number; patrimonio_total: number } | null>(null);
   const [salaConsumo, setSalaConsumo] = useState<{ name: string; value: number }[]>([]);
   const [catConsumo, setCatConsumo] = useState<{ name: string; value: number }[]>([]);
   const [reqPeriodo, setReqPeriodo] = useState<{ data: string; total: number }[]>([]);
@@ -31,7 +32,7 @@ export default function DashboardGerencial() {
     const days = parseInt(periodo, 10);
     const since = fromDays(days);
 
-    const [prods, estoque, mov, req, emp, cons] = await Promise.all([
+    const [prods, estoque, mov, req, emp, cons, vz] = await Promise.all([
       supabase.from("produtos").select("id", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("estoque").select("quantidade"),
       supabase.from("movimentacoes").select("id", { count: "exact", head: true }).gte("created_at", since),
@@ -40,7 +41,10 @@ export default function DashboardGerencial() {
       supabase.from("consumos_internos")
         .select("id, created_at, quantidade, motivo, sala:salas(nome), produto:produtos(nome, categoria:categorias(nome))")
         .gte("created_at", since),
+      supabase.rpc("estatisticas_valorizacao"),
     ]);
+    const vzRow = Array.isArray(vz.data) ? (vz.data as any[])[0] : (vz.data as any);
+    if (vzRow) setValorizacao(vzRow);
 
     const unidades = ((estoque.data as any[]) ?? []).reduce((s, r) => s + (r.quantidade ?? 0), 0);
     const consData = (cons.data as any[]) ?? [];
@@ -134,6 +138,35 @@ export default function DashboardGerencial() {
           </Card>
         ))}
       </div>
+
+      {valorizacao && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold">Valorização financeira do catálogo</h3>
+            <span className="text-xs text-muted-foreground">
+              Produtos sem custo médio são ignorados nos relatórios financeiros
+            </span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-md border p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">Valorizados</div>
+              <div className="font-display text-2xl font-bold text-success">{valorizacao.produtos_valorizados.toLocaleString("pt-BR")}</div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">Sem valorização</div>
+              <div className="font-display text-2xl font-bold text-warning">{valorizacao.produtos_sem_valor.toLocaleString("pt-BR")}</div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">% valorizado</div>
+              <div className="font-display text-2xl font-bold">{valorizacao.percentual_valorizado}%</div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">Itens sem valor (un.)</div>
+              <div className="font-display text-2xl font-bold">{valorizacao.itens_sem_valor.toLocaleString("pt-BR")}</div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-4">
