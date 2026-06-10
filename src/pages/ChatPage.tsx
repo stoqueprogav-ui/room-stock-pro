@@ -691,6 +691,7 @@ type CreatedFallback = { type?: ConvRow["type"]; title?: string | null; sala_id?
 
 function NewConversationDialog({ onCreated, compact = false }: { onCreated: (id: string, fb?: CreatedFallback) => void; compact?: boolean }) {
   const { user, role, profile } = useAuth();
+  const { activeSalaId } = useActiveSala();
   const [open, setOpen] = useState(false);
   const [users, setUsers] = useState<{ id: string; nome: string; email: string; sala_id: string | null }[]>([]);
   const [salas, setSalas] = useState<{ id: string; nome: string }[]>([]);
