@@ -193,17 +193,14 @@ export default function UsuariosPage() {
                   </Select>
                 </TableCell>
                 <TableCell>
-                  <Select
-                    value={u.sala_id ?? "none"}
-                    onValueChange={(v) => updateSala(u, v === "none" ? null : v)}
-                    disabled={u.role === "master"}
-                  >
-                    <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— sem sala —</SelectItem>
-                      {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  {u.role === "master" ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Globe2 className="size-3.5" /> Todas as salas</span>
+                  ) : (
+                    <Button variant="outline" size="sm" className="h-8" onClick={() => setSalasDialog(u)}>
+                      <Building2 className="size-3.5" />
+                      {u.salas_count ? `${u.salas_count} sala${u.salas_count > 1 ? "s" : ""}` : "Definir salas"}
+                    </Button>
+                  )}
                 </TableCell>
                 <TableCell>
                   {u.must_change_password ? (
