@@ -66,7 +66,7 @@ export default function DividasPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Dívidas entre salas" description="Saldo de produtos pendente de devolução, gerado por empréstimos aprovados. Inclui valor financeiro." />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className={`grid grid-cols-1 ${role === "master" ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3`}>
         <div className="panel p-4">
           <div className="text-xs text-muted-foreground">Dívidas em aberto</div>
           <div className="font-display text-2xl font-bold mt-1">{rows.length}</div>
@@ -75,10 +75,12 @@ export default function DividasPage() {
           <div className="text-xs text-muted-foreground">Itens devidos</div>
           <div className="font-display text-2xl font-bold mt-1">{rows.reduce((s, d) => s + d.saldo, 0)}</div>
         </div>
-        <div className="panel p-4">
-          <div className="text-xs text-muted-foreground">Valor financeiro total</div>
-          <div className="font-display text-2xl font-bold mt-1 text-destructive">{BRL(totalFinanceiro)}</div>
-        </div>
+        {role === "master" && (
+          <div className="panel p-4">
+            <div className="text-xs text-muted-foreground">Valor financeiro total</div>
+            <div className="font-display text-2xl font-bold mt-1 text-destructive">{BRL(totalFinanceiro)}</div>
+          </div>
+        )}
       </div>
       <div className="panel overflow-x-auto">
         <Table>
