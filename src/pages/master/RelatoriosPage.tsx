@@ -42,7 +42,11 @@ type EmpSalaRow = {
 };
 
 type EstoqueValorRow = {
-  sala_id: string; sala_nome: string; total_itens: number; valor_total: number;
+  sala_id: string; sala_nome: string; total_itens: number; itens_sem_valor: number; valor_total: number;
+};
+type ValorizacaoStats = {
+  produtos_valorizados: number; produtos_sem_valor: number; produtos_total: number;
+  percentual_valorizado: number; itens_valorizados: number; itens_sem_valor: number; patrimonio_total: number;
 };
 
 const PIE_COLORS = [
