@@ -102,18 +102,21 @@ export default function RelatoriosPage() {
   // Bases (salas, categorias, produtos, valor estoque, emp por sala)
   useEffect(() => {
     (async () => {
-      const [ss, cc, pp, ev, es] = await Promise.all([
+      const [ss, cc, pp, ev, es, vz] = await Promise.all([
         supabase.from("salas").select("id, nome").order("nome"),
         supabase.from("categorias").select("id, nome").order("nome"),
         supabase.from("produtos").select("id, nome, custo_unitario, categoria_id").order("nome"),
         supabase.rpc("valor_estoque_por_sala"),
         supabase.rpc("relatorio_emprestimos_salas"),
+        supabase.rpc("estatisticas_valorizacao"),
       ]);
       setSalas((ss.data as Sala[]) ?? []);
       setCategorias((cc.data as Categoria[]) ?? []);
       setProdutos((pp.data as Produto[]) ?? []);
       setEstoqueValor((ev.data as EstoqueValorRow[]) ?? []);
       setEmpSalas((es.data as EmpSalaRow[]) ?? []);
+      const vzRow = Array.isArray(vz.data) ? (vz.data as any[])[0] : (vz.data as any);
+      if (vzRow) setValorizacao(vzRow as ValorizacaoStats);
     })();
   }, []);
 
