@@ -287,7 +287,7 @@ export default function ProdutosPage() {
                 </TableRow>
               );
             })}
-            {lista.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
+            {lista.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
