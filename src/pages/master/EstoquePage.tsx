@@ -11,15 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X } from "lucide-react";
+import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar } from "lucide-react";
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-type Row = { produto_id: string; sala_id: string; quantidade: number; produto: Produto; sala: Sala };
+type Row = { produto_id: string; sala_id: string; quantidade: number; custo_medio: number; valor_total: number; produto: Produto; sala: Sala };
+type UltimaEntrada = { data: string; valor_unitario: number; fornecedor: string | null };
 type StatusKind = "ok" | "baixo" | "critico";
 type SortKey = "nome" | "quantidade" | "menor";
+
+const BRL = (v: number) => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const MOTIVOS_SAIDA = ["Consumo interno", "Quebra/Avaria", "Vencido", "Uso em evento", "Ajuste de inventário", "Outros"];
 
 const UNIDADES_PRESET = ["Unidade", "Caixa", "Fardo", "Pacote", "Kit", "Litro", "Galão", "Rolo", "Par", "Metro"];
 
