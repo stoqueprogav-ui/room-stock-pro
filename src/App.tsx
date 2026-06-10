@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
 import Index from "./pages/Index";
@@ -28,7 +28,7 @@ import MeuPerfil from "./pages/MeuPerfil";
 import ChatPage from "./pages/ChatPage";
 import TrocarSenhaObrigatoria from "./pages/TrocarSenhaObrigatoria";
 import ConfiguracoesPage from "./pages/master/ConfiguracoesPage";
-import AuditoriaPage from "./pages/master/AuditoriaPage";
+import MovimentacoesMasterPage from "./pages/master/MovimentacoesMasterPage";
 import ConsumoInternoPage from "./pages/master/ConsumoInternoPage";
 import InventarioPage from "./pages/master/InventarioPage";
 import DashboardGerencial from "./pages/master/DashboardGerencial";
@@ -63,7 +63,7 @@ const App = () => (
               <Route path="categorias" element={<CategoriasPage />} />
               <Route path="relatorios" element={<RelatoriosPage />} />
               <Route path="configuracoes" element={<ConfiguracoesPage />} />
-              <Route path="auditoria" element={<AuditoriaPage />} />
+              <Route path="auditoria" element={<Navigate to="/app/movimentacoes" replace />} />
               <Route path="consumo-interno" element={<ConsumoInternoPage />} />
               <Route path="inventario" element={<InventarioPage />} />
               <Route path="dashboard-gerencial" element={<DashboardGerencial />} />
@@ -71,7 +71,7 @@ const App = () => (
               <Route path="emprestimos" element={<EmprestimosPage />} />
               <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />
               <Route path="dividas" element={<DividasPage />} />
-              <Route path="movimentacoes" element={<MovimentacoesPage />} />
+              <Route path="movimentacoes" element={<MovimentacoesRouter />} />
               {/* Sala (admin/analista) */}
               <Route path="meu-estoque" element={<EstoquePage />} />
               <Route path="nova-requisicao" element={<NovaRequisicao />} />
@@ -90,4 +90,10 @@ const App = () => (
   </QueryClientProvider>
 );
 
+function MovimentacoesRouter() {
+  const { role } = useAuth();
+  return role === "master" ? <MovimentacoesMasterPage /> : <MovimentacoesPage />;
+}
+
 export default App;
+
