@@ -139,6 +139,35 @@ export default function DashboardGerencial() {
         ))}
       </div>
 
+      {valorizacao && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold">Valorização financeira do catálogo</h3>
+            <span className="text-xs text-muted-foreground">
+              Produtos sem custo médio são ignorados nos relatórios financeiros
+            </span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-md border p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">Valorizados</div>
+              <div className="font-display text-2xl font-bold text-success">{valorizacao.produtos_valorizados.toLocaleString("pt-BR")}</div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">Sem valorização</div>
+              <div className="font-display text-2xl font-bold text-warning">{valorizacao.produtos_sem_valor.toLocaleString("pt-BR")}</div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">% valorizado</div>
+              <div className="font-display text-2xl font-bold">{valorizacao.percentual_valorizado}%</div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="text-[10px] uppercase text-muted-foreground">Itens sem valor (un.)</div>
+              <div className="font-display text-2xl font-bold">{valorizacao.itens_sem_valor.toLocaleString("pt-BR")}</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-4">
           <h3 className="font-semibold mb-2">Consumo interno por sala</h3>
