@@ -1166,6 +1166,18 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      estatisticas_valorizacao: {
+        Args: never
+        Returns: {
+          itens_sem_valor: number
+          itens_valorizados: number
+          patrimonio_total: number
+          percentual_valorizado: number
+          produtos_sem_valor: number
+          produtos_total: number
+          produtos_valorizados: number
+        }[]
+      }
       evolucao_mensal_financeira: {
         Args: { _meses?: number }
         Returns: {
@@ -1411,6 +1423,7 @@ export type Database = {
       valor_estoque_por_sala: {
         Args: never
         Returns: {
+          itens_sem_valor: number
           sala_id: string
           sala_nome: string
           total_itens: number
