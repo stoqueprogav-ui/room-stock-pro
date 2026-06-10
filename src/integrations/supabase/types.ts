@@ -234,6 +234,8 @@ export type Database = {
           id: string
           produto_id: string
           quantidade: number
+          valor_total: number | null
+          valor_unitario_aplicado: number | null
         }
         Insert: {
           devolucao_id: string
@@ -241,6 +243,8 @@ export type Database = {
           id?: string
           produto_id: string
           quantidade: number
+          valor_total?: number | null
+          valor_unitario_aplicado?: number | null
         }
         Update: {
           devolucao_id?: string
@@ -248,6 +252,8 @@ export type Database = {
           id?: string
           produto_id?: string
           quantidade?: number
+          valor_total?: number | null
+          valor_unitario_aplicado?: number | null
         }
         Relationships: [
           {
@@ -313,6 +319,7 @@ export type Database = {
           sala_devedora_id: string
           saldo: number
           updated_at: string
+          valor_financeiro: number
         }
         Insert: {
           id?: string
@@ -321,6 +328,7 @@ export type Database = {
           sala_devedora_id: string
           saldo?: number
           updated_at?: string
+          valor_financeiro?: number
         }
         Update: {
           id?: string
@@ -329,6 +337,7 @@ export type Database = {
           sala_devedora_id?: string
           saldo?: number
           updated_at?: string
+          valor_financeiro?: number
         }
         Relationships: [
           {
@@ -361,6 +370,8 @@ export type Database = {
           produto_id: string
           quantidade: number
           quantidade_devolvida: number
+          valor_total: number | null
+          valor_unitario_aplicado: number | null
         }
         Insert: {
           emprestimo_id: string
@@ -368,6 +379,8 @@ export type Database = {
           produto_id: string
           quantidade: number
           quantidade_devolvida?: number
+          valor_total?: number | null
+          valor_unitario_aplicado?: number | null
         }
         Update: {
           emprestimo_id?: string
@@ -375,6 +388,8 @@ export type Database = {
           produto_id?: string
           quantidade?: number
           quantidade_devolvida?: number
+          valor_total?: number | null
+          valor_unitario_aplicado?: number | null
         }
         Relationships: [
           {
@@ -464,27 +479,96 @@ export type Database = {
           },
         ]
       }
+      entradas_estoque: {
+        Row: {
+          created_at: string
+          data_entrada: string
+          fornecedor: string | null
+          id: string
+          numero_nf: string | null
+          observacao: string | null
+          produto_id: string
+          quantidade: number
+          sala_id: string
+          usuario_responsavel: string | null
+          usuario_responsavel_nome: string | null
+          valor_total: number | null
+          valor_unitario: number
+        }
+        Insert: {
+          created_at?: string
+          data_entrada?: string
+          fornecedor?: string | null
+          id?: string
+          numero_nf?: string | null
+          observacao?: string | null
+          produto_id: string
+          quantidade: number
+          sala_id: string
+          usuario_responsavel?: string | null
+          usuario_responsavel_nome?: string | null
+          valor_total?: number | null
+          valor_unitario: number
+        }
+        Update: {
+          created_at?: string
+          data_entrada?: string
+          fornecedor?: string | null
+          id?: string
+          numero_nf?: string | null
+          observacao?: string | null
+          produto_id?: string
+          quantidade?: number
+          sala_id?: string
+          usuario_responsavel?: string | null
+          usuario_responsavel_nome?: string | null
+          valor_total?: number | null
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entradas_estoque_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entradas_estoque_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque: {
         Row: {
+          custo_medio: number
           id: string
           produto_id: string
           quantidade: number
           sala_id: string
           updated_at: string
+          valor_total: number
         }
         Insert: {
+          custo_medio?: number
           id?: string
           produto_id: string
           quantidade?: number
           sala_id: string
           updated_at?: string
+          valor_total?: number
         }
         Update: {
+          custo_medio?: number
           id?: string
           produto_id?: string
           quantidade?: number
           sala_id?: string
           updated_at?: string
+          valor_total?: number
         }
         Relationships: [
           {
@@ -547,6 +631,7 @@ export type Database = {
       movimentacoes: {
         Row: {
           created_at: string
+          custo_unitario_aplicado: number | null
           id: string
           observacao: string | null
           produto_id: string
@@ -557,9 +642,11 @@ export type Database = {
           saldo_apos: number
           tipo: Database["public"]["Enums"]["movimentacao_tipo"]
           usuario_id: string | null
+          valor_financeiro: number | null
         }
         Insert: {
           created_at?: string
+          custo_unitario_aplicado?: number | null
           id?: string
           observacao?: string | null
           produto_id: string
@@ -570,9 +657,11 @@ export type Database = {
           saldo_apos: number
           tipo: Database["public"]["Enums"]["movimentacao_tipo"]
           usuario_id?: string | null
+          valor_financeiro?: number | null
         }
         Update: {
           created_at?: string
+          custo_unitario_aplicado?: number | null
           id?: string
           observacao?: string | null
           produto_id?: string
@@ -583,6 +672,7 @@ export type Database = {
           saldo_apos?: number
           tipo?: Database["public"]["Enums"]["movimentacao_tipo"]
           usuario_id?: string | null
+          valor_financeiro?: number | null
         }
         Relationships: [
           {
@@ -930,6 +1020,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _recalc_estoque_valor: {
+        Args: { _produto: string; _sala: string }
+        Returns: undefined
+      }
       ajustar_estoque: {
         Args: {
           _observacao: string
@@ -951,6 +1045,17 @@ export type Database = {
         Args: { _conv: string; _user: string }
         Returns: boolean
       }
+      comparativo_salas_financeiro: {
+        Args: { _from?: string; _to?: string }
+        Returns: {
+          participacao_pct: number
+          quantidade_consumida: number
+          sala_id: string
+          sala_nome: string
+          valor_consumido: number
+          valor_em_estoque: number
+        }[]
+      }
       criar_emprestimo: {
         Args: { _itens: Json; _observacao: string; _sala_origem: string }
         Returns: string
@@ -958,6 +1063,17 @@ export type Database = {
       criar_solicitacao: {
         Args: { _itens: Json; _observacao: string }
         Returns: string
+      }
+      curva_abc: {
+        Args: { _from?: string; _sala?: string; _to?: string }
+        Returns: {
+          acumulado_pct: number
+          classe: string
+          participacao_pct: number
+          produto_id: string
+          produto_nome: string
+          valor: number
+        }[]
       }
       decidir_emprestimo: {
         Args: { _aprovar: boolean; _emp: string }
@@ -993,6 +1109,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      evolucao_mensal_financeira: {
+        Args: { _meses?: number }
+        Returns: {
+          mes: string
+          quantidade_consumida: number
+          valor_compras: number
+          valor_consumido: number
+        }[]
       }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
       excluir_produto_sala: {
@@ -1089,6 +1214,7 @@ export type Database = {
       }
       marcar_senha_trocada: { Args: never; Returns: undefined }
       mark_conversation_read: { Args: { _conv: string }; Returns: undefined }
+      patrimonio_global: { Args: never; Returns: number }
       quitar_divida: {
         Args: { _divida: string; _quantidade: number }
         Returns: undefined
@@ -1107,6 +1233,29 @@ export type Database = {
       registrar_devolucao: {
         Args: { _emp: string; _itens: Json; _observacao?: string }
         Returns: string
+      }
+      registrar_entrada_estoque: {
+        Args: {
+          _data_entrada?: string
+          _fornecedor?: string
+          _numero_nf?: string
+          _observacao?: string
+          _produto: string
+          _quantidade: number
+          _sala: string
+          _valor_unitario: number
+        }
+        Returns: string
+      }
+      relatorio_categorias_financeiro: {
+        Args: { _from?: string; _sala?: string; _to?: string }
+        Returns: {
+          categoria_id: string
+          categoria_nome: string
+          participacao_pct: number
+          quantidade: number
+          valor: number
+        }[]
       }
       relatorio_consumo: {
         Args: {
@@ -1128,6 +1277,35 @@ export type Database = {
           valor: number
         }[]
       }
+      relatorio_consumo_financeiro: {
+        Args: {
+          _categoria?: string
+          _from?: string
+          _produto?: string
+          _sala?: string
+          _to?: string
+        }
+        Returns: {
+          categoria_id: string
+          categoria_nome: string
+          produto_id: string
+          produto_nome: string
+          quantidade: number
+          sala_id: string
+          sala_nome: string
+          valor: number
+        }[]
+      }
+      relatorio_custo_por_sala: {
+        Args: { _from?: string; _to?: string }
+        Returns: {
+          participacao_pct: number
+          quantidade: number
+          sala_id: string
+          sala_nome: string
+          valor: number
+        }[]
+      }
       relatorio_emprestimos_salas: {
         Args: never
         Returns: {
@@ -1137,6 +1315,16 @@ export type Database = {
           recebidos_unidades: number
           sala_id: string
           sala_nome: string
+        }[]
+      }
+      relatorio_top_produtos_financeiro: {
+        Args: { _from?: string; _limit?: number; _sala?: string; _to?: string }
+        Returns: {
+          participacao_pct: number
+          produto_id: string
+          produto_nome: string
+          quantidade: number
+          valor: number
         }[]
       }
       reset_sistema_total: { Args: { _caller?: string }; Returns: Json }

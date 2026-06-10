@@ -240,7 +240,7 @@ export default function ProdutosPage() {
               <TableHead>Descrição</TableHead>
               <TableHead className="w-[90px]">Unidade</TableHead>
               <TableHead className="w-[90px] text-right">Mínimo</TableHead>
-              <TableHead className="w-[110px] text-right">Custo (R$)</TableHead>
+              <TableHead className="w-[120px] text-right">Custo inicial</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[140px] text-right">Ações</TableHead>
             </TableRow>
@@ -344,11 +344,13 @@ export default function ProdutosPage() {
               <div className="space-y-2"><Label>Estoque mínimo</Label><Input type="number" min={0} value={form.estoque_minimo} onChange={(e) => setForm({ ...form, estoque_minimo: Number(e.target.value) })} /></div>
             </div>
             <div className="space-y-2">
-              <Label>Custo unitário (R$)</Label>
+              <Label>Custo inicial (R$) <span className="text-muted-foreground text-xs font-normal">— opcional</span></Label>
               <Input type="number" min={0} step="0.01" value={form.custo_unitario}
                 onChange={(e) => setForm({ ...form, custo_unitario: Number(e.target.value) })}
                 placeholder="0,00" />
-              <p className="text-xs text-muted-foreground">Usado nos relatórios financeiros. Histórico de alterações é registrado automaticamente.</p>
+              <p className="text-xs text-muted-foreground">
+                Valor de referência. A partir daqui, o <strong>Custo Médio Ponderado</strong> de cada sala é recalculado automaticamente em cada <strong>Entrada de Estoque</strong> (compra).
+              </p>
             </div>
 
             {editing && (
