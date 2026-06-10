@@ -112,11 +112,6 @@ export default function UsuariosPage() {
     toast.success("Perfil atualizado"); load();
   };
 
-  const updateSala = async (u: UserRow, salaId: string | null) => {
-    const { error } = await supabase.from("profiles").update({ sala_id: salaId }).eq("id", u.id);
-    if (error) return toast.error(error.message);
-    toast.success("Sala atualizada"); load();
-  };
 
   const remover = async (u: UserRow) => {
     const { data, error } = await supabase.functions.invoke("admin-delete-user", {
