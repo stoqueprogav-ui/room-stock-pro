@@ -20,11 +20,16 @@ type Mov = {
   sala_id: string;
   referencia_tipo: string | null;
   referencia_id: string | null;
+  custo_unitario_aplicado: number | null;
+  valor_financeiro: number | null;
   produto: { nome: string; unidade: string };
   sala: { nome: string };
   usuario: { nome: string } | null;
   originador?: { nome: string } | null;
 };
+
+const BRL = (v: number | null | undefined) =>
+  v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 
 const TIPO_LABEL: Record<string, { label: string; cls: string }> = {
