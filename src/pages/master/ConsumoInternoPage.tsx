@@ -106,7 +106,8 @@ export default function ConsumoInternoPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!salaId || !produtoId || !quantidade || !motivo) {
+    const salaOperacao = role === "master" ? salaId : activeSalaId;
+    if (!salaOperacao || !produtoId || !quantidade || !motivo) {
       toast.error("Preencha sala, produto, quantidade e motivo");
       return;
     }
@@ -114,7 +115,7 @@ export default function ConsumoInternoPage() {
     if (!qtd || qtd <= 0) { toast.error("Quantidade inválida"); return; }
     setSaving(true);
     const { error } = await supabase.rpc("registrar_consumo_interno" as any, {
-      _sala: salaId, _produto: produtoId, _quantidade: qtd,
+      _sala: salaOperacao, _produto: produtoId, _quantidade: qtd,
       _motivo: motivo, _observacao: observacao || null,
     });
     setSaving(false);
@@ -143,8 +144,8 @@ export default function ConsumoInternoPage() {
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label>Sala de origem</Label>
-            <Select value={salaId} onValueChange={setSalaId}>
-              <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
+            <Select value={role === "master" ? salaId : (activeSalaId ?? "")} onValueChange={setSalaId} disabled={role !== "master"}>
+              <SelectTrigger><SelectValue placeholder={activeSalaName ?? "Selecione a sala"} /></SelectTrigger>
               <SelectContent>{salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
             </Select>
           </div>
