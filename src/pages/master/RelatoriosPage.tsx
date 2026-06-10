@@ -91,6 +91,7 @@ export default function RelatoriosPage() {
   const [empSalas, setEmpSalas] = useState<EmpSalaRow[]>([]);
   const [empStatus, setEmpStatus] = useState<{ status: string; count: number }[]>([]);
   const [estoqueValor, setEstoqueValor] = useState<EstoqueValorRow[]>([]);
+  const [valorizacao, setValorizacao] = useState<ValorizacaoStats | null>(null);
   const [reqPorSala, setReqPorSala] = useState<{ sala_id: string; sala_nome: string; total: number }[]>([]);
   const [empMensal, setEmpMensal] = useState<{ mes: string; count: number }[]>([]);
 
