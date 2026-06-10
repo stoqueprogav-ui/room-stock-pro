@@ -38,7 +38,6 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
     items.push(
       { to: "/app/produtos", label: "Produtos", icon: Package },
       { to: "/app/estoque", label: "Estoque", icon: Boxes },
-      { to: "/app/entradas", label: "Entradas (compras)", icon: PackagePlus },
       { to: "/app/requisicoes", label: "Requisições", icon: Inbox, badgeKey: "requisicoes" },
       {
         label: "Empréstimos", icon: ArrowLeftRight,
