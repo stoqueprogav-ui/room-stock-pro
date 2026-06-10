@@ -514,19 +514,27 @@ export default function EstoquePage() {
                   </TableCell>
                 )}
                 <TableCell className="font-medium">
-                  <button
-                    type="button"
-                    onClick={() => toggleExpand(r)}
-                    className="inline-flex items-center gap-1.5 text-left hover:text-primary transition-colors"
-                    title="Ficha financeira"
-                  >
-                    {expanded.has(`${r.produto_id}-${r.sala_id}`)
-                      ? <ChevronDown className="size-4 text-muted-foreground" />
-                      : <ChevronRight className="size-4 text-muted-foreground" />}
-                    <span>{r.produto.nome}</span>
-                    <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
-                  </button>
+                  {isMaster ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(r)}
+                      className="inline-flex items-center gap-1.5 text-left hover:text-primary transition-colors"
+                      title="Ficha financeira"
+                    >
+                      {expanded.has(`${r.produto_id}-${r.sala_id}`)
+                        ? <ChevronDown className="size-4 text-muted-foreground" />
+                        : <ChevronRight className="size-4 text-muted-foreground" />}
+                      <span>{r.produto.nome}</span>
+                      <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span>{r.produto.nome}</span>
+                      <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
+                    </span>
+                  )}
                 </TableCell>
+
                 <TableCell>
                   {(r.produto as any)?.categoria?.nome
                     ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {(r.produto as any).categoria.nome}</Badge>
