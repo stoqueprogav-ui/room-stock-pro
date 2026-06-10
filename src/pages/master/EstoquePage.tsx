@@ -89,6 +89,33 @@ export default function EstoquePage() {
   // Última entrada por (produto, sala)
   const [ultimas, setUltimas] = useState<Map<string, UltimaEntrada>>(new Map());
 
+  // Ficha financeira expandida
+  type EntradaHist = { id: string; data_entrada: string; quantidade: number; valor_unitario: number; valor_total: number; fornecedor: string | null; numero_nf: string | null; usuario_responsavel_nome: string | null };
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [history, setHistory] = useState<Map<string, EntradaHist[]>>(new Map());
+  const [historyLoading, setHistoryLoading] = useState<Set<string>>(new Set());
+
+  const toggleExpand = async (r: Row) => {
+    const key = `${r.produto_id}-${r.sala_id}`;
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+    if (!history.has(key)) {
+      setHistoryLoading((p) => new Set(p).add(key));
+      const { data } = await supabase
+        .from("entradas_estoque")
+        .select("id, data_entrada, quantidade, valor_unitario, valor_total, fornecedor, numero_nf, usuario_responsavel_nome")
+        .eq("produto_id", r.produto_id)
+        .eq("sala_id", r.sala_id)
+        .order("data_entrada", { ascending: false })
+        .limit(100);
+      setHistory((m) => new Map(m).set(key, (data as EntradaHist[]) ?? []));
+      setHistoryLoading((p) => { const n = new Set(p); n.delete(key); return n; });
+    }
+  };
+
   const load = async () => {
     const [{ data: s }, { data: e }, { data: c }, { data: ents }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
