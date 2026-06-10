@@ -243,13 +243,15 @@ export default function MovimentacoesPage() {
               <TableHead>Sala</TableHead>
               <TableHead className="w-[170px]">Operação</TableHead>
               <TableHead>Produto</TableHead>
-              <TableHead className="text-right w-[100px]">Qtd.</TableHead>
+              <TableHead className="text-right w-[90px]">Qtd.</TableHead>
               <TableHead className="text-right w-[100px]">Saldo</TableHead>
+              <TableHead className="text-right w-[110px]">Custo unit.</TableHead>
+              <TableHead className="text-right w-[120px]">Valor (R$)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="py-12 text-center"><Loader2 className="size-5 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="py-12 text-center"><Loader2 className="size-5 animate-spin mx-auto text-primary" /></TableCell></TableRow>
             )}
             {filtered.map((m) => {
               const tipoCfg = TIPO_LABEL[m.tipo] ?? { label: m.tipo, cls: "" };
