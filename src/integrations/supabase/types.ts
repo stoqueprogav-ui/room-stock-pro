@@ -1020,6 +1020,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _recalc_estoque_valor: {
+        Args: { _produto: string; _sala: string }
+        Returns: undefined
+      }
       ajustar_estoque: {
         Args: {
           _observacao: string
@@ -1196,6 +1200,19 @@ export type Database = {
       }
       registrar_devolucao: {
         Args: { _emp: string; _itens: Json; _observacao?: string }
+        Returns: string
+      }
+      registrar_entrada_estoque: {
+        Args: {
+          _data_entrada?: string
+          _fornecedor?: string
+          _numero_nf?: string
+          _observacao?: string
+          _produto: string
+          _quantidade: number
+          _sala: string
+          _valor_unitario: number
+        }
         Returns: string
       }
       relatorio_consumo: {
