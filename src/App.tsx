@@ -90,4 +90,11 @@ const App = () => (
   </QueryClientProvider>
 );
 
+function MovimentacoesRouter() {
+  const { useAuth } = require("./contexts/AuthContext");
+  const { role } = useAuth();
+  return role === "master" ? <MovimentacoesMasterPage /> : <MovimentacoesPage />;
+}
+
 export default App;
+
