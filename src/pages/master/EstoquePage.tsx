@@ -526,20 +526,22 @@ export default function EstoquePage() {
                 <TableCell>{r.sala.nome}</TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
-                <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>
-                <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>
-                <TableCell className="text-xs">
-                  {(() => {
-                    const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
-                    if (!u) return <span className="text-muted-foreground">Sem compras</span>;
-                    return (
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
-                        <div className="font-mono">{BRL(u.valor_unitario)}{u.fornecedor ? ` · ${u.fornecedor}` : ""}</div>
-                      </div>
-                    );
-                  })()}
-                </TableCell>
+                {isMaster && <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>}
+                {isMaster && <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>}
+                {isMaster && (
+                  <TableCell className="text-xs">
+                    {(() => {
+                      const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
+                      if (!u) return <span className="text-muted-foreground">Sem compras</span>;
+                      return (
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
+                          <div className="font-mono">{BRL(u.valor_unitario)}{u.fornecedor ? ` · ${u.fornecedor}` : ""}</div>
+                        </div>
+                      );
+                    })()}
+                  </TableCell>
+                )}
                 <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
                 {isMaster && (
                   <TableCell className="text-right">
