@@ -71,7 +71,7 @@ const App = () => (
               <Route path="emprestimos" element={<EmprestimosPage />} />
               <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />
               <Route path="dividas" element={<DividasPage />} />
-              <Route path="movimentacoes" element={<MovimentacoesPage />} />
+              <Route path="movimentacoes" element={<MovimentacoesRouter />} />
               {/* Sala (admin/analista) */}
               <Route path="meu-estoque" element={<EstoquePage />} />
               <Route path="nova-requisicao" element={<NovaRequisicao />} />
