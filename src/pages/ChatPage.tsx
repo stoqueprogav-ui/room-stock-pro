@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -772,7 +773,7 @@ function NewConversationDialog({ onCreated, compact = false }: { onCreated: (id:
                     <div className="font-medium truncate text-sm">{s.nome}</div>
                     <div className="text-xs text-muted-foreground truncate">Conversa de sala</div>
                   </div>
-                  {profile?.sala_id === s.id && <Badge variant="secondary" className="ml-auto">Minha sala</Badge>}
+                  {activeSalaId === s.id && <Badge variant="secondary" className="ml-auto">Sala atual</Badge>}
                 </button>
               ))}
             </ScrollArea>
