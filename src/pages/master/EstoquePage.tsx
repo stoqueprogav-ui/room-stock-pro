@@ -492,8 +492,9 @@ export default function EstoquePage() {
               <TableHead>Sala</TableHead>
               <TableHead className="text-right w-[90px]">Qtd</TableHead>
               <TableHead className="text-right w-[70px]">Mín.</TableHead>
-              <TableHead className="text-right w-[110px]">CMP</TableHead>
-              <TableHead className="text-right w-[120px]">V. estoque</TableHead>
+              {isMaster && <TableHead className="text-right w-[110px]">CMP</TableHead>}
+              {isMaster && <TableHead className="text-right w-[120px]">V. estoque</TableHead>}
+
               <TableHead className="w-[150px]">Última compra</TableHead>
               <TableHead className="w-[120px]">Status</TableHead>
               {isMaster && <TableHead className="w-[320px] text-right">Ações</TableHead>}
