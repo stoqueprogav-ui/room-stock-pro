@@ -590,6 +590,7 @@ export type Database = {
           id: string
           produto_id: string
           quantidade: number
+          quantidade_valorizada: number
           sala_id: string
           updated_at: string
           valor_total: number
@@ -599,6 +600,7 @@ export type Database = {
           id?: string
           produto_id: string
           quantidade?: number
+          quantidade_valorizada?: number
           sala_id: string
           updated_at?: string
           valor_total?: number
@@ -608,6 +610,7 @@ export type Database = {
           id?: string
           produto_id?: string
           quantidade?: number
+          quantidade_valorizada?: number
           sala_id?: string
           updated_at?: string
           valor_total?: number
@@ -1619,6 +1622,10 @@ export type Database = {
       }
     }
     Functions: {
+      _baixar_valorizada: {
+        Args: { _produto: string; _quantidade: number; _sala: string }
+        Returns: undefined
+      }
       _recalc_estoque_valor: {
         Args: { _produto: string; _sala: string }
         Returns: undefined
