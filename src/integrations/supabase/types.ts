@@ -1705,6 +1705,15 @@ export type Database = {
           sala_nome: string
         }[]
       }
+      editar_emprestimo: {
+        Args: {
+          _emp: string
+          _itens: Json
+          _observacao?: string
+          _sala_origem: string
+        }
+        Returns: undefined
+      }
       ensure_my_profile: {
         Args: never
         Returns: {
