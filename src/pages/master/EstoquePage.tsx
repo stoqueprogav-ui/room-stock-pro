@@ -550,10 +550,15 @@ export default function EstoquePage() {
                     })()}
                   </TableCell>
                 )}
-                <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <StatusBadgeCell q={r.quantidade} p={r.produto} />
+                    {!r.ativo && <Badge className="bg-muted text-muted-foreground border text-[10px]">Inativo nesta sala</Badge>}
+                  </div>
+                </TableCell>
                 {isMaster && (
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end gap-1.5 flex-wrap">
                       <Button
                         size="sm"
                         variant="outline"
@@ -569,6 +574,20 @@ export default function EstoquePage() {
                         onClick={() => openMovForRow(r, "saida")}
                       >
                         <ArrowUpFromLine className="size-3.5" /> Saída
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title={r.ativo ? "Desativar nesta sala" : "Ativar nesta sala"}
+                        onClick={async () => {
+                          const novoAtivo = !r.ativo;
+                          const { error } = await supabase.rpc("toggle_produto_sala_ativo", { _produto_id: r.produto_id, _sala_id: r.sala_id, _ativo: novoAtivo });
+                          if (error) return toast.error(error.message);
+                          toast.success(novoAtivo ? `Ativado em ${r.sala.nome}` : `Desativado em ${r.sala.nome}`);
+                          load();
+                        }}
+                      >
+                        {r.ativo ? <X className="size-4 text-warning" /> : <CheckCircle2 className="size-4 text-success" />}
                       </Button>
                       <Button variant="ghost" size="icon" title="Editar produto" onClick={() => openEditProduto(r.produto)}>
                         <Pencil className="size-4" />
