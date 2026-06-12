@@ -18,6 +18,8 @@ import { formatDateTime } from "@/lib/format";
 import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
 import RevisarPedidoDialog from "@/components/RevisarPedidoDialog";
 import DevolverEmprestimoDialog from "@/components/DevolverEmprestimoDialog";
+import EditarEmprestimoDialog from "@/components/EditarEmprestimoDialog";
+import { Pencil } from "lucide-react";
 
 
 type Emp = {
@@ -27,6 +29,7 @@ type Emp = {
   created_at: string;
   sala_origem_id: string;
   sala_destino_id: string;
+  solicitante_id: string | null;
   retirado_por: string | null;
   retirado_em: string | null;
   origem: { nome: string };
