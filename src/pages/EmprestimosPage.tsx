@@ -198,8 +198,10 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
               tab={tab}
               role={role}
               podeDecidir={podeDecidir(e)}
+              podeEditar={podeEditar(e)}
               pendente={pendenteTotal(e)}
               onRevisar={() => setRevisarId(e.id)}
+              onEditar={() => setEditarId(e.id)}
               onAprovar={() => decidir(e.id, true)}
               onRejeitar={() => decidir(e.id, false)}
               onDevolver={() => setDevolverId(e.id)}
