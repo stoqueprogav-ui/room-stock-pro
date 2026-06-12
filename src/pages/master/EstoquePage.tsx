@@ -121,7 +121,7 @@ export default function EstoquePage() {
   const load = async () => {
     const [{ data: s }, { data: e }, { data: c }, { data: ents }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("estoque").select("produto_id, sala_id, quantidade, custo_medio, valor_total, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
+      supabase.from("estoque").select("produto_id, sala_id, quantidade, custo_medio, valor_total, ativo, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
       supabase.from("categorias").select("*").order("nome"),
       supabase.from("entradas_estoque").select("produto_id, sala_id, valor_unitario, fornecedor, data_entrada").order("data_entrada", { ascending: false }).limit(2000),
     ]);
@@ -133,6 +133,7 @@ export default function EstoquePage() {
       quantidade: r.quantidade,
       custo_medio: Number(r.custo_medio ?? 0),
       valor_total: Number(r.valor_total ?? 0),
+      ativo: r.ativo !== false,
       produto: r.produtos,
       sala: r.salas,
     }));
