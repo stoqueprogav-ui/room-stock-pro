@@ -239,6 +239,13 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         emprestimoId={devolverId}
         onDone={load}
       />
+
+      <EditarEmprestimoDialog
+        open={!!editarId}
+        onOpenChange={(v) => !v && setEditarId(null)}
+        emprestimoId={editarId}
+        onSaved={load}
+      />
     </div>
   );
 }
