@@ -18,7 +18,7 @@ import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-type Row = { produto_id: string; sala_id: string; quantidade: number; custo_medio: number; valor_total: number; produto: Produto; sala: Sala };
+type Row = { produto_id: string; sala_id: string; quantidade: number; custo_medio: number; valor_total: number; ativo: boolean; produto: Produto; sala: Sala };
 type UltimaEntrada = { data: string; valor_unitario: number; fornecedor: string | null };
 type StatusKind = "ok" | "baixo" | "critico";
 type SortKey = "nome" | "quantidade" | "menor";
@@ -121,7 +121,7 @@ export default function EstoquePage() {
   const load = async () => {
     const [{ data: s }, { data: e }, { data: c }, { data: ents }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("estoque").select("produto_id, sala_id, quantidade, custo_medio, valor_total, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
+      supabase.from("estoque").select("produto_id, sala_id, quantidade, custo_medio, valor_total, ativo, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
       supabase.from("categorias").select("*").order("nome"),
       supabase.from("entradas_estoque").select("produto_id, sala_id, valor_unitario, fornecedor, data_entrada").order("data_entrada", { ascending: false }).limit(2000),
     ]);
@@ -133,6 +133,7 @@ export default function EstoquePage() {
       quantidade: r.quantidade,
       custo_medio: Number(r.custo_medio ?? 0),
       valor_total: Number(r.valor_total ?? 0),
+      ativo: r.ativo !== false,
       produto: r.produtos,
       sala: r.salas,
     }));
@@ -549,10 +550,15 @@ export default function EstoquePage() {
                     })()}
                   </TableCell>
                 )}
-                <TableCell><StatusBadgeCell q={r.quantidade} p={r.produto} /></TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <StatusBadgeCell q={r.quantidade} p={r.produto} />
+                    {!r.ativo && <Badge className="bg-muted text-muted-foreground border text-[10px]">Inativo nesta sala</Badge>}
+                  </div>
+                </TableCell>
                 {isMaster && (
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end gap-1.5 flex-wrap">
                       <Button
                         size="sm"
                         variant="outline"
@@ -568,6 +574,20 @@ export default function EstoquePage() {
                         onClick={() => openMovForRow(r, "saida")}
                       >
                         <ArrowUpFromLine className="size-3.5" /> Saída
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title={r.ativo ? "Desativar nesta sala" : "Ativar nesta sala"}
+                        onClick={async () => {
+                          const novoAtivo = !r.ativo;
+                          const { error } = await supabase.rpc("toggle_produto_sala_ativo", { _produto_id: r.produto_id, _sala_id: r.sala_id, _ativo: novoAtivo });
+                          if (error) return toast.error(error.message);
+                          toast.success(novoAtivo ? `Ativado em ${r.sala.nome}` : `Desativado em ${r.sala.nome}`);
+                          load();
+                        }}
+                      >
+                        {r.ativo ? <X className="size-4 text-warning" /> : <CheckCircle2 className="size-4 text-success" />}
                       </Button>
                       <Button variant="ghost" size="icon" title="Editar produto" onClick={() => openEditProduto(r.produto)}>
                         <Pencil className="size-4" />

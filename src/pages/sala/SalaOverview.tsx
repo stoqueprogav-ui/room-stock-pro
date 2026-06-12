@@ -17,7 +17,7 @@ export default function SalaOverview() {
     if (!activeSalaId) return;
     const sala = activeSalaId;
     const [est, sol, emp, div] = await Promise.all([
-      supabase.from("estoque").select("quantidade, produtos!inner(estoque_minimo, nome, ativo)").eq("sala_id", sala).eq("produtos.ativo", true),
+      supabase.from("estoque").select("quantidade, ativo, produtos!inner(estoque_minimo, nome, ativo)").eq("sala_id", sala).eq("ativo", true).eq("produtos.ativo", true),
       supabase.from("solicitacoes").select("id", { count: "exact", head: true }).eq("sala_id", sala).eq("status", "pendente"),
       supabase.from("emprestimos").select("id, sala_origem_id, status").or(`sala_origem_id.eq.${sala},sala_destino_id.eq.${sala}`).eq("status", "pendente"),
       supabase.from("dividas").select("id", { count: "exact", head: true }).or(`sala_devedora_id.eq.${sala},sala_credora_id.eq.${sala}`),

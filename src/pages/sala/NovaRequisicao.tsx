@@ -42,8 +42,9 @@ export default function NovaRequisicao() {
       const [{ data }, { data: cats }] = await Promise.all([
         supabase
           .from("estoque")
-          .select("produto_id, quantidade, produtos!inner(nome, unidade, ativo, categoria_id, categoria:categorias(nome))")
+          .select("produto_id, quantidade, ativo, produtos!inner(nome, unidade, ativo, categoria_id, categoria:categorias(nome))")
           .eq("sala_id", activeSalaId)
+          .eq("ativo", true)
           .eq("produtos.ativo", true),
         supabase.from("categorias").select("*").order("nome"),
       ]);

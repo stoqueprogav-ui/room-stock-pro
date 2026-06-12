@@ -586,6 +586,7 @@ export type Database = {
       }
       estoque: {
         Row: {
+          ativo: boolean
           custo_medio: number
           id: string
           produto_id: string
@@ -596,6 +597,7 @@ export type Database = {
           valor_total: number
         }
         Insert: {
+          ativo?: boolean
           custo_medio?: number
           id?: string
           produto_id: string
@@ -606,6 +608,7 @@ export type Database = {
           valor_total?: number
         }
         Update: {
+          ativo?: boolean
           custo_medio?: number
           id?: string
           produto_id?: string
@@ -1988,6 +1991,10 @@ export type Database = {
         Returns: string
       }
       set_minha_sala_ativa: { Args: { _sala: string }; Returns: undefined }
+      toggle_produto_sala_ativo: {
+        Args: { _ativo: boolean; _produto_id: string; _sala_id: string }
+        Returns: undefined
+      }
       user_has_sala_access: {
         Args: { _sala: string; _user: string }
         Returns: boolean
