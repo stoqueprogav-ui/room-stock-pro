@@ -57,7 +57,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const load = useCallback(async () => {
     let q = supabase
       .from("emprestimos")
-      .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id, retirado_por, retirado_em,
+      .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id, solicitante_id, retirado_por, retirado_em,
                origem:salas!emprestimos_sala_origem_id_fkey(nome),
                destino:salas!emprestimos_sala_destino_id_fkey(nome),
                solicitante:profiles!emprestimos_solicitante_id_fkey(nome),
