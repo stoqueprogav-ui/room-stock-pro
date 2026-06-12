@@ -18,6 +18,8 @@ import { formatDateTime } from "@/lib/format";
 import ArquivarRetiradaDialog from "@/components/ArquivarRetiradaDialog";
 import RevisarPedidoDialog from "@/components/RevisarPedidoDialog";
 import DevolverEmprestimoDialog from "@/components/DevolverEmprestimoDialog";
+import EditarEmprestimoDialog from "@/components/EditarEmprestimoDialog";
+import { Pencil } from "lucide-react";
 
 
 type Emp = {
@@ -27,6 +29,7 @@ type Emp = {
   created_at: string;
   sala_origem_id: string;
   sala_destino_id: string;
+  solicitante_id: string | null;
   retirado_por: string | null;
   retirado_em: string | null;
   origem: { nome: string };
@@ -36,7 +39,7 @@ type Emp = {
 };
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const { activeSalaId } = useActiveSala();
   const navigate = useNavigate();
   const { scopeSalaId } = useMasterScope();
@@ -49,11 +52,12 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
   const [devolverId, setDevolverId] = useState<string | null>(null);
+  const [editarId, setEditarId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     let q = supabase
       .from("emprestimos")
-      .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id, retirado_por, retirado_em,
+      .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id, solicitante_id, retirado_por, retirado_em,
                origem:salas!emprestimos_sala_origem_id_fkey(nome),
                destino:salas!emprestimos_sala_destino_id_fkey(nome),
                solicitante:profiles!emprestimos_solicitante_id_fkey(nome),
@@ -104,6 +108,9 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
 
   const podeDecidir = (e: Emp) =>
     role === "admin" && activeSalaId === e.sala_origem_id;
+
+  const podeEditar = (e: Emp) =>
+    e.status === "pendente" && (role === "master" || (!!profile?.id && profile.id === e.solicitante_id));
 
   const pendenteTotal = (e: Emp) =>
     (e.itens ?? []).reduce((s, it) => s + (it.quantidade - (it.quantidade_devolvida ?? 0)), 0);
@@ -191,8 +198,10 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
               tab={tab}
               role={role}
               podeDecidir={podeDecidir(e)}
+              podeEditar={podeEditar(e)}
               pendente={pendenteTotal(e)}
               onRevisar={() => setRevisarId(e.id)}
+              onEditar={() => setEditarId(e.id)}
               onAprovar={() => decidir(e.id, true)}
               onRejeitar={() => decidir(e.id, false)}
               onDevolver={() => setDevolverId(e.id)}
@@ -230,16 +239,23 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         emprestimoId={devolverId}
         onDone={load}
       />
+
+      <EditarEmprestimoDialog
+        open={!!editarId}
+        onOpenChange={(v) => !v && setEditarId(null)}
+        emprestimoId={editarId}
+        onSaved={load}
+      />
     </div>
   );
 }
 
 function EmprestimoCard({
-  e, tab, role, podeDecidir, pendente,
-  onRevisar, onAprovar, onRejeitar, onDevolver, onArquivarAprovado, onArquivarRejeitado, onImprimir, onChat,
+  e, tab, role, podeDecidir, podeEditar, pendente,
+  onRevisar, onEditar, onAprovar, onRejeitar, onDevolver, onArquivarAprovado, onArquivarRejeitado, onImprimir, onChat,
 }: {
-  e: Emp; tab: string; role: string | null; podeDecidir: boolean; pendente: number;
-  onRevisar: () => void; onAprovar: () => void; onRejeitar: () => void;
+  e: Emp; tab: string; role: string | null; podeDecidir: boolean; podeEditar: boolean; pendente: number;
+  onRevisar: () => void; onEditar: () => void; onAprovar: () => void; onRejeitar: () => void;
   onDevolver: () => void; onArquivarAprovado: () => void; onArquivarRejeitado: () => void;
   onImprimir: () => void; onChat: () => void;
 }) {
@@ -285,11 +301,16 @@ function EmprestimoCard({
           <div className="flex items-center gap-1 shrink-0">
             <Button size="sm" variant="ghost" onClick={onChat} title="Chat"><MessageCircle className="size-4" /></Button>
             {tab === "pendente" && (
-              podeDecidir ? (
-                <Button size="sm" onClick={onRevisar}><Eye className="size-4" /> Revisar</Button>
-              ) : (
-                <Button size="sm" variant="outline" onClick={onRevisar}><Eye className="size-4" /> Ver</Button>
-              )
+              <>
+                {podeDecidir ? (
+                  <Button size="sm" onClick={onRevisar}><Eye className="size-4" /> Revisar</Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={onRevisar}><Eye className="size-4" /> Ver</Button>
+                )}
+                {podeEditar && (
+                  <Button size="sm" variant="outline" onClick={onEditar} title="Editar solicitação"><Pencil className="size-4" /> Editar</Button>
+                )}
+              </>
             )}
             {(tab === "aprovado" || tab === "arquivado") && (
               <Button size="sm" variant="outline" onClick={onImprimir}><Printer className="size-4" /> PDF</Button>
