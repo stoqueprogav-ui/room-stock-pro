@@ -294,11 +294,16 @@ function EmprestimoCard({
           <div className="flex items-center gap-1 shrink-0">
             <Button size="sm" variant="ghost" onClick={onChat} title="Chat"><MessageCircle className="size-4" /></Button>
             {tab === "pendente" && (
-              podeDecidir ? (
-                <Button size="sm" onClick={onRevisar}><Eye className="size-4" /> Revisar</Button>
-              ) : (
-                <Button size="sm" variant="outline" onClick={onRevisar}><Eye className="size-4" /> Ver</Button>
-              )
+              <>
+                {podeDecidir ? (
+                  <Button size="sm" onClick={onRevisar}><Eye className="size-4" /> Revisar</Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={onRevisar}><Eye className="size-4" /> Ver</Button>
+                )}
+                {podeEditar && (
+                  <Button size="sm" variant="outline" onClick={onEditar} title="Editar solicitação"><Pencil className="size-4" /> Editar</Button>
+                )}
+              </>
             )}
             {(tab === "aprovado" || tab === "arquivado") && (
               <Button size="sm" variant="outline" onClick={onImprimir}><Printer className="size-4" /> PDF</Button>
