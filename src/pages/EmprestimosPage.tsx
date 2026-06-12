@@ -109,6 +109,9 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const podeDecidir = (e: Emp) =>
     role === "admin" && activeSalaId === e.sala_origem_id;
 
+  const podeEditar = (e: Emp) =>
+    e.status === "pendente" && (role === "master" || (!!profile?.id && profile.id === e.solicitante_id));
+
   const pendenteTotal = (e: Emp) =>
     (e.itens ?? []).reduce((s, it) => s + (it.quantidade - (it.quantidade_devolvida ?? 0)), 0);
 
