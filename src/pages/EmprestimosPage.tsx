@@ -39,7 +39,7 @@ type Emp = {
 };
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const { activeSalaId } = useActiveSala();
   const navigate = useNavigate();
   const { scopeSalaId } = useMasterScope();
@@ -52,6 +52,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const [arquivarId, setArquivarId] = useState<string | null>(null);
   const [revisarId, setRevisarId] = useState<string | null>(null);
   const [devolverId, setDevolverId] = useState<string | null>(null);
+  const [editarId, setEditarId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     let q = supabase
