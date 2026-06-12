@@ -244,11 +244,11 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
 }
 
 function EmprestimoCard({
-  e, tab, role, podeDecidir, pendente,
-  onRevisar, onAprovar, onRejeitar, onDevolver, onArquivarAprovado, onArquivarRejeitado, onImprimir, onChat,
+  e, tab, role, podeDecidir, podeEditar, pendente,
+  onRevisar, onEditar, onAprovar, onRejeitar, onDevolver, onArquivarAprovado, onArquivarRejeitado, onImprimir, onChat,
 }: {
-  e: Emp; tab: string; role: string | null; podeDecidir: boolean; pendente: number;
-  onRevisar: () => void; onAprovar: () => void; onRejeitar: () => void;
+  e: Emp; tab: string; role: string | null; podeDecidir: boolean; podeEditar: boolean; pendente: number;
+  onRevisar: () => void; onEditar: () => void; onAprovar: () => void; onRejeitar: () => void;
   onDevolver: () => void; onArquivarAprovado: () => void; onArquivarRejeitado: () => void;
   onImprimir: () => void; onChat: () => void;
 }) {
