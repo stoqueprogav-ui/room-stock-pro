@@ -126,6 +126,7 @@ export default function EditarEmprestimoDialog({ open, onOpenChange, emprestimoI
     });
     setSaving(false);
     if (error) return toast.error(error.message);
+    await clearDraft();
     toast.success("Solicitação atualizada");
     onSaved();
     onOpenChange(false);
@@ -135,12 +136,16 @@ export default function EditarEmprestimoDialog({ open, onOpenChange, emprestimoI
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar solicitação de empréstimo</DialogTitle>
+          <div className="flex items-start justify-between gap-3">
+            <DialogTitle>Editar solicitação de empréstimo</DialogTitle>
+            <DraftStatusBadge status={draftStatus} lastSaved={lastSaved} />
+          </div>
           <DialogDescription>
             Você pode alterar a sala de origem, produtos, quantidades e observação enquanto o pedido estiver pendente.
             O número da solicitação não muda.
           </DialogDescription>
         </DialogHeader>
+
 
         {loading ? (
           <div className="py-12 flex justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
