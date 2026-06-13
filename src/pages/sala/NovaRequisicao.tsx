@@ -334,6 +334,16 @@ export default function NovaRequisicao() {
         enviando={enviando}
         onConfirmar={enviar}
       />
+
+      <RecoverDraftDialog
+        open={recoverOpen}
+        onOpenChange={setRecoverOpen}
+        updatedAt={recoverMeta?.updatedAt ?? null}
+        itemCount={recoverMeta?.itemCount}
+        onRecover={aplicarRecuperacao}
+        onDiscard={descartarRecuperacao}
+      />
     </div>
   );
 }
+
