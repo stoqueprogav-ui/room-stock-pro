@@ -35,9 +35,20 @@ export default function EditarEmprestimoDialog({ open, onOpenChange, emprestimoI
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
   const [busca, setBusca] = useState("");
   const [catFilter, setCatFilter] = useState<string>("");
+  const [loadedFromDraft, setLoadedFromDraft] = useState(false);
+  const scope = open && emprestimoId ? `emprestimo:edit:${emprestimoId}` : null;
+  const draftValue = useMemo(() => ({ salaOrigem, obs, carrinho }), [salaOrigem, obs, carrinho]);
+  const carrinhoCount = Object.values(carrinho).filter((q) => q > 0).length;
+  const { status: draftStatus, lastSaved, clear: clearDraft, load: loadDraft } = useDraft({
+    scope,
+    value: draftValue,
+    enabled: open && !loading,
+    itemCount: carrinhoCount,
+    label: "Edição de empréstimo",
+  });
 
   useEffect(() => {
-    if (!open || !emprestimoId) return;
+    if (!open || !emprestimoId) { setLoadedFromDraft(false); return; }
     (async () => {
       setLoading(true);
       const [{ data: emp }, { data: itens }, { data: ss }, { data: pp }, { data: cc }] = await Promise.all([
@@ -50,18 +61,31 @@ export default function EditarEmprestimoDialog({ open, onOpenChange, emprestimoI
       setLoading(false);
       if (!emp) { toast.error("Empréstimo não encontrado"); onOpenChange(false); return; }
       if (emp.status !== "pendente") { toast.error("Apenas empréstimos pendentes podem ser editados"); onOpenChange(false); return; }
-      setSalaOrigem(emp.sala_origem_id);
       setSalaDestino(emp.sala_destino_id);
-      setObs(emp.observacao ?? "");
-      const c: Record<string, number> = {};
-      (itens ?? []).forEach((it: any) => { c[it.produto_id] = it.quantidade; });
-      setCarrinho(c);
       setSalas((ss as Sala[]) ?? []);
       setProdutos((pp as any) ?? []);
       setCategorias((cc as Categoria[]) ?? []);
       setBusca(""); setCatFilter("");
+
+      const draft = await loadDraft();
+      if (draft?.payload) {
+        const p = draft.payload;
+        setSalaOrigem(p.salaOrigem ?? emp.sala_origem_id);
+        setObs(p.obs ?? emp.observacao ?? "");
+        setCarrinho(p.carrinho ?? {});
+        setLoadedFromDraft(true);
+        toast.message("Rascunho de edição recuperado");
+      } else {
+        setSalaOrigem(emp.sala_origem_id);
+        setObs(emp.observacao ?? "");
+        const c: Record<string, number> = {};
+        (itens ?? []).forEach((it: any) => { c[it.produto_id] = it.quantidade; });
+        setCarrinho(c);
+      }
     })();
-  }, [open, emprestimoId, onOpenChange]);
+  }, [open, emprestimoId, onOpenChange, loadDraft]);
+
+
 
   const setQtd = (id: string, q: number) => {
     const nv = Math.max(0, Math.floor(q || 0));
