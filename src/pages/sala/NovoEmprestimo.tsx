@@ -13,6 +13,9 @@ import { toast } from "sonner";
 import { Send, Trash2, Loader2, Search, Tag, Plus, Minus, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Sala, Produto, Categoria } from "@/lib/types";
+import { useDraft } from "@/hooks/useDraft";
+import DraftStatusBadge from "@/components/DraftStatusBadge";
+import RecoverDraftDialog from "@/components/RecoverDraftDialog";
 
 type Nivel = "verde" | "amarelo" | "vermelho";
 type DispRow = { sala_id: string; sala_nome: string; produto_id: string; nivel: Nivel };
@@ -41,6 +44,20 @@ export default function NovoEmprestimo() {
   const [obs, setObs] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  const [recoverOpen, setRecoverOpen] = useState(false);
+  const [recoverMeta, setRecoverMeta] = useState<{ updatedAt: number; itemCount?: number; payload: any } | null>(null);
+
+  const scope = profile?.id ? `emprestimo:new:${profile.id}` : null;
+  const draftValue = useMemo(() => ({ carrinho, obs, catFilter, busca }), [carrinho, obs, catFilter, busca]);
+  const carrinhoCount = Object.values(carrinho).filter((q) => q > 0).length;
+  const { status: draftStatus, lastSaved, clear: clearDraft, load: loadDraft } = useDraft({
+    scope,
+    value: draftValue,
+    itemCount: carrinhoCount,
+    label: "Novo empréstimo",
+    isEmpty: (v) => !v || (Object.values(v.carrinho ?? {}).every((q) => !q) && !v.obs),
+  });
+
   useEffect(() => {
     (async () => {
       const [{ data: ss }, { data: pp }, { data: cc }] = await Promise.all([
@@ -53,6 +70,31 @@ export default function NovoEmprestimo() {
       setCategorias((cc as Categoria[]) ?? []);
     })();
   }, []);
+
+  useEffect(() => {
+    if (!scope) return;
+    let cancelled = false;
+    (async () => {
+      const d = await loadDraft();
+      if (cancelled || !d) return;
+      const hasContent = Object.values((d.payload?.carrinho ?? {}) as Record<string, number>).some((q) => q > 0) || !!d.payload?.obs;
+      if (!hasContent) return;
+      setRecoverMeta({ updatedAt: d.updatedAt, itemCount: d.itemCount, payload: d.payload });
+      setRecoverOpen(true);
+    })();
+    return () => { cancelled = true; };
+  }, [scope, loadDraft]);
+
+  const aplicarRecuperacao = () => {
+    const p = recoverMeta?.payload; if (!p) return;
+    if (p.carrinho) setCarrinho(p.carrinho);
+    if (typeof p.obs === "string") setObs(p.obs);
+    if (typeof p.catFilter === "string") setCatFilter(p.catFilter);
+    if (typeof p.busca === "string") setBusca(p.busca);
+    setRecoverOpen(false);
+    toast.success("Rascunho recuperado");
+  };
+  const descartarRecuperacao = async () => { await clearDraft(); setRecoverOpen(false); };
 
   const produtosFiltrados = useMemo(
     () =>
