@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Plus, Minus, Trash2, Save, Tag, Search } from "lucide-react";
 import type { Sala, Produto, Categoria } from "@/lib/types";
+import { useDraft } from "@/hooks/useDraft";
+import DraftStatusBadge from "@/components/DraftStatusBadge";
 
 type Props = {
   open: boolean;
