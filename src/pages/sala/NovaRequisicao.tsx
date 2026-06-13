@@ -198,6 +198,9 @@ export default function NovaRequisicao() {
   return (
     <div className="space-y-4">
       <PageHeader title="Nova requisição ao Master" description="Escolha uma categoria — ou 'Todos' para misturar várias. A baixa no estoque ocorre apenas após a aprovação do Master." />
+      <div className="flex justify-end"><DraftStatusBadge status={draftStatus} lastSaved={lastSaved} /></div>
+
+
 
       {!catFilter ? (
         <div className="panel p-6">
