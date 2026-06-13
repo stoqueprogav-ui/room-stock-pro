@@ -183,6 +183,7 @@ export default function NovoEmprestimo() {
     });
     setSalaSelecionada(null);
     if (Object.keys(carrinho).length - itens.length === 0) {
+      await clearDraft();
       navigate("/app/emprestimos");
     } else {
       // re-buscar disponibilidade dos restantes
@@ -196,6 +197,8 @@ export default function NovoEmprestimo() {
         title="Pedir empréstimo a outra sala"
         description="Monte seu carrinho, busque a disponibilidade entre as salas e envie o pedido. As quantidades de outras salas não são reveladas — apenas o nível de disponibilidade."
       />
+      <div className="flex justify-end"><DraftStatusBadge status={draftStatus} lastSaved={lastSaved} /></div>
+
 
       <div className="grid lg:grid-cols-3 gap-4">
         {/* Catálogo */}
