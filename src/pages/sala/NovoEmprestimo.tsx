@@ -401,6 +401,15 @@ export default function NovoEmprestimo() {
           )}
         </div>
       )}
+
+      <RecoverDraftDialog
+        open={recoverOpen}
+        onOpenChange={setRecoverOpen}
+        updatedAt={recoverMeta?.updatedAt ?? null}
+        itemCount={recoverMeta?.itemCount}
+        onRecover={aplicarRecuperacao}
+        onDiscard={descartarRecuperacao}
+      />
     </div>
   );
 }
