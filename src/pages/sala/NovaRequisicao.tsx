@@ -13,6 +13,9 @@ import { Send, Trash2, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Categoria } from "@/lib/types";
 import ConfirmarRequisicaoDialog from "@/components/ConfirmarRequisicaoDialog";
+import { useDraft } from "@/hooks/useDraft";
+import DraftStatusBadge from "@/components/DraftStatusBadge";
+import RecoverDraftDialog from "@/components/RecoverDraftDialog";
 
 type Linha = {
   produto_id: string;
@@ -35,6 +38,49 @@ export default function NovaRequisicao() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [salaNome, setSalaNome] = useState<string>("");
   const navigate = useNavigate();
+  const [recoverOpen, setRecoverOpen] = useState(false);
+  const [recoverMeta, setRecoverMeta] = useState<{ updatedAt: number; itemCount?: number; payload: any } | null>(null);
+
+  const scope = activeSalaId ? `requisicao:new:${activeSalaId}` : null;
+  const draftValue = useMemo(() => ({ carrinho, obs, catFilter, busca }), [carrinho, obs, catFilter, busca]);
+  const carrinhoCount = Object.values(carrinho).filter((q) => q > 0).length;
+  const { status: draftStatus, lastSaved, clear: clearDraft, load: loadDraft } = useDraft({
+    scope,
+    value: draftValue,
+    itemCount: carrinhoCount,
+    label: "Nova requisição",
+    isEmpty: (v) => !v || (Object.values(v.carrinho ?? {}).every((q) => !q) && !v.obs),
+  });
+
+  useEffect(() => {
+    if (!scope) return;
+    let cancelled = false;
+    (async () => {
+      const d = await loadDraft();
+      if (cancelled || !d) return;
+      const hasContent = Object.values((d.payload?.carrinho ?? {}) as Record<string, number>).some((q) => q > 0) || !!d.payload?.obs;
+      if (!hasContent) return;
+      setRecoverMeta({ updatedAt: d.updatedAt, itemCount: d.itemCount, payload: d.payload });
+      setRecoverOpen(true);
+    })();
+    return () => { cancelled = true; };
+  }, [scope, loadDraft]);
+
+  const aplicarRecuperacao = () => {
+    if (!recoverMeta?.payload) return;
+    const p = recoverMeta.payload;
+    if (p.carrinho) setCarrinho(p.carrinho);
+    if (typeof p.obs === "string") setObs(p.obs);
+    if (typeof p.catFilter === "string") setCatFilter(p.catFilter);
+    if (typeof p.busca === "string") setBusca(p.busca);
+    setRecoverOpen(false);
+    toast.success("Rascunho recuperado");
+  };
+
+  const descartarRecuperacao = async () => {
+    await clearDraft();
+    setRecoverOpen(false);
+  };
 
   useEffect(() => {
     if (!activeSalaId) return;
@@ -82,6 +128,7 @@ export default function NovaRequisicao() {
     setEnviando(false);
     if (error) return toast.error(error.message);
     setConfirmOpen(false);
+    await clearDraft();
     toast.success("Requisição enviada · aguardando aprovação do Master");
     navigate("/app/minhas-requisicoes");
   };
@@ -151,6 +198,9 @@ export default function NovaRequisicao() {
   return (
     <div className="space-y-4">
       <PageHeader title="Nova requisição ao Master" description="Escolha uma categoria — ou 'Todos' para misturar várias. A baixa no estoque ocorre apenas após a aprovação do Master." />
+      <div className="flex justify-end"><DraftStatusBadge status={draftStatus} lastSaved={lastSaved} /></div>
+
+
 
       {!catFilter ? (
         <div className="panel p-6">
@@ -284,6 +334,16 @@ export default function NovaRequisicao() {
         enviando={enviando}
         onConfirmar={enviar}
       />
+
+      <RecoverDraftDialog
+        open={recoverOpen}
+        onOpenChange={setRecoverOpen}
+        updatedAt={recoverMeta?.updatedAt ?? null}
+        itemCount={recoverMeta?.itemCount}
+        onRecover={aplicarRecuperacao}
+        onDiscard={descartarRecuperacao}
+      />
     </div>
   );
 }
+

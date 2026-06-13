@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Plus, Minus, Trash2, Save, Tag, Search } from "lucide-react";
 import type { Sala, Produto, Categoria } from "@/lib/types";
+import { useDraft } from "@/hooks/useDraft";
+import DraftStatusBadge from "@/components/DraftStatusBadge";
 
 type Props = {
   open: boolean;
@@ -33,9 +35,20 @@ export default function EditarEmprestimoDialog({ open, onOpenChange, emprestimoI
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
   const [busca, setBusca] = useState("");
   const [catFilter, setCatFilter] = useState<string>("");
+  const [loadedFromDraft, setLoadedFromDraft] = useState(false);
+  const scope = open && emprestimoId ? `emprestimo:edit:${emprestimoId}` : null;
+  const draftValue = useMemo(() => ({ salaOrigem, obs, carrinho }), [salaOrigem, obs, carrinho]);
+  const carrinhoCount = Object.values(carrinho).filter((q) => q > 0).length;
+  const { status: draftStatus, lastSaved, clear: clearDraft, load: loadDraft } = useDraft({
+    scope,
+    value: draftValue,
+    enabled: open && !loading,
+    itemCount: carrinhoCount,
+    label: "Edição de empréstimo",
+  });
 
   useEffect(() => {
-    if (!open || !emprestimoId) return;
+    if (!open || !emprestimoId) { setLoadedFromDraft(false); return; }
     (async () => {
       setLoading(true);
       const [{ data: emp }, { data: itens }, { data: ss }, { data: pp }, { data: cc }] = await Promise.all([
@@ -48,18 +61,31 @@ export default function EditarEmprestimoDialog({ open, onOpenChange, emprestimoI
       setLoading(false);
       if (!emp) { toast.error("Empréstimo não encontrado"); onOpenChange(false); return; }
       if (emp.status !== "pendente") { toast.error("Apenas empréstimos pendentes podem ser editados"); onOpenChange(false); return; }
-      setSalaOrigem(emp.sala_origem_id);
       setSalaDestino(emp.sala_destino_id);
-      setObs(emp.observacao ?? "");
-      const c: Record<string, number> = {};
-      (itens ?? []).forEach((it: any) => { c[it.produto_id] = it.quantidade; });
-      setCarrinho(c);
       setSalas((ss as Sala[]) ?? []);
       setProdutos((pp as any) ?? []);
       setCategorias((cc as Categoria[]) ?? []);
       setBusca(""); setCatFilter("");
+
+      const draft = await loadDraft();
+      if (draft?.payload) {
+        const p = draft.payload;
+        setSalaOrigem(p.salaOrigem ?? emp.sala_origem_id);
+        setObs(p.obs ?? emp.observacao ?? "");
+        setCarrinho(p.carrinho ?? {});
+        setLoadedFromDraft(true);
+        toast.message("Rascunho de edição recuperado");
+      } else {
+        setSalaOrigem(emp.sala_origem_id);
+        setObs(emp.observacao ?? "");
+        const c: Record<string, number> = {};
+        (itens ?? []).forEach((it: any) => { c[it.produto_id] = it.quantidade; });
+        setCarrinho(c);
+      }
     })();
-  }, [open, emprestimoId, onOpenChange]);
+  }, [open, emprestimoId, onOpenChange, loadDraft]);
+
+
 
   const setQtd = (id: string, q: number) => {
     const nv = Math.max(0, Math.floor(q || 0));
@@ -100,6 +126,7 @@ export default function EditarEmprestimoDialog({ open, onOpenChange, emprestimoI
     });
     setSaving(false);
     if (error) return toast.error(error.message);
+    await clearDraft();
     toast.success("Solicitação atualizada");
     onSaved();
     onOpenChange(false);
@@ -109,12 +136,16 @@ export default function EditarEmprestimoDialog({ open, onOpenChange, emprestimoI
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar solicitação de empréstimo</DialogTitle>
+          <div className="flex items-start justify-between gap-3">
+            <DialogTitle>Editar solicitação de empréstimo</DialogTitle>
+            <DraftStatusBadge status={draftStatus} lastSaved={lastSaved} />
+          </div>
           <DialogDescription>
             Você pode alterar a sala de origem, produtos, quantidades e observação enquanto o pedido estiver pendente.
             O número da solicitação não muda.
           </DialogDescription>
         </DialogHeader>
+
 
         {loading ? (
           <div className="py-12 flex justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
