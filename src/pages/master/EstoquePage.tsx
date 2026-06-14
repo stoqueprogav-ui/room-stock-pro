@@ -18,7 +18,7 @@ import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-type Row = { produto_id: string; sala_id: string; quantidade: number; custo_medio: number; valor_total: number; ativo: boolean; produto: Produto; sala: Sala };
+type Row = { produto_id: string; sala_id: string; quantidade: number; quantidade_reservada: number; custo_medio: number; valor_total: number; ativo: boolean; produto: Produto; sala: Sala };
 type UltimaEntrada = { data: string; valor_unitario: number; fornecedor: string | null };
 type StatusKind = "ok" | "baixo" | "critico";
 type SortKey = "nome" | "quantidade" | "menor";
@@ -121,7 +121,7 @@ export default function EstoquePage() {
   const load = async () => {
     const [{ data: s }, { data: e }, { data: c }, { data: ents }] = await Promise.all([
       supabase.from("salas").select("*").order("nome"),
-      supabase.from("estoque").select("produto_id, sala_id, quantidade, custo_medio, valor_total, ativo, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
+      supabase.from("estoque").select("produto_id, sala_id, quantidade, quantidade_reservada, custo_medio, valor_total, ativo, produtos!inner(*, categoria:categorias(id, nome)), salas(*)").eq("produtos.ativo", true),
       supabase.from("categorias").select("*").order("nome"),
       supabase.from("entradas_estoque").select("produto_id, sala_id, valor_unitario, fornecedor, data_entrada").order("data_entrada", { ascending: false }).limit(2000),
     ]);
@@ -131,6 +131,7 @@ export default function EstoquePage() {
       produto_id: r.produto_id,
       sala_id: r.sala_id,
       quantidade: r.quantidade,
+      quantidade_reservada: Number(r.quantidade_reservada ?? 0),
       custo_medio: Number(r.custo_medio ?? 0),
       valor_total: Number(r.valor_total ?? 0),
       ativo: r.ativo !== false,
@@ -486,7 +487,9 @@ export default function EstoquePage() {
               <TableHead>Produto</TableHead>
               <TableHead className="w-[120px]">Categoria</TableHead>
               <TableHead>Sala</TableHead>
-              <TableHead className="text-right w-[90px]">Qtd</TableHead>
+              <TableHead className="text-right w-[80px]" title="Estoque físico">Físico</TableHead>
+              <TableHead className="text-right w-[90px]" title="Comprometido por empréstimos pendentes">Reservado</TableHead>
+              <TableHead className="text-right w-[90px]" title="Disponível = Físico − Reservado">Disponível</TableHead>
               <TableHead className="text-right w-[70px]">Mín.</TableHead>
               {isMaster && <TableHead className="text-right w-[110px]">CMP</TableHead>}
               {isMaster && <TableHead className="text-right w-[120px]">V. estoque</TableHead>}
@@ -536,6 +539,8 @@ export default function EstoquePage() {
                 </TableCell>
                 <TableCell>{r.sala.nome}</TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
+                <TableCell className="text-right font-mono text-warning">{r.quantidade_reservada > 0 ? r.quantidade_reservada : <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="text-right font-mono font-semibold text-primary">{Math.max(r.quantidade - r.quantidade_reservada, 0)}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
                 {isMaster && <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>}
                 {isMaster && <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>}
@@ -604,7 +609,7 @@ export default function EstoquePage() {
               </TableRow>
               {isMaster && expanded.has(`${r.produto_id}-${r.sala_id}`) && (
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableCell colSpan={11} className="p-0">
+                  <TableCell colSpan={13} className="p-0">
                     <FichaFinanceira
                       row={r}
                       loading={historyLoading.has(`${r.produto_id}-${r.sala_id}`)}
@@ -615,7 +620,7 @@ export default function EstoquePage() {
               )}
             </React.Fragment>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 6} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 13 : 8} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
