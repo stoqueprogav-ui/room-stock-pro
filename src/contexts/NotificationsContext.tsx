@@ -162,11 +162,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             solicitante_nome: um.get(e.solicitante_id) ?? "—",
             created_at: e.created_at,
           };
-          if (item.status === "pendente") pend.push(item); else apr.push(item);
+          if (item.status === "pendente") pend.push(item);
+          // master NÃO recebe notificação de empréstimos aprovados (ação executada por ele mesmo)
         }
       }
       setEmprestimosPendentes(pend);
-      setEmprestimosAprovados(apr);
+      setEmprestimosAprovados([]);
     } else {
       // admin / analista: empréstimos pendentes onde sua sala é a origem (precisa decidir)
       setRequisicoes([]);
