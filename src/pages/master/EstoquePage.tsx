@@ -159,6 +159,7 @@ export default function EstoquePage() {
 
   const filtered = useMemo(() => {
     const base = rows
+      .filter((r) => isMaster || r.ativo)
       .filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter)
       .filter((r) => catFilter === "all" || (r.produto as any)?.categoria_id === catFilter)
       .filter((r) => !busca || r.produto.nome.toLowerCase().includes(busca.toLowerCase()))
@@ -175,7 +176,9 @@ export default function EstoquePage() {
   }, [rows, effectiveSalaFilter, catFilter, busca, statusFilter, sort]);
 
   const counts = useMemo(() => {
-    const inScope = rows.filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter);
+    const inScope = rows
+      .filter((r) => isMaster || r.ativo)
+      .filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter);
     let critico = 0, baixo = 0, ok = 0;
     inScope.forEach((r) => {
       const s = getStatus(r.quantidade, r.produto);
@@ -184,7 +187,7 @@ export default function EstoquePage() {
       else ok++;
     });
     return { critico, baixo, ok, total: inScope.length };
-  }, [rows, effectiveSalaFilter]);
+  }, [rows, effectiveSalaFilter, isMaster]);
 
   const distinctProdutoIdsFiltered = useMemo(() => {
     const set = new Set<string>();
