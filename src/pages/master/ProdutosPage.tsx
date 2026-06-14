@@ -194,13 +194,12 @@ export default function ProdutosPage() {
   const [salasInativas, setSalasInativas] = useState<{ sala_id: string; nome: string }[]>([]);
   const [reativandoSala, setReativandoSala] = useState<string | null>(null);
 
-  const loadSalasInativas = async (produtoId: string) => {
+  const loadSalasInativas = async (produtoId: string, produtoAtivo: boolean) => {
     setReativarLoading(true);
     setSalasInativas([]);
     // Busca TODAS as salas e os vínculos de estoque deste produto.
-    // Uma sala é "disponível para reativar" quando:
-    //  - não há registro em estoque para o produto naquela sala, OU
-    //  - o registro existe mas está com ativo = false.
+    // Uma sala é "disponível para reativar" quando o produto global está inativo
+    // ou, com o produto global ativo, quando a sala não tem vínculo ativo.
     const [{ data: salasData, error: e1 }, { data: estData, error: e2 }] = await Promise.all([
       supabase.from("salas").select("id, nome").order("nome"),
       supabase.from("estoque").select("sala_id, ativo").eq("produto_id", produtoId),
@@ -211,7 +210,7 @@ export default function ProdutosPage() {
     const ativosBySala = new Map<string, boolean>();
     ((estData as any[]) ?? []).forEach((r) => ativosBySala.set(r.sala_id, !!r.ativo));
     const list = ((salasData as any[]) ?? [])
-      .filter((s) => ativosBySala.get(s.id) !== true) // sem vínculo ou inativo
+      .filter((s) => !produtoAtivo || ativosBySala.get(s.id) !== true)
       .map((s) => ({ sala_id: s.id as string, nome: s.nome as string }))
       .sort((a, b) => a.nome.localeCompare(b.nome));
     setSalasInativas(list);
@@ -346,7 +345,7 @@ export default function ProdutosPage() {
                       <DropdownMenu
                         open={reativarFor === p.id}
                         onOpenChange={(o) => {
-                          if (o) { setReativarFor(p.id); loadSalasInativas(p.id); }
+                          if (o) { setReativarFor(p.id); loadSalasInativas(p.id, p.ativo !== false); }
                           else setReativarFor(null);
                         }}
                       >
