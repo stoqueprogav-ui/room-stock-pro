@@ -539,6 +539,8 @@ export default function EstoquePage() {
                 </TableCell>
                 <TableCell>{r.sala.nome}</TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
+                <TableCell className="text-right font-mono text-warning">{r.quantidade_reservada > 0 ? r.quantidade_reservada : <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="text-right font-mono font-semibold text-primary">{Math.max(r.quantidade - r.quantidade_reservada, 0)}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
                 {isMaster && <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>}
                 {isMaster && <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>}
