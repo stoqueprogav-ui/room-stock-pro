@@ -620,7 +620,7 @@ export default function EstoquePage() {
               )}
             </React.Fragment>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 11 : 6} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 13 : 8} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
