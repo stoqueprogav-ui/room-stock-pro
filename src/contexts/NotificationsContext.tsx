@@ -58,20 +58,6 @@ type Ctx = {
 const NotificationsContext = createContext<Ctx | undefined>(undefined);
 
 const SOUND_KEY = "notif_sound_enabled";
-const READ_KEY = "notif_read_ids";
-const DISMISS_KEY = "notif_dismissed_ids";
-
-function loadSet(key: string): Set<string> {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return new Set();
-    const arr = JSON.parse(raw);
-    return new Set(Array.isArray(arr) ? arr : []);
-  } catch { return new Set(); }
-}
-function saveSet(key: string, s: Set<string>) {
-  try { localStorage.setItem(key, JSON.stringify([...s])); } catch {}
-}
 
 // pequeno beep gerado via WebAudio (sem precisar de arquivo)
 function playBeep(kind: "info" | "warn" = "info") {
