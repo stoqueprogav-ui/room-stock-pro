@@ -763,6 +763,33 @@ export type Database = {
           },
         ]
       }
+      notification_states: {
+        Row: {
+          created_at: string
+          is_dismissed: boolean
+          is_read: boolean
+          notification_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_dismissed?: boolean
+          is_read?: boolean
+          notification_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          is_dismissed?: boolean
+          is_read?: boolean
+          notification_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       produto_custo_historico: {
         Row: {
           alterado_em: string
