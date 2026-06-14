@@ -10,8 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import type { Produto, Sala, Categoria } from "@/lib/types";
 import ImportarProdutosDialog from "@/components/ImportarProdutosDialog";
@@ -184,12 +188,48 @@ export default function ProdutosPage() {
     load();
   };
 
-  const reativar = async (p: Produto) => {
-    const { error } = await supabase.rpc("reativar_produto", { _produto: p.id });
-    if (error) return toast.error(error.message);
-    toast.success("Produto reativado");
+  // Menu de reativação por sala
+  const [reativarFor, setReativarFor] = useState<string | null>(null);
+  const [reativarLoading, setReativarLoading] = useState(false);
+  const [salasInativas, setSalasInativas] = useState<{ sala_id: string; nome: string }[]>([]);
+  const [reativandoSala, setReativandoSala] = useState<string | null>(null);
+
+  const loadSalasInativas = async (produtoId: string) => {
+    setReativarLoading(true);
+    setSalasInativas([]);
+    const { data, error } = await supabase
+      .from("estoque")
+      .select("sala_id, ativo, sala:salas(id, nome)")
+      .eq("produto_id", produtoId)
+      .eq("ativo", false);
+    setReativarLoading(false);
+    if (error) { toast.error(error.message); return; }
+    const list = ((data as any[]) ?? [])
+      .map((r) => ({ sala_id: r.sala_id as string, nome: r.sala?.nome ?? "Sala" }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+    setSalasInativas(list);
+  };
+
+  const reativarNaSala = async (produtoId: string, salaId: string) => {
+    setReativandoSala(salaId);
+    // 1) Reativa o vínculo desta sala
+    const { error: e1 } = await supabase.rpc("toggle_produto_sala_ativo", {
+      _produto_id: produtoId, _sala_id: salaId, _ativo: true,
+    });
+    if (e1) {
+      setReativandoSala(null);
+      return toast.error(e1.message);
+    }
+    // 2) Garante que o produto global esteja ativo (sem mexer nas outras salas)
+    const { error: e2 } = await supabase.from("produtos").update({ ativo: true }).eq("id", produtoId);
+    setReativandoSala(null);
+    if (e2) return toast.error(e2.message);
+
+    toast.success("Produto reativado apenas nesta sala");
+    setReativarFor(null);
     load();
   };
+
 
   const setQty = (sala_id: string, q: number) => {
     setSalasQty((prev) => prev.map((s) => s.sala_id === sala_id ? { ...s, quantidade: q } : s));
@@ -272,9 +312,45 @@ export default function ProdutosPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {inativo ? (
-                      <Button variant="ghost" size="sm" onClick={() => reativar(p)} className="gap-1">
-                        <RotateCcw className="size-4" /> Reativar
-                      </Button>
+                      <DropdownMenu
+                        open={reativarFor === p.id}
+                        onOpenChange={(o) => {
+                          if (o) { setReativarFor(p.id); loadSalasInativas(p.id); }
+                          else setReativarFor(null);
+                        }}
+                      >
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="gap-1">
+                            <RotateCcw className="size-4" /> Reativar
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64">
+                          <DropdownMenuLabel className="text-xs">Reativar em qual sala?</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {reativarLoading && (
+                            <div className="px-2 py-3 text-xs text-muted-foreground flex items-center gap-2">
+                              <Loader2 className="size-3 animate-spin" /> Carregando salas...
+                            </div>
+                          )}
+                          {!reativarLoading && salasInativas.length === 0 && (
+                            <div className="px-2 py-3 text-xs text-muted-foreground">
+                              Nenhuma sala inativa para este produto.
+                            </div>
+                          )}
+                          {!reativarLoading && salasInativas.map((s) => (
+                            <DropdownMenuItem
+                              key={s.sala_id}
+                              disabled={reativandoSala === s.sala_id}
+                              onSelect={(e) => { e.preventDefault(); reativarNaSala(p.id, s.sala_id); }}
+                              className="gap-2"
+                            >
+                              <Building2 className="size-4 text-accent" />
+                              <span className="flex-1">{s.nome}</span>
+                              {reativandoSala === s.sala_id && <Loader2 className="size-3 animate-spin" />}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     ) : (
                       <>
                         <Button variant="ghost" size="icon" aria-label="Editar produto" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
@@ -284,6 +360,7 @@ export default function ProdutosPage() {
                       </>
                     )}
                   </TableCell>
+
                 </TableRow>
               );
             })}
