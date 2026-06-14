@@ -197,33 +197,64 @@ export default function ProdutosPage() {
   const loadSalasInativas = async (produtoId: string) => {
     setReativarLoading(true);
     setSalasInativas([]);
-    const { data, error } = await supabase
-      .from("estoque")
-      .select("sala_id, ativo, sala:salas(id, nome)")
-      .eq("produto_id", produtoId)
-      .eq("ativo", false);
+    // Busca TODAS as salas e os vínculos de estoque deste produto.
+    // Uma sala é "disponível para reativar" quando:
+    //  - não há registro em estoque para o produto naquela sala, OU
+    //  - o registro existe mas está com ativo = false.
+    const [{ data: salasData, error: e1 }, { data: estData, error: e2 }] = await Promise.all([
+      supabase.from("salas").select("id, nome").order("nome"),
+      supabase.from("estoque").select("sala_id, ativo").eq("produto_id", produtoId),
+    ]);
     setReativarLoading(false);
-    if (error) { toast.error(error.message); return; }
-    const list = ((data as any[]) ?? [])
-      .map((r) => ({ sala_id: r.sala_id as string, nome: r.sala?.nome ?? "Sala" }))
+    if (e1) { toast.error(e1.message); return; }
+    if (e2) { toast.error(e2.message); return; }
+    const ativosBySala = new Map<string, boolean>();
+    ((estData as any[]) ?? []).forEach((r) => ativosBySala.set(r.sala_id, !!r.ativo));
+    const list = ((salasData as any[]) ?? [])
+      .filter((s) => ativosBySala.get(s.id) !== true) // sem vínculo ou inativo
+      .map((s) => ({ sala_id: s.id as string, nome: s.nome as string }))
       .sort((a, b) => a.nome.localeCompare(b.nome));
     setSalasInativas(list);
   };
 
   const reativarNaSala = async (produtoId: string, salaId: string) => {
     setReativandoSala(salaId);
-    // 1) Reativa o vínculo desta sala
-    const { error: e1 } = await supabase.rpc("toggle_produto_sala_ativo", {
-      _produto_id: produtoId, _sala_id: salaId, _ativo: true,
-    });
-    if (e1) {
+    // Verifica se já existe vínculo em estoque para esta sala
+    const { data: existente, error: eSel } = await supabase
+      .from("estoque")
+      .select("id")
+      .eq("produto_id", produtoId)
+      .eq("sala_id", salaId)
+      .maybeSingle();
+    if (eSel) {
       setReativandoSala(null);
-      return toast.error(e1.message);
+      return toast.error(eSel.message);
     }
+
+    if (existente) {
+      // 1) Reativa o vínculo existente
+      const { error: e1 } = await supabase.rpc("toggle_produto_sala_ativo", {
+        _produto_id: produtoId, _sala_id: salaId, _ativo: true,
+      });
+      if (e1) {
+        setReativandoSala(null);
+        return toast.error(e1.message);
+      }
+    } else {
+      // 1) Cria vínculo de estoque para a sala (quantidade zero, ativo)
+      const { error: eIns } = await supabase
+        .from("estoque")
+        .insert({ produto_id: produtoId, sala_id: salaId, quantidade: 0, ativo: true });
+      if (eIns) {
+        setReativandoSala(null);
+        return toast.error(eIns.message);
+      }
+    }
+
     // 2) Garante que o produto global esteja ativo (sem mexer nas outras salas)
-    const { error: e2 } = await supabase.from("produtos").update({ ativo: true }).eq("id", produtoId);
+    const { error: eUpd } = await supabase.from("produtos").update({ ativo: true }).eq("id", produtoId);
     setReativandoSala(null);
-    if (e2) return toast.error(e2.message);
+    if (eUpd) return toast.error(eUpd.message);
 
     toast.success("Produto reativado apenas nesta sala");
     setReativarFor(null);
