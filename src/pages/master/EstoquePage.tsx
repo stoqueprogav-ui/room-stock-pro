@@ -159,6 +159,7 @@ export default function EstoquePage() {
 
   const filtered = useMemo(() => {
     const base = rows
+      .filter((r) => isMaster || r.ativo)
       .filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter)
       .filter((r) => catFilter === "all" || (r.produto as any)?.categoria_id === catFilter)
       .filter((r) => !busca || r.produto.nome.toLowerCase().includes(busca.toLowerCase()))
