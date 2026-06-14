@@ -790,6 +790,57 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          body: string | null
+          category: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          event_type: string
+          id: string
+          is_dismissed: boolean
+          is_read: boolean
+          link: string | null
+          sala_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          body?: string | null
+          category: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type: string
+          id?: string
+          is_dismissed?: boolean
+          is_read?: boolean
+          link?: string | null
+          sala_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string | null
+          category?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string
+          id?: string
+          is_dismissed?: boolean
+          is_read?: boolean
+          link?: string | null
+          sala_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       produto_custo_historico: {
         Row: {
           alterado_em: string
@@ -1661,6 +1712,49 @@ export type Database = {
       }
       _baixar_valorizada: {
         Args: { _produto: string; _quantidade: number; _sala: string }
+        Returns: undefined
+      }
+      _notify_masters: {
+        Args: {
+          _actor_id: string
+          _body: string
+          _category: string
+          _entity_id: string
+          _entity_type: string
+          _event_type: string
+          _link: string
+          _sala_id: string
+          _title: string
+        }
+        Returns: undefined
+      }
+      _notify_sala: {
+        Args: {
+          _actor_id: string
+          _body: string
+          _category: string
+          _entity_id: string
+          _entity_type: string
+          _event_type: string
+          _link: string
+          _sala: string
+          _title: string
+        }
+        Returns: undefined
+      }
+      _notify_users: {
+        Args: {
+          _actor_id: string
+          _body: string
+          _category: string
+          _entity_id: string
+          _entity_type: string
+          _event_type: string
+          _link: string
+          _sala_id: string
+          _title: string
+          _user_ids: string[]
+        }
         Returns: undefined
       }
       _recalc_estoque_valor: {

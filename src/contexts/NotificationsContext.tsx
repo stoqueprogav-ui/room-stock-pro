@@ -2,30 +2,35 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, Re
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { toast } from "sonner";
 
-export type PendingRequisicao = {
-  id: string;
-  sala_id: string;
-  sala_nome: string;
-  usuario_nome: string;
-  created_at: string;
-};
+export type NotificationCategory =
+  | "requisicao"
+  | "emprestimo"
+  | "devolucao"
+  | "chat"
+  | "sistema"
+  | "auditoria";
 
-export type PendingEmprestimo = {
+export type NotificationRow = {
   id: string;
-  status: "pendente" | "aprovado";
-  sala_origem_id: string;
-  sala_destino_id: string;
-  sala_origem_nome: string;
-  sala_destino_nome: string;
-  solicitante_nome: string;
+  user_id: string;
+  category: NotificationCategory;
+  event_type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  sala_id: string | null;
+  actor_id: string | null;
+  is_read: boolean;
+  is_dismissed: boolean;
   created_at: string;
 };
 
 export type ChatAlert = {
-  id: string;                // conversation id (agrupado)
+  id: string;                // "chat:<conversation_id>"
   conversation_id: string;
   sender_id: string;
   sender_nome: string;
@@ -35,13 +40,12 @@ export type ChatAlert = {
 };
 
 type Ctx = {
-  requisicoes: PendingRequisicao[];
-  emprestimosPendentes: PendingEmprestimo[];
-  emprestimosAprovados: PendingEmprestimo[];
+  notifications: NotificationRow[];
   chatAlerts: ChatAlert[];
-  totalCount: number;
-  activeCount: number;
-  perSalaCount: Record<string, number>;
+  totalCount: number;                            // unread (sino vermelho)
+  activeCount: number;                           // não fechadas
+  perSalaCount: Record<string, number>;          // unread por sala
+  countByCategory: Record<NotificationCategory, number>;
   isRead: (id: string) => boolean;
   isDismissed: (id: string) => boolean;
   markRead: (id: string) => void;
@@ -59,7 +63,6 @@ const NotificationsContext = createContext<Ctx | undefined>(undefined);
 
 const SOUND_KEY = "notif_sound_enabled";
 
-// pequeno beep gerado via WebAudio (sem precisar de arquivo)
 function playBeep(kind: "info" | "warn" = "info") {
   try {
     const AC = (window.AudioContext || (window as any).webkitAudioContext);
@@ -80,12 +83,9 @@ function playBeep(kind: "info" | "warn" = "info") {
 }
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { user, role, profile } = useAuth();
-  const { activeSalaId } = useActiveSala();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
-  const [requisicoes, setRequisicoes] = useState<PendingRequisicao[]>([]);
-  const [emprestimosPendentes, setEmprestimosPendentes] = useState<PendingEmprestimo[]>([]);
-  const [emprestimosAprovados, setEmprestimosAprovados] = useState<PendingEmprestimo[]>([]);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [chatAlerts, setChatAlerts] = useState<ChatAlert[]>([]);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem(SOUND_KEY) !== "0"; } catch { return true; }
@@ -100,110 +100,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Carrega snapshot inicial conforme papel
   const refresh = useCallback(async () => {
-    if (!user || !role) {
-      setRequisicoes([]); setEmprestimosPendentes([]); setEmprestimosAprovados([]);
-      return;
-    }
+    if (!user) { setNotifications([]); setChatAlerts([]); return; }
+    // 1) Notificações persistidas
+    const { data: rows } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setNotifications((rows ?? []) as NotificationRow[]);
 
-    if (role === "master") {
-      let reqsMapped: PendingRequisicao[] = [];
-      const { data: rs } = await supabase
-        .from("solicitacoes")
-        .select("id, sala_id, usuario_id, created_at")
-        .eq("status", "pendente")
-        .order("created_at", { ascending: false });
-      if (rs?.length) {
-        const salaIds = [...new Set(rs.map((x) => x.sala_id))];
-        const userIds = [...new Set(rs.map((x) => x.usuario_id))];
-        const [{ data: salas }, { data: profs }] = await Promise.all([
-          supabase.from("salas").select("id, nome").in("id", salaIds),
-          supabase.from("profiles").select("id, nome").in("id", userIds),
-        ]);
-        const sm = new Map((salas ?? []).map((s) => [s.id, s.nome]));
-        const um = new Map((profs ?? []).map((p) => [p.id, p.nome]));
-        reqsMapped = rs.map((r) => ({
-          id: r.id,
-          sala_id: r.sala_id,
-          sala_nome: sm.get(r.sala_id) ?? "—",
-          usuario_nome: um.get(r.usuario_id) ?? "—",
-          created_at: r.created_at,
-        }));
-      }
-      setRequisicoes(reqsMapped);
-
-      // Empréstimos: pendentes e aprovados (aguardando arquivamento)
-      const { data: emps } = await supabase
-        .from("emprestimos")
-        .select("id, status, sala_origem_id, sala_destino_id, solicitante_id, created_at")
-        .in("status", ["pendente", "aprovado"])
-        .order("created_at", { ascending: false });
-
-      let pend: PendingEmprestimo[] = [];
-      let apr: PendingEmprestimo[] = [];
-      if (emps?.length) {
-        const salaIds = [...new Set(emps.flatMap((e) => [e.sala_origem_id, e.sala_destino_id]))];
-        const userIds = [...new Set(emps.map((e) => e.solicitante_id))];
-        const [{ data: salas }, { data: profs }] = await Promise.all([
-          supabase.from("salas").select("id, nome").in("id", salaIds),
-          supabase.from("profiles").select("id, nome").in("id", userIds),
-        ]);
-        const sm = new Map((salas ?? []).map((s) => [s.id, s.nome]));
-        const um = new Map((profs ?? []).map((p) => [p.id, p.nome]));
-        for (const e of emps) {
-          const item: PendingEmprestimo = {
-            id: e.id,
-            status: e.status as any,
-            sala_origem_id: e.sala_origem_id,
-            sala_destino_id: e.sala_destino_id,
-            sala_origem_nome: sm.get(e.sala_origem_id) ?? "—",
-            sala_destino_nome: sm.get(e.sala_destino_id) ?? "—",
-            solicitante_nome: um.get(e.solicitante_id) ?? "—",
-            created_at: e.created_at,
-          };
-          if (item.status === "pendente") pend.push(item);
-          // master NÃO recebe notificação de empréstimos aprovados (ação executada por ele mesmo)
-        }
-      }
-      setEmprestimosPendentes(pend);
-      setEmprestimosAprovados([]);
-    } else {
-      // admin / analista: empréstimos pendentes onde sua sala é a origem (precisa decidir)
-      setRequisicoes([]);
-      setEmprestimosAprovados([]);
-      if (!activeSalaId) { setEmprestimosPendentes([]); return; }
-      const { data: emps } = await supabase
-        .from("emprestimos")
-        .select("id, status, sala_origem_id, sala_destino_id, solicitante_id, created_at")
-        .eq("status", "pendente")
-        .eq("sala_origem_id", activeSalaId)
-        .order("created_at", { ascending: false });
-      let pend: PendingEmprestimo[] = [];
-      if (emps?.length) {
-        const salaIds = [...new Set(emps.flatMap((e) => [e.sala_origem_id, e.sala_destino_id]))];
-        const userIds = [...new Set(emps.map((e) => e.solicitante_id))];
-        const [{ data: salas }, { data: profs }] = await Promise.all([
-          supabase.from("salas").select("id, nome").in("id", salaIds),
-          supabase.from("profiles").select("id, nome").in("id", userIds),
-        ]);
-        const sm = new Map((salas ?? []).map((s) => [s.id, s.nome]));
-        const um = new Map((profs ?? []).map((p) => [p.id, p.nome]));
-        pend = emps.map((e) => ({
-          id: e.id,
-          status: "pendente",
-          sala_origem_id: e.sala_origem_id,
-          sala_destino_id: e.sala_destino_id,
-          sala_origem_nome: sm.get(e.sala_origem_id) ?? "—",
-          sala_destino_nome: sm.get(e.sala_destino_id) ?? "—",
-          solicitante_nome: um.get(e.solicitante_id) ?? "—",
-          created_at: e.created_at,
-        }));
-      }
-      setEmprestimosPendentes(pend);
-    }
-
-    // Chat: agrega conversas com unread_count > 0
+    // 2) Chat (não persistido — derivado das conversas)
     try {
       const { data: convs } = await supabase.rpc("list_my_conversations");
       const unread = (convs ?? []).filter((c: any) => (c.unread_count ?? 0) > 0);
@@ -223,96 +131,48 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         unread_count: c.unread_count ?? 0,
       })));
     } catch { /* noop */ }
-  }, [user, role, activeSalaId]);
+  }, [user]);
 
-  // initial load
   useEffect(() => {
-    if (!user || !role) return;
+    if (!user) return;
     initialLoadedRef.current = false;
     refresh().then(() => { initialLoadedRef.current = true; });
-  }, [user, role, activeSalaId, refresh]);
+  }, [user, refresh]);
 
-  // Realtime subscriptions
+  // Realtime: notifications (insert/update) + chat
   useEffect(() => {
-    if (!user || !role) return;
-
-    const notify = (title: string, description: string, kind: "info" | "warn", onClick?: () => void) => {
-      if (soundEnabled) playBeep(kind);
-      toast(title, {
-        description,
-        duration: 10000,
-        action: onClick ? { label: "Ver agora", onClick } : undefined,
-      });
-    };
+    if (!user) return;
 
     const channel = supabase
-      .channel("notifications-realtime")
+      .channel(`notifs-${user.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "solicitacoes" },
-        async (payload) => {
-          if (role !== "master") return;
-          const row: any = payload.new;
-          // Buscar nomes
-          const [{ data: sala }, { data: prof }] = await Promise.all([
-            supabase.from("salas").select("nome").eq("id", row.sala_id).maybeSingle(),
-            supabase.from("profiles").select("nome").eq("id", row.usuario_id).maybeSingle(),
-          ]);
-          notify(
-            "🔴 Nova requisição recebida",
-            `Sala: ${sala?.nome ?? "—"} · Por: ${prof?.nome ?? "—"}`,
-            "warn",
-            () => navigate("/app/requisicoes")
-          );
-          await refresh();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "solicitacoes" },
-        async () => { await refresh(); }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "emprestimos" },
-        async (payload) => {
-          const row: any = payload.new;
-          const isMasterTarget = role === "master";
-          const isAdminOrigem = (role === "admin" || role === "analista") && activeSalaId === row.sala_origem_id;
-          if (!isMasterTarget && !isAdminOrigem) return;
-          const [{ data: salaO }, { data: salaD }] = await Promise.all([
-            supabase.from("salas").select("nome").eq("id", row.sala_origem_id).maybeSingle(),
-            supabase.from("salas").select("nome").eq("id", row.sala_destino_id).maybeSingle(),
-          ]);
-          const desc = `De: ${salaD?.nome ?? "—"} → Para: ${salaO?.nome ?? "—"}`;
-          notify(
-            isAdminOrigem ? "🟡 Sua sala recebeu um pedido de empréstimo" : "🟡 Novo pedido de empréstimo",
-            desc,
-            "warn",
-            () => navigate(role === "admin" ? "/app/aprovar-emprestimos" : "/app/emprestimos")
-          );
-          await refresh();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "emprestimos" },
-        async (payload) => {
-          const row: any = payload.new;
-          const old: any = payload.old;
-          if (role === "master" && old?.status === "pendente" && row?.status === "aprovado") {
-            const [{ data: salaO }, { data: salaD }] = await Promise.all([
-              supabase.from("salas").select("nome").eq("id", row.sala_origem_id).maybeSingle(),
-              supabase.from("salas").select("nome").eq("id", row.sala_destino_id).maybeSingle(),
-            ]);
-            notify(
-              "✅ Empréstimo aprovado",
-              `${salaO?.nome ?? "—"} → ${salaD?.nome ?? "—"} · aguarda arquivamento`,
-              "info",
-              () => navigate("/app/emprestimos")
-            );
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as NotificationRow;
+          setNotifications((cur) => {
+            if (cur.some((n) => n.id === row.id)) return cur;
+            return [row, ...cur].slice(0, 500);
+          });
+          if (initialLoadedRef.current) {
+            if (soundEnabled) playBeep(row.category === "requisicao" || row.event_type.endsWith(".rejeitado") ? "warn" : "info");
+            toast(row.title, {
+              description: row.body ?? undefined,
+              duration: 9000,
+              action: row.link ? { label: "Abrir", onClick: () => {
+                supabase.from("notifications").update({ is_read: true }).eq("id", row.id);
+                navigate(row.link!);
+              } } : undefined,
+            });
           }
-          await refresh();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new as NotificationRow;
+          setNotifications((cur) => cur.map((n) => (n.id === row.id ? row : n)));
         }
       )
       .on(
@@ -321,7 +181,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         async (payload) => {
           const row: any = payload.new;
           if (row.sender_id === user.id) return;
-          // Se já está na página de chat olhando esta conversa, apenas refresca
           if (typeof window !== "undefined") {
             const p = window.location.pathname;
             const url = new URL(window.location.href);
@@ -334,142 +193,97 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           const { data: prof } = await supabase.from("profiles").select("nome").eq("id", row.sender_id).maybeSingle();
           const openConv = () => {
             const onChatPage = typeof window !== "undefined" && window.location.pathname.startsWith("/app/chat");
-            if (onChatPage) {
-              navigate(`/app/chat?c=${row.conversation_id}`);
-            } else {
-              // Abre o chat flutuante diretamente na conversa, sem sair da página
-              window.dispatchEvent(new CustomEvent("floating-chat:open", { detail: { conversationId: row.conversation_id } }));
-            }
+            if (onChatPage) navigate(`/app/chat?c=${row.conversation_id}`);
+            else window.dispatchEvent(new CustomEvent("floating-chat:open", { detail: { conversationId: row.conversation_id } }));
           };
-          notify(
-            `💬 ${prof?.nome ?? "Nova mensagem"}`,
-            row.body ?? (row.attachment_name ? `📎 ${row.attachment_name}` : "Nova mensagem"),
-            "info",
-            openConv
-          );
+          if (soundEnabled) playBeep("info");
+          toast(`💬 ${prof?.nome ?? "Nova mensagem"}`, {
+            description: row.body ?? (row.attachment_name ? `📎 ${row.attachment_name}` : "Nova mensagem"),
+            duration: 9000,
+            action: { label: "Abrir", onClick: openConv },
+          });
           await refresh();
         }
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, role, activeSalaId, soundEnabled, refresh, navigate]);
+  }, [user, soundEnabled, refresh, navigate]);
 
-  // ===== Estado de leitura / fechamento (persistente no banco) =====
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  // Mutations
+  const update = useCallback(async (id: string, patch: Partial<Pick<NotificationRow, "is_read" | "is_dismissed">>) => {
+    setNotifications((cur) => cur.map((n) => (n.id === id ? { ...n, ...patch } : n)));
+    await supabase.from("notifications").update(patch).eq("id", id);
+  }, []);
 
-  // Carrega estado persistido do banco para o usuário atual
-  useEffect(() => {
-    if (!user) { setReadIds(new Set()); setDismissedIds(new Set()); return; }
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("notification_states")
-        .select("notification_key, is_read, is_dismissed")
-        .eq("user_id", user.id);
-      if (cancelled) return;
-      const r = new Set<string>(); const d = new Set<string>();
-      for (const row of data ?? []) {
-        if (row.is_read) r.add(row.notification_key);
-        if (row.is_dismissed) d.add(row.notification_key);
-      }
-      setReadIds(r); setDismissedIds(d);
-    })();
-    return () => { cancelled = true; };
-  }, [user]);
+  const markRead = useCallback((id: string) => { void update(id, { is_read: true }); }, [update]);
+  const markUnread = useCallback((id: string) => { void update(id, { is_read: false }); }, [update]);
+  const dismiss = useCallback((id: string) => { void update(id, { is_read: true, is_dismissed: true }); }, [update]);
+  const restore = useCallback((id: string) => { void update(id, { is_dismissed: false }); }, [update]);
 
-  const persist = useCallback(async (id: string, patch: { is_read?: boolean; is_dismissed?: boolean }) => {
+  const markAllRead = useCallback(async () => {
     if (!user) return;
-    await supabase
-      .from("notification_states")
-      .upsert(
-        { user_id: user.id, notification_key: id, ...patch },
-        { onConflict: "user_id,notification_key" }
-      );
+    setNotifications((cur) => cur.map((n) => ({ ...n, is_read: true })));
+    await supabase.from("notifications").update({ is_read: true }).eq("user_id", user.id).eq("is_read", false);
   }, [user]);
 
-  const isRead = useCallback((id: string) => readIds.has(id), [readIds]);
-  const isDismissed = useCallback((id: string) => dismissedIds.has(id), [dismissedIds]);
+  const dismissAll = useCallback(async () => {
+    if (!user) return;
+    setNotifications((cur) => cur.map((n) => ({ ...n, is_read: true, is_dismissed: true })));
+    await supabase.from("notifications").update({ is_read: true, is_dismissed: true }).eq("user_id", user.id).eq("is_dismissed", false);
+  }, [user]);
 
-  const markRead = useCallback((id: string) => {
-    setReadIds((s) => { const n = new Set(s); n.add(id); return n; });
-    void persist(id, { is_read: true });
-  }, [persist]);
-  const markUnread = useCallback((id: string) => {
-    setReadIds((s) => { const n = new Set(s); n.delete(id); return n; });
-    void persist(id, { is_read: false });
-  }, [persist]);
-  const dismiss = useCallback((id: string) => {
-    setDismissedIds((s) => { const n = new Set(s); n.add(id); return n; });
-    setReadIds((s) => { const n = new Set(s); n.add(id); return n; });
-    void persist(id, { is_read: true, is_dismissed: true });
-  }, [persist]);
-  const restore = useCallback((id: string) => {
-    setDismissedIds((s) => { const n = new Set(s); n.delete(id); return n; });
-    void persist(id, { is_dismissed: false });
-  }, [persist]);
+  const isRead = useCallback((id: string) => {
+    const n = notifications.find((x) => x.id === id);
+    return n ? n.is_read : false;
+  }, [notifications]);
+  const isDismissed = useCallback((id: string) => {
+    const n = notifications.find((x) => x.id === id);
+    return n ? n.is_dismissed : false;
+  }, [notifications]);
 
-  const allIds = useMemo(
-    () => [
-      ...requisicoes.map((r) => r.id),
-      ...emprestimosPendentes.map((e) => e.id),
-      ...emprestimosAprovados.map((e) => e.id),
-    ],
-    [requisicoes, emprestimosPendentes, emprestimosAprovados]
+  const totalCount = useMemo(() => {
+    const u = notifications.filter((n) => !n.is_read && !n.is_dismissed).length;
+    const c = chatAlerts.reduce((s, x) => s + x.unread_count, 0);
+    return u + c;
+  }, [notifications, chatAlerts]);
+
+  const activeCount = useMemo(
+    () => notifications.filter((n) => !n.is_dismissed).length,
+    [notifications]
   );
-
-  const markAllRead = useCallback(() => {
-    if (!user) return;
-    const all = new Set<string>(allIds);
-    setReadIds(all);
-    const rows = allIds.map((id) => ({ user_id: user.id, notification_key: id, is_read: true }));
-    if (rows.length) void supabase.from("notification_states").upsert(rows, { onConflict: "user_id,notification_key" });
-  }, [allIds, user]);
-  const dismissAll = useCallback(() => {
-    if (!user) return;
-    const all = new Set<string>(allIds);
-    setDismissedIds(all);
-    setReadIds(all);
-    const rows = allIds.map((id) => ({ user_id: user.id, notification_key: id, is_read: true, is_dismissed: true }));
-    if (rows.length) void supabase.from("notification_states").upsert(rows, { onConflict: "user_id,notification_key" });
-  }, [allIds, user]);
-
-  // não lidos = sino vermelho. Pendência fechada continua aparecendo no sino (mas marcada como lida).
-  const totalCount = allIds.filter((id) => !readIds.has(id)).length;
-  // ativos = não fechados. Usado para banners do dashboard.
-  const activeCount = allIds.filter((id) => !dismissedIds.has(id)).length;
 
   const perSalaCount = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const r of requisicoes) {
-      if (readIds.has(r.id)) continue;
-      map[r.sala_id] = (map[r.sala_id] ?? 0) + 1;
-    }
-    for (const e of emprestimosPendentes) {
-      if (readIds.has(e.id)) continue;
-      map[e.sala_origem_id] = (map[e.sala_origem_id] ?? 0) + 1;
-    }
-    for (const e of emprestimosAprovados) {
-      if (readIds.has(e.id)) continue;
-      map[e.sala_origem_id] = (map[e.sala_origem_id] ?? 0) + 1;
+    for (const n of notifications) {
+      if (n.is_read || n.is_dismissed || !n.sala_id) continue;
+      map[n.sala_id] = (map[n.sala_id] ?? 0) + 1;
     }
     return map;
-  }, [requisicoes, emprestimosPendentes, emprestimosAprovados, readIds]);
+  }, [notifications]);
+
+  const countByCategory = useMemo(() => {
+    const cats: NotificationCategory[] = ["requisicao", "emprestimo", "devolucao", "chat", "sistema", "auditoria"];
+    const map = Object.fromEntries(cats.map((c) => [c, 0])) as Record<NotificationCategory, number>;
+    for (const n of notifications) {
+      if (n.is_read || n.is_dismissed) continue;
+      map[n.category] = (map[n.category] ?? 0) + 1;
+    }
+    map.chat += chatAlerts.length;
+    return map;
+  }, [notifications, chatAlerts]);
 
   const value: Ctx = {
-    requisicoes,
-    emprestimosPendentes,
-    emprestimosAprovados,
+    notifications,
     chatAlerts,
-    totalCount: totalCount + chatAlerts.reduce((s, c) => s + c.unread_count, 0),
+    totalCount,
     activeCount,
     perSalaCount,
+    countByCategory,
     isRead, isDismissed,
     markRead, markUnread, dismiss, restore,
     markAllRead, dismissAll,
-    soundEnabled,
-    toggleSound,
+    soundEnabled, toggleSound,
     refresh,
   };
 

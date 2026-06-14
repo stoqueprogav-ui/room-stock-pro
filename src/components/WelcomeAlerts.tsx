@@ -3,74 +3,39 @@ import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Inbox, ArrowLeftRight, CheckCircle2, BellRing, X, Check } from "lucide-react";
-import { useNotifications } from "@/contexts/NotificationsContext";
-import { useAuth } from "@/contexts/AuthContext";
+import { Inbox, ArrowLeftRight, PackageOpen, MessageCircle, Settings as SettingsIcon, BellRing, X, Check } from "lucide-react";
+import { useNotifications, NotificationCategory } from "@/contexts/NotificationsContext";
 import { cn } from "@/lib/utils";
 
-type Tone = "destructive" | "warning" | "success";
+const ICON: Record<NotificationCategory, any> = {
+  requisicao: Inbox,
+  emprestimo: ArrowLeftRight,
+  devolucao: PackageOpen,
+  chat: MessageCircle,
+  sistema: SettingsIcon,
+  auditoria: SettingsIcon,
+};
+const TONE: Record<NotificationCategory, string> = {
+  requisicao: "border-destructive/50 bg-destructive/10 text-destructive",
+  emprestimo: "border-warning/50 bg-warning/10 text-warning",
+  devolucao: "border-success/50 bg-success/10 text-success",
+  chat: "border-primary/50 bg-primary/10 text-primary",
+  sistema: "border-border bg-muted/30 text-muted-foreground",
+  auditoria: "border-border bg-muted/30 text-muted-foreground",
+};
+const SOFT = "border-border bg-muted/30 text-muted-foreground";
 
 export default function WelcomeAlerts() {
-  const { role } = useAuth();
-  const {
-    requisicoes, emprestimosPendentes, emprestimosAprovados,
-    isRead, isDismissed, markRead, dismiss,
-  } = useNotifications();
+  const { notifications, markRead, dismiss } = useNotifications();
   const navigate = useNavigate();
 
-  type Cell = { id: string; icon: any; tone: Tone; title: string; action: () => void };
+  const visiveis = useMemo(
+    () => notifications.filter((n) => !n.is_dismissed),
+    [notifications]
+  );
 
-  const cells: Cell[] = useMemo(() => {
-    const arr: Cell[] = [];
-    if (role === "master") {
-      for (const r of requisicoes) {
-        arr.push({
-          id: r.id, icon: Inbox, tone: "destructive",
-          title: `Requisição de ${r.usuario_nome} · ${r.sala_nome}`,
-          action: () => navigate("/app/requisicoes"),
-        });
-      }
-    }
-    for (const e of emprestimosPendentes) {
-      arr.push({
-        id: e.id, icon: ArrowLeftRight, tone: "warning",
-        title: role === "master"
-          ? `Empréstimo pendente · ${e.sala_destino_nome} → ${e.sala_origem_nome}`
-          : `Pedido de empréstimo de ${e.solicitante_nome}`,
-        action: () => navigate(role === "master" ? "/app/emprestimos" : "/app/aprovar-emprestimos"),
-      });
-    }
-    if (role === "master") {
-      for (const e of emprestimosAprovados) {
-        arr.push({
-          id: e.id, icon: CheckCircle2, tone: "success",
-          title: `Aprovado · ${e.sala_origem_nome} → ${e.sala_destino_nome} (arquivar)`,
-          action: () => navigate("/app/emprestimos"),
-        });
-      }
-    }
-    return arr;
-  }, [role, requisicoes, emprestimosPendentes, emprestimosAprovados, navigate]);
-
-  const visiveis = cells.filter((c) => !isDismissed(c.id));
   if (visiveis.length === 0) return null;
-
-  const naoLidos = visiveis.filter((c) => !isRead(c.id)).length;
-
-  const toneClass: Record<Tone, { strong: string; soft: string }> = {
-    destructive: {
-      strong: "border-destructive/50 bg-destructive/10 text-destructive",
-      soft: "border-border bg-muted/30 text-muted-foreground",
-    },
-    warning: {
-      strong: "border-warning/50 bg-warning/10 text-warning",
-      soft: "border-border bg-muted/30 text-muted-foreground",
-    },
-    success: {
-      strong: "border-success/50 bg-success/10 text-success",
-      soft: "border-border bg-muted/30 text-muted-foreground",
-    },
-  };
+  const naoLidos = visiveis.filter((n) => !n.is_read).length;
 
   return (
     <Card className="p-4 border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
@@ -83,31 +48,35 @@ export default function WelcomeAlerts() {
         )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {visiveis.slice(0, 6).map(({ id, icon: Icon, tone, title, action }) => {
-          const lido = isRead(id);
-          const classes = lido ? toneClass[tone].soft : toneClass[tone].strong;
+        {visiveis.slice(0, 6).map((n) => {
+          const Icon = ICON[n.category] ?? SettingsIcon;
+          const classes = n.is_read ? SOFT : (TONE[n.category] ?? SOFT);
+          const action = () => { if (n.link) navigate(n.link); };
           return (
-            <div key={id} className={cn("rounded-md border p-3 flex flex-col gap-2 relative transition-colors", classes)}>
+            <div key={n.id} className={cn("rounded-md border p-3 flex flex-col gap-2 relative transition-colors", classes)}>
               <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5">
-                {!lido && (
-                  <Button size="icon" variant="ghost" className="size-6" onClick={() => markRead(id)} title="Marcar como lido">
+                {!n.is_read && (
+                  <Button size="icon" variant="ghost" className="size-6" onClick={() => markRead(n.id)} title="Marcar como lido">
                     <Check className="size-3" />
                   </Button>
                 )}
-                <Button size="icon" variant="ghost" className="size-6" onClick={() => dismiss(id)} title="Fechar">
+                <Button size="icon" variant="ghost" className="size-6" onClick={() => dismiss(n.id)} title="Fechar">
                   <X className="size-3" />
                 </Button>
               </div>
               <div className="flex items-start gap-2 pr-12">
                 <Icon className="size-4 shrink-0 mt-0.5" />
                 <div className="text-sm font-medium leading-snug text-foreground">
-                  {!lido && <span className="inline-block size-1.5 rounded-full bg-destructive mr-1.5 align-middle" />}
-                  {title}
+                  {!n.is_read && <span className="inline-block size-1.5 rounded-full bg-destructive mr-1.5 align-middle" />}
+                  {n.title}
+                  {n.body && <div className="text-xs text-muted-foreground font-normal mt-0.5">{n.body}</div>}
                 </div>
               </div>
-              <Button size="sm" variant="outline" onClick={() => { markRead(id); action(); }} className="self-start">
-                Ver agora
-              </Button>
+              {n.link && (
+                <Button size="sm" variant="outline" onClick={() => { markRead(n.id); action(); }} className="self-start">
+                  Ver agora
+                </Button>
+              )}
             </div>
           );
         })}
