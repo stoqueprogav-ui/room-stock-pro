@@ -312,9 +312,45 @@ export default function ProdutosPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {inativo ? (
-                      <Button variant="ghost" size="sm" onClick={() => reativar(p)} className="gap-1">
-                        <RotateCcw className="size-4" /> Reativar
-                      </Button>
+                      <DropdownMenu
+                        open={reativarFor === p.id}
+                        onOpenChange={(o) => {
+                          if (o) { setReativarFor(p.id); loadSalasInativas(p.id); }
+                          else setReativarFor(null);
+                        }}
+                      >
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="gap-1">
+                            <RotateCcw className="size-4" /> Reativar
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64">
+                          <DropdownMenuLabel className="text-xs">Reativar em qual sala?</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {reativarLoading && (
+                            <div className="px-2 py-3 text-xs text-muted-foreground flex items-center gap-2">
+                              <Loader2 className="size-3 animate-spin" /> Carregando salas...
+                            </div>
+                          )}
+                          {!reativarLoading && salasInativas.length === 0 && (
+                            <div className="px-2 py-3 text-xs text-muted-foreground">
+                              Nenhuma sala inativa para este produto.
+                            </div>
+                          )}
+                          {!reativarLoading && salasInativas.map((s) => (
+                            <DropdownMenuItem
+                              key={s.sala_id}
+                              disabled={reativandoSala === s.sala_id}
+                              onSelect={(e) => { e.preventDefault(); reativarNaSala(p.id, s.sala_id); }}
+                              className="gap-2"
+                            >
+                              <Building2 className="size-4 text-accent" />
+                              <span className="flex-1">{s.nome}</span>
+                              {reativandoSala === s.sala_id && <Loader2 className="size-3 animate-spin" />}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     ) : (
                       <>
                         <Button variant="ghost" size="icon" aria-label="Editar produto" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
@@ -324,6 +360,7 @@ export default function ProdutosPage() {
                       </>
                     )}
                   </TableCell>
+
                 </TableRow>
               );
             })}
