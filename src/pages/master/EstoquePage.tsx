@@ -487,7 +487,9 @@ export default function EstoquePage() {
               <TableHead>Produto</TableHead>
               <TableHead className="w-[120px]">Categoria</TableHead>
               <TableHead>Sala</TableHead>
-              <TableHead className="text-right w-[90px]">Qtd</TableHead>
+              <TableHead className="text-right w-[80px]" title="Estoque físico">Físico</TableHead>
+              <TableHead className="text-right w-[90px]" title="Comprometido por empréstimos pendentes">Reservado</TableHead>
+              <TableHead className="text-right w-[90px]" title="Disponível = Físico − Reservado">Disponível</TableHead>
               <TableHead className="text-right w-[70px]">Mín.</TableHead>
               {isMaster && <TableHead className="text-right w-[110px]">CMP</TableHead>}
               {isMaster && <TableHead className="text-right w-[120px]">V. estoque</TableHead>}
