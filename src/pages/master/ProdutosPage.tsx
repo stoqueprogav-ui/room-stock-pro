@@ -188,12 +188,48 @@ export default function ProdutosPage() {
     load();
   };
 
-  const reativar = async (p: Produto) => {
-    const { error } = await supabase.rpc("reativar_produto", { _produto: p.id });
-    if (error) return toast.error(error.message);
-    toast.success("Produto reativado");
+  // Menu de reativação por sala
+  const [reativarFor, setReativarFor] = useState<string | null>(null);
+  const [reativarLoading, setReativarLoading] = useState(false);
+  const [salasInativas, setSalasInativas] = useState<{ sala_id: string; nome: string }[]>([]);
+  const [reativandoSala, setReativandoSala] = useState<string | null>(null);
+
+  const loadSalasInativas = async (produtoId: string) => {
+    setReativarLoading(true);
+    setSalasInativas([]);
+    const { data, error } = await supabase
+      .from("estoque")
+      .select("sala_id, ativo, sala:salas(id, nome)")
+      .eq("produto_id", produtoId)
+      .eq("ativo", false);
+    setReativarLoading(false);
+    if (error) { toast.error(error.message); return; }
+    const list = ((data as any[]) ?? [])
+      .map((r) => ({ sala_id: r.sala_id as string, nome: r.sala?.nome ?? "Sala" }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+    setSalasInativas(list);
+  };
+
+  const reativarNaSala = async (produtoId: string, salaId: string) => {
+    setReativandoSala(salaId);
+    // 1) Reativa o vínculo desta sala
+    const { error: e1 } = await supabase.rpc("toggle_produto_sala_ativo", {
+      _produto_id: produtoId, _sala_id: salaId, _ativo: true,
+    });
+    if (e1) {
+      setReativandoSala(null);
+      return toast.error(e1.message);
+    }
+    // 2) Garante que o produto global esteja ativo (sem mexer nas outras salas)
+    const { error: e2 } = await supabase.from("produtos").update({ ativo: true }).eq("id", produtoId);
+    setReativandoSala(null);
+    if (e2) return toast.error(e2.message);
+
+    toast.success("Produto reativado apenas nesta sala");
+    setReativarFor(null);
     load();
   };
+
 
   const setQty = (sala_id: string, q: number) => {
     setSalasQty((prev) => prev.map((s) => s.sala_id === sala_id ? { ...s, quantidade: q } : s));
