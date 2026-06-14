@@ -355,43 +355,60 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => { supabase.removeChannel(channel); };
   }, [user, role, activeSalaId, soundEnabled, refresh, navigate]);
 
-  // ===== Estado de leitura / fechamento (persistente em localStorage) =====
-  const [readIds, setReadIds] = useState<Set<string>>(() => loadSet(READ_KEY));
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => loadSet(DISMISS_KEY));
+  // ===== Estado de leitura / fechamento (persistente no banco) =====
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
-  // Auto-limpeza: alertas resolvidos (sumiram da lista ativa) saem do storage
+  // Carrega estado persistido do banco para o usuário atual
   useEffect(() => {
-    const liveIds = new Set<string>([
-      ...requisicoes.map((r) => r.id),
-      ...emprestimosPendentes.map((e) => e.id),
-      ...emprestimosAprovados.map((e) => e.id),
-    ]);
-    let changedR = false, changedD = false;
-    const nextR = new Set<string>();
-    readIds.forEach((id) => { if (liveIds.has(id)) nextR.add(id); else changedR = true; });
-    const nextD = new Set<string>();
-    dismissedIds.forEach((id) => { if (liveIds.has(id)) nextD.add(id); else changedD = true; });
-    if (changedR) { setReadIds(nextR); saveSet(READ_KEY, nextR); }
-    if (changedD) { setDismissedIds(nextD); saveSet(DISMISS_KEY, nextD); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requisicoes, emprestimosPendentes, emprestimosAprovados]);
+    if (!user) { setReadIds(new Set()); setDismissedIds(new Set()); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("notification_states")
+        .select("notification_key, is_read, is_dismissed")
+        .eq("user_id", user.id);
+      if (cancelled) return;
+      const r = new Set<string>(); const d = new Set<string>();
+      for (const row of data ?? []) {
+        if (row.is_read) r.add(row.notification_key);
+        if (row.is_dismissed) d.add(row.notification_key);
+      }
+      setReadIds(r); setDismissedIds(d);
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const persist = useCallback(async (id: string, patch: { is_read?: boolean; is_dismissed?: boolean }) => {
+    if (!user) return;
+    await supabase
+      .from("notification_states")
+      .upsert(
+        { user_id: user.id, notification_key: id, ...patch },
+        { onConflict: "user_id,notification_key" }
+      );
+  }, [user]);
 
   const isRead = useCallback((id: string) => readIds.has(id), [readIds]);
   const isDismissed = useCallback((id: string) => dismissedIds.has(id), [dismissedIds]);
 
   const markRead = useCallback((id: string) => {
-    setReadIds((s) => { const n = new Set(s); n.add(id); saveSet(READ_KEY, n); return n; });
-  }, []);
+    setReadIds((s) => { const n = new Set(s); n.add(id); return n; });
+    void persist(id, { is_read: true });
+  }, [persist]);
   const markUnread = useCallback((id: string) => {
-    setReadIds((s) => { const n = new Set(s); n.delete(id); saveSet(READ_KEY, n); return n; });
-  }, []);
+    setReadIds((s) => { const n = new Set(s); n.delete(id); return n; });
+    void persist(id, { is_read: false });
+  }, [persist]);
   const dismiss = useCallback((id: string) => {
-    setDismissedIds((s) => { const n = new Set(s); n.add(id); saveSet(DISMISS_KEY, n); return n; });
-    setReadIds((s) => { const n = new Set(s); n.add(id); saveSet(READ_KEY, n); return n; });
-  }, []);
+    setDismissedIds((s) => { const n = new Set(s); n.add(id); return n; });
+    setReadIds((s) => { const n = new Set(s); n.add(id); return n; });
+    void persist(id, { is_read: true, is_dismissed: true });
+  }, [persist]);
   const restore = useCallback((id: string) => {
-    setDismissedIds((s) => { const n = new Set(s); n.delete(id); saveSet(DISMISS_KEY, n); return n; });
-  }, []);
+    setDismissedIds((s) => { const n = new Set(s); n.delete(id); return n; });
+    void persist(id, { is_dismissed: false });
+  }, [persist]);
 
   const allIds = useMemo(
     () => [
@@ -403,14 +420,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   );
 
   const markAllRead = useCallback(() => {
+    if (!user) return;
     const all = new Set<string>(allIds);
-    setReadIds(all); saveSet(READ_KEY, all);
-  }, [allIds]);
+    setReadIds(all);
+    const rows = allIds.map((id) => ({ user_id: user.id, notification_key: id, is_read: true }));
+    if (rows.length) void supabase.from("notification_states").upsert(rows, { onConflict: "user_id,notification_key" });
+  }, [allIds, user]);
   const dismissAll = useCallback(() => {
+    if (!user) return;
     const all = new Set<string>(allIds);
-    setDismissedIds(all); saveSet(DISMISS_KEY, all);
-    setReadIds(all); saveSet(READ_KEY, all);
-  }, [allIds]);
+    setDismissedIds(all);
+    setReadIds(all);
+    const rows = allIds.map((id) => ({ user_id: user.id, notification_key: id, is_read: true, is_dismissed: true }));
+    if (rows.length) void supabase.from("notification_states").upsert(rows, { onConflict: "user_id,notification_key" });
+  }, [allIds, user]);
 
   // não lidos = sino vermelho. Pendência fechada continua aparecendo no sino (mas marcada como lida).
   const totalCount = allIds.filter((id) => !readIds.has(id)).length;
