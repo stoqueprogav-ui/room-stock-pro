@@ -109,8 +109,14 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const podeDecidir = (e: Emp) =>
     role === "admin" && activeSalaId === e.sala_origem_id;
 
+  // Apenas o criador da solicitação OU usuários da mesma sala devedora (destino) podem editar.
+  // A sala credora (origem) NUNCA pode editar — apenas aprovar/rejeitar.
   const podeEditar = (e: Emp) =>
-    e.status === "pendente" && (role === "master" || (!!profile?.id && profile.id === e.solicitante_id));
+    e.status === "pendente" && (
+      role === "master" ||
+      (!!profile?.id && profile.id === e.solicitante_id) ||
+      (!!activeSalaId && activeSalaId === e.sala_destino_id)
+    );
 
   const pendenteTotal = (e: Emp) =>
     (e.itens ?? []).reduce((s, it) => s + (it.quantidade - (it.quantidade_devolvida ?? 0)), 0);
