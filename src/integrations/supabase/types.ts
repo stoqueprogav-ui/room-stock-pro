@@ -591,6 +591,7 @@ export type Database = {
           id: string
           produto_id: string
           quantidade: number
+          quantidade_reservada: number
           quantidade_valorizada: number
           sala_id: string
           updated_at: string
@@ -602,6 +603,7 @@ export type Database = {
           id?: string
           produto_id: string
           quantidade?: number
+          quantidade_reservada?: number
           quantidade_valorizada?: number
           sala_id: string
           updated_at?: string
@@ -613,6 +615,7 @@ export type Database = {
           id?: string
           produto_id?: string
           quantidade?: number
+          quantidade_reservada?: number
           quantidade_valorizada?: number
           sala_id?: string
           updated_at?: string
@@ -1625,6 +1628,10 @@ export type Database = {
       }
     }
     Functions: {
+      _aplicar_reserva: {
+        Args: { _delta: number; _produto: string; _sala: string }
+        Returns: undefined
+      }
       _baixar_valorizada: {
         Args: { _produto: string; _quantidade: number; _sala: string }
         Returns: undefined
@@ -1985,6 +1992,14 @@ export type Database = {
           produto_nome: string
           quantidade: number
           valor: number
+        }[]
+      }
+      reservas_resumo: {
+        Args: never
+        Returns: {
+          itens_reservados: number
+          produtos_reservados: number
+          salas_com_reserva: number
         }[]
       }
       reset_sistema_total: { Args: { _caller?: string }; Returns: Json }
