@@ -1,4 +1,4 @@
-import { Bell, BellOff, Volume2, VolumeX, Inbox, ArrowLeftRight, CheckCircle2, Check, X, RotateCcw, History, MessageCircle } from "lucide-react";
+import { Bell, BellOff, Volume2, VolumeX, Inbox, ArrowLeftRight, CheckCircle2, Check, X, RotateCcw, History, MessageCircle, PackageOpen, Settings as SettingsIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useNotifications } from "@/contexts/NotificationsContext";
-import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications, NotificationCategory, NotificationRow, ChatAlert } from "@/contexts/NotificationsContext";
 import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string) {
@@ -24,90 +23,105 @@ function timeAgo(iso: string) {
 
 type Alert = {
   id: string;
-  kind: "requisicao" | "emprestimo_pendente" | "emprestimo_aprovado" | "chat";
+  category: NotificationCategory;
   title: string;
   subtitle: string;
   created_at: string;
+  read: boolean;
+  dismissed: boolean;
   go: () => void;
 };
 
+const CATEGORY_LABEL: Record<NotificationCategory, string> = {
+  requisicao: "Requisições",
+  emprestimo: "Empréstimos",
+  devolucao: "Devoluções",
+  chat: "Chat",
+  sistema: "Sistema",
+  auditoria: "Auditoria",
+};
+
 export default function NotificationsBell() {
-  const { role } = useAuth();
   const {
-    requisicoes, emprestimosPendentes, emprestimosAprovados, chatAlerts,
+    notifications, chatAlerts,
     totalCount, soundEnabled, toggleSound,
-    isRead, isDismissed, markRead, markUnread, dismiss, restore,
-    markAllRead,
+    markRead, markUnread, dismiss, restore, markAllRead,
   } = useNotifications();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"ativos" | "historico">("ativos");
-
-  const goRequisicoes = () => navigate("/app/requisicoes");
-  const goEmprestimosMaster = () => navigate("/app/emprestimos");
-  const goAprovar = () => navigate("/app/aprovar-emprestimos");
+  const [tab, setTab] = useState<"ativos" | "historico" | NotificationCategory>("ativos");
 
   const alerts: Alert[] = useMemo(() => {
-    const arr: Alert[] = [];
-    if (role === "master") {
-      for (const r of requisicoes) {
-        arr.push({
-          id: r.id, kind: "requisicao",
-          title: `Requisição · ${r.sala_nome}`,
-          subtitle: `Por ${r.usuario_nome} · ${timeAgo(r.created_at)}`,
-          created_at: r.created_at, go: goRequisicoes,
-        });
-      }
-    }
-    for (const e of emprestimosPendentes) {
-      arr.push({
-        id: e.id, kind: "emprestimo_pendente",
-        title: `Empréstimo · ${e.sala_destino_nome} → ${e.sala_origem_nome}`,
-        subtitle: `Por ${e.solicitante_nome} · ${timeAgo(e.created_at)}`,
-        created_at: e.created_at,
-        go: role === "master" ? goEmprestimosMaster : goAprovar,
-      });
-    }
-    if (role === "master") {
-      for (const e of emprestimosAprovados) {
-        arr.push({
-          id: e.id, kind: "emprestimo_aprovado",
-          title: `Aprovado · ${e.sala_origem_nome} → ${e.sala_destino_nome}`,
-          subtitle: `Aguardando arquivamento · ${timeAgo(e.created_at)}`,
-          created_at: e.created_at, go: goEmprestimosMaster,
-        });
-      }
-    }
+    const arr: Alert[] = notifications.map((n) => ({
+      id: n.id,
+      category: n.category,
+      title: n.title,
+      subtitle: `${n.body ?? ""}${n.body ? " · " : ""}${timeAgo(n.created_at)}`,
+      created_at: n.created_at,
+      read: n.is_read,
+      dismissed: n.is_dismissed,
+      go: () => { if (n.link) navigate(n.link); },
+    }));
     for (const c of chatAlerts) {
       arr.push({
         id: c.id,
-        kind: "chat",
+        category: "chat",
         title: `💬 ${c.sender_nome}`,
         subtitle: `${c.preview} · ${timeAgo(c.created_at)}${c.unread_count > 1 ? ` · ${c.unread_count} novas` : ""}`,
         created_at: c.created_at,
+        read: false,
+        dismissed: false,
         go: () => {
           const onChatPage = window.location.pathname.startsWith("/app/chat");
-          if (onChatPage) {
-            navigate(`/app/chat?c=${c.conversation_id}`);
-          } else {
-            window.dispatchEvent(new CustomEvent("floating-chat:open", { detail: { conversationId: c.conversation_id } }));
-          }
+          if (onChatPage) navigate(`/app/chat?c=${c.conversation_id}`);
+          else window.dispatchEvent(new CustomEvent("floating-chat:open", { detail: { conversationId: c.conversation_id } }));
         },
       });
     }
     arr.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
     return arr;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, requisicoes, emprestimosPendentes, emprestimosAprovados, chatAlerts]);
+  }, [notifications, chatAlerts, navigate]);
 
-  const ativos = alerts.filter((a) => !isDismissed(a.id));
-  const historico = alerts; // tudo (inclui fechados) — pendência segue listada
+  const ativos = alerts.filter((a) => !a.dismissed);
+  const historico = alerts;
 
-  const iconFor = (k: Alert["kind"]) => {
-    if (k === "requisicao") return <Inbox className="size-4 text-destructive" />;
-    if (k === "emprestimo_pendente") return <ArrowLeftRight className="size-4 text-warning" />;
-    if (k === "chat") return <MessageCircle className="size-4 text-primary" />;
-    return <CheckCircle2 className="size-4 text-success" />;
+  const iconFor = (c: NotificationCategory) => {
+    if (c === "requisicao") return <Inbox className="size-4 text-destructive" />;
+    if (c === "emprestimo") return <ArrowLeftRight className="size-4 text-warning" />;
+    if (c === "devolucao") return <PackageOpen className="size-4 text-success" />;
+    if (c === "chat") return <MessageCircle className="size-4 text-primary" />;
+    if (c === "sistema") return <SettingsIcon className="size-4 text-muted-foreground" />;
+    return <CheckCircle2 className="size-4" />;
   };
+
+  const renderList = (list: Alert[], asHistory: boolean) => (
+    <ScrollArea className="max-h-[420px]">
+      {list.length === 0 ? <Empty /> : (
+        <div className="py-1">
+          {list.map((a) => {
+            const isChat = a.id.startsWith("chat:");
+            return (
+              <Item
+                key={a.id}
+                icon={iconFor(a.category)}
+                title={a.title}
+                subtitle={asHistory && a.dismissed ? `${a.subtitle} · fechado` : a.subtitle}
+                read={a.read}
+                muted={asHistory && a.dismissed}
+                onOpen={() => { if (!isChat) markRead(a.id); a.go(); }}
+                onMarkRead={isChat ? undefined : () => markRead(a.id)}
+                onMarkUnread={isChat ? undefined : () => markUnread(a.id)}
+                onDismiss={isChat || a.dismissed ? undefined : () => dismiss(a.id)}
+                onRestore={asHistory && a.dismissed ? () => restore(a.id) : undefined}
+              />
+            );
+          })}
+          <Separator className="my-1" />
+        </div>
+      )}
+    </ScrollArea>
+  );
+
+  const categories: NotificationCategory[] = ["requisicao", "emprestimo", "devolucao", "chat", "sistema"];
 
   return (
     <Popover>
@@ -121,11 +135,11 @@ export default function NotificationsBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[400px] p-0">
+      <PopoverContent align="end" className="w-[440px] p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="font-display font-semibold">Notificações</div>
           <div className="flex items-center gap-1">
-            {alerts.some((a) => !isRead(a.id)) && (
+            {alerts.some((a) => !a.read) && (
               <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead} title="Marcar todos como lidos">
                 <Check className="size-3.5" /> Tudo lido
               </Button>
@@ -138,69 +152,32 @@ export default function NotificationsBell() {
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
           <div className="px-3 pt-2">
-            <TabsList className="grid grid-cols-2 w-full h-8">
-              <TabsTrigger value="ativos" className="text-xs h-6">
-                Ativos {ativos.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[9px]">{ativos.length}</Badge>}
+            <TabsList className="grid grid-cols-7 w-full h-8 gap-0.5">
+              <TabsTrigger value="ativos" className="text-[10px] h-6 px-1">
+                Ativos
               </TabsTrigger>
-              <TabsTrigger value="historico" className="text-xs h-6">
-                <History className="size-3 mr-1" /> Histórico {historico.length > 0 && <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[9px]">{historico.length}</Badge>}
+              {categories.map((c) => {
+                const count = ativos.filter((a) => a.category === c && !a.read).length;
+                return (
+                  <TabsTrigger key={c} value={c} className="text-[10px] h-6 px-1 relative" title={CATEGORY_LABEL[c]}>
+                    <span className="truncate">{CATEGORY_LABEL[c].slice(0, 4)}</span>
+                    {count > 0 && <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-destructive text-destructive-foreground text-[8px] grid place-items-center">{count}</span>}
+                  </TabsTrigger>
+                );
+              })}
+              <TabsTrigger value="historico" className="text-[10px] h-6 px-1">
+                <History className="size-3" />
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="ativos" className="m-0">
-            <ScrollArea className="max-h-[420px]">
-              {ativos.length === 0 ? (
-                <Empty />
-              ) : (
-                <div className="py-1">
-                  {ativos.map((a) => (
-                    <Item
-                      key={a.id}
-                      icon={iconFor(a.kind)}
-                      title={a.title}
-                      subtitle={a.subtitle}
-                      read={isRead(a.id)}
-                      onOpen={() => { markRead(a.id); a.go(); }}
-                      onMarkRead={() => markRead(a.id)}
-                      onMarkUnread={() => markUnread(a.id)}
-                      onDismiss={() => dismiss(a.id)}
-                    />
-                  ))}
-                  <Separator className="my-1" />
-                </div>
-              )}
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="historico" className="m-0">
-            <ScrollArea className="max-h-[420px]">
-              {historico.length === 0 ? (
-                <Empty />
-              ) : (
-                <div className="py-1">
-                  {historico.map((a) => {
-                    const dismissed = isDismissed(a.id);
-                    return (
-                      <Item
-                        key={a.id}
-                        icon={iconFor(a.kind)}
-                        title={a.title}
-                        subtitle={`${a.subtitle}${dismissed ? " · fechado" : ""}`}
-                        read={isRead(a.id)}
-                        muted={dismissed}
-                        onOpen={() => { markRead(a.id); a.go(); }}
-                        onMarkRead={() => markRead(a.id)}
-                        onMarkUnread={() => markUnread(a.id)}
-                        onDismiss={dismissed ? undefined : () => dismiss(a.id)}
-                        onRestore={dismissed ? () => restore(a.id) : undefined}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </ScrollArea>
-          </TabsContent>
+          <TabsContent value="ativos" className="m-0">{renderList(ativos, false)}</TabsContent>
+          {categories.map((c) => (
+            <TabsContent key={c} value={c} className="m-0">
+              {renderList(ativos.filter((a) => a.category === c), false)}
+            </TabsContent>
+          ))}
+          <TabsContent value="historico" className="m-0">{renderList(historico, true)}</TabsContent>
         </Tabs>
       </PopoverContent>
     </Popover>
@@ -226,8 +203,8 @@ function Item({
   read: boolean;
   muted?: boolean;
   onOpen: () => void;
-  onMarkRead: () => void;
-  onMarkUnread: () => void;
+  onMarkRead?: () => void;
+  onMarkUnread?: () => void;
   onDismiss?: () => void;
   onRestore?: () => void;
 }) {
@@ -249,11 +226,12 @@ function Item({
         <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
       </button>
       <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        {!read ? (
+        {onMarkRead && !read && (
           <Button size="icon" variant="ghost" className="size-7" onClick={onMarkRead} title="Marcar como lido">
             <Check className="size-3.5" />
           </Button>
-        ) : (
+        )}
+        {onMarkUnread && read && (
           <Button size="icon" variant="ghost" className="size-7" onClick={onMarkUnread} title="Marcar como não lido">
             <RotateCcw className="size-3.5" />
           </Button>
