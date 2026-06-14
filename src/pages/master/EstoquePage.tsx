@@ -18,7 +18,7 @@ import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-type Row = { produto_id: string; sala_id: string; quantidade: number; custo_medio: number; valor_total: number; ativo: boolean; produto: Produto; sala: Sala };
+type Row = { produto_id: string; sala_id: string; quantidade: number; quantidade_reservada: number; custo_medio: number; valor_total: number; ativo: boolean; produto: Produto; sala: Sala };
 type UltimaEntrada = { data: string; valor_unitario: number; fornecedor: string | null };
 type StatusKind = "ok" | "baixo" | "critico";
 type SortKey = "nome" | "quantidade" | "menor";
