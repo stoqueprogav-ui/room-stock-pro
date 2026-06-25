@@ -69,8 +69,14 @@ export default function RequisicoesPage() {
   useRealtimeSync(["solicitacoes", "solicitacao_itens", "estoque"], load, { debounceMs: 300 });
 
   const decidir = async (id: string, aprovar: boolean) => {
+    let motivo: string | null = null;
+    if (!aprovar) {
+      const resp = window.prompt("Motivo da rejeição (opcional):", "");
+      if (resp === null) return;
+      motivo = resp.trim() || null;
+    }
     setActing(id);
-    const { error } = await supabase.rpc("decidir_solicitacao", { _solic: id, _aprovar: aprovar });
+    const { error } = await supabase.rpc("decidir_solicitacao", { _solic: id, _aprovar: aprovar, _motivo: motivo } as any);
     setActing(null);
     if (error) return toast.error(error.message);
     toast.success(aprovar ? "Requisição aprovada · estoque atualizado" : "Requisição rejeitada");

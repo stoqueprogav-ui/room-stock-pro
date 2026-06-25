@@ -449,6 +449,7 @@ export type Database = {
           decidido_em: string | null
           decidido_por: string | null
           id: string
+          motivo_decisao: string | null
           observacao: string | null
           retirado_em: string | null
           retirado_por: string | null
@@ -462,6 +463,7 @@ export type Database = {
           decidido_em?: string | null
           decidido_por?: string | null
           id?: string
+          motivo_decisao?: string | null
           observacao?: string | null
           retirado_em?: string | null
           retirado_por?: string | null
@@ -475,6 +477,7 @@ export type Database = {
           decidido_em?: string | null
           decidido_por?: string | null
           id?: string
+          motivo_decisao?: string | null
           observacao?: string | null
           retirado_em?: string | null
           retirado_por?: string | null
@@ -1049,6 +1052,7 @@ export type Database = {
           decidido_por: string | null
           estoque_baixado: boolean
           id: string
+          motivo_decisao: string | null
           observacao: string | null
           retirado_em: string | null
           retirado_por: string | null
@@ -1062,6 +1066,7 @@ export type Database = {
           decidido_por?: string | null
           estoque_baixado?: boolean
           id?: string
+          motivo_decisao?: string | null
           observacao?: string | null
           retirado_em?: string | null
           retirado_por?: string | null
@@ -1075,6 +1080,7 @@ export type Database = {
           decidido_por?: string | null
           estoque_baixado?: boolean
           id?: string
+          motivo_decisao?: string | null
           observacao?: string | null
           retirado_em?: string | null
           retirado_por?: string | null
@@ -1817,11 +1823,11 @@ export type Database = {
         }[]
       }
       decidir_emprestimo: {
-        Args: { _aprovar: boolean; _emp: string }
+        Args: { _aprovar: boolean; _emp: string; _motivo?: string }
         Returns: undefined
       }
       decidir_solicitacao: {
-        Args: { _aprovar: boolean; _solic: string }
+        Args: { _aprovar: boolean; _motivo?: string; _solic: string }
         Returns: undefined
       }
       disponibilidade_produtos: {
