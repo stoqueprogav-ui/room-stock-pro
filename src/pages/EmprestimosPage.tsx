@@ -74,7 +74,13 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
 
 
   const decidir = async (id: string, ap: boolean) => {
-    const { error } = await supabase.rpc("decidir_emprestimo", { _emp: id, _aprovar: ap });
+    let motivo: string | null = null;
+    if (!ap) {
+      const resp = window.prompt("Motivo da rejeição (opcional):", "");
+      if (resp === null) return; // cancelado
+      motivo = resp.trim() || null;
+    }
+    const { error } = await supabase.rpc("decidir_emprestimo", { _emp: id, _aprovar: ap, _motivo: motivo } as any);
     if (error) return toast.error(error.message);
     toast.success(ap ? "Empréstimo aprovado: estoque transferido e dívida registrada" : "Empréstimo rejeitado");
     load();
