@@ -114,7 +114,15 @@ export default function DividasPage() {
                 )}
                 {role === "master" && (
                   <TableCell className="text-right">
-                    <Button size="sm" variant="outline" onClick={() => { setEditing(d); setQtd(d.saldo); }}><Wallet className="size-4" /> Quitar</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={d.saldo > 0}
+                      title={d.saldo > 0 ? `Registre a devolução dos ${d.saldo} ${d.produto.unidade} pendentes antes de quitar` : "Encerrar formalmente a dívida"}
+                      onClick={() => { setEditing(d); setQtd(d.saldo); }}
+                    >
+                      <Wallet className="size-4" /> Quitar
+                    </Button>
                   </TableCell>
                 )}
               </TableRow>
