@@ -119,9 +119,10 @@ export default function ProdutosPage() {
     };
 
     if (editing) {
-      // Edição completa: pode alterar escopo e ativo. Mudança de unidade não toca estoque.
+      // Edição: sala pode ser alterada, mas é obrigatória (produtos globais não existem mais).
+      if (!form.sala_id) return toast.error("Selecione a sala do produto");
       payload.ativo = form.ativo;
-      payload.sala_id = form.sala_id || null;
+      payload.sala_id = form.sala_id;
       const { error } = await supabase.from("produtos").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("Produto atualizado");
@@ -129,43 +130,26 @@ export default function ProdutosPage() {
       return;
     }
 
-    // Validações de escopo
-    if (escopo === "sala" && !salaUnica) {
+    // Criação: sala é obrigatória
+    if (!salaUnica) {
       return toast.error("Selecione a sala vinculada ao produto");
     }
-
-    payload.sala_id = escopo === "sala" ? salaUnica : null;
+    payload.sala_id = salaUnica;
 
     const { data: novo, error } = await supabase
       .from("produtos").insert(payload).select("id").single();
     if (error || !novo) return toast.error(error?.message ?? "Erro ao criar produto");
 
-    // Quantidades iniciais
-    if (escopo === "sala" && Number(qtdInicialSala) > 0) {
+    if (Number(qtdInicialSala) > 0) {
       const { error: e2 } = await supabase.rpc("ajustar_estoque", {
         _produto: novo.id, _sala: salaUnica,
         _quantidade: Number(qtdInicialSala),
         _observacao: "Estoque inicial no cadastro",
       });
       if (e2) toast.error(`Produto criado, mas falhou ajuste: ${e2.message}`);
-    } else if (escopo === "global") {
-      const ajustes = salasQty.filter((s) => Number(s.quantidade) > 0);
-      if (ajustes.length > 0) {
-        const results = await Promise.all(
-          ajustes.map((s) =>
-            supabase.rpc("ajustar_estoque", {
-              _produto: novo.id, _sala: s.sala_id,
-              _quantidade: Number(s.quantidade),
-              _observacao: "Estoque inicial no cadastro (global)",
-            })
-          )
-        );
-        const firstErr = results.find((r) => r.error)?.error;
-        if (firstErr) toast.error(`Produto criado, mas falhou ajuste: ${firstErr.message}`);
-      }
     }
 
-    toast.success(escopo === "global" ? "Produto global criado" : "Produto criado para a sala");
+    toast.success("Produto criado para a sala");
     setOpen(false); load();
   };
 
