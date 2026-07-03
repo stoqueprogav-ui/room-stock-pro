@@ -259,7 +259,7 @@ export default function ProdutosPage() {
     <div className="space-y-4">
       <PageHeader
         title="Produtos"
-        description="Catálogo. Produtos podem ser globais (todas as salas) ou exclusivos de uma sala."
+        description="Catálogo. Cada produto pertence a uma sala específica."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="size-4" /> Importar</Button>
