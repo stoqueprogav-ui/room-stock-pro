@@ -289,7 +289,7 @@ export default function ProdutosPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead className="w-[120px]">Escopo</TableHead>
+              <TableHead className="w-[140px]">Sala</TableHead>
               <TableHead className="w-[140px]">Categoria</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead className="w-[90px]">Unidade</TableHead>
