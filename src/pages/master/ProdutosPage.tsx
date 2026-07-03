@@ -84,7 +84,7 @@ export default function ProdutosPage() {
   const openNew = () => {
     setEditing(null);
     setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, custo_unitario: 0, categoria_id: "", ativo: true, sala_id: "" });
-    setEscopo("global");
+    setEscopo("sala");
     setSalaUnica("");
     setQtdInicialSala(0);
     resetSalasQty(salas);
