@@ -447,20 +447,19 @@ export default function ProdutosPage() {
             {editing && (
               <div className="space-y-3 pt-3 border-t">
                 <div className="space-y-2">
-                  <Label>Escopo do produto</Label>
-                  <Select value={form.sala_id || "__global"} onValueChange={(v) => setForm({ ...form, sala_id: v === "__global" ? "" : v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Label>Sala do produto *</Label>
+                  <Select value={form.sala_id} onValueChange={(v) => setForm({ ...form, sala_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__global">🌐 Global (todas as salas)</SelectItem>
                       {salas.map((s) => <SelectItem key={s.id} value={s.id}>🏢 {s.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Alterar escopo não altera as quantidades já em estoque.</p>
+                  <p className="text-xs text-muted-foreground">Cada sala tem seu próprio cadastro de produtos, com estoques, custos e histórico independentes.</p>
                 </div>
                 <div className="flex items-center justify-between rounded-md border p-3">
                   <div>
                     <div className="text-sm font-medium">Produto ativo</div>
-                    <div className="text-xs text-muted-foreground">Desativados não aparecem em requisições.</div>
+                    <div className="text-xs text-muted-foreground">Desativados não aparecem em novas requisições, mas continuam no histórico.</div>
                   </div>
                   <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
                 </div>
@@ -470,68 +469,19 @@ export default function ProdutosPage() {
             {!editing && (
               <div className="space-y-3 pt-3 border-t">
                 <div className="space-y-2">
-                  <Label>Tipo de cadastro *</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEscopo("global")}
-                      className={`rounded-md border p-3 text-left transition ${escopo === "global" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}
-                    >
-                      <div className="flex items-center gap-2 font-medium"><Globe2 className="size-4 text-primary" /> Produto global</div>
-                      <div className="text-xs text-muted-foreground mt-1">Disponível em todas as salas.</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEscopo("sala")}
-                      className={`rounded-md border p-3 text-left transition ${escopo === "sala" ? "border-accent bg-accent/5" : "border-border hover:bg-muted/50"}`}
-                    >
-                      <div className="flex items-center gap-2 font-medium"><Building2 className="size-4 text-accent" /> Apenas para uma sala</div>
-                      <div className="text-xs text-muted-foreground mt-1">Não aparece em outras salas.</div>
-                    </button>
-                  </div>
+                  <Label>Sala vinculada *</Label>
+                  <Select value={salaUnica} onValueChange={setSalaUnica}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
+                    <SelectContent>
+                      {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Cada sala tem cadastro próprio. Para o mesmo produto em outras salas, cadastre novamente ali.</p>
                 </div>
-
-                {escopo === "sala" ? (
-                  <div className="space-y-3 rounded-md border p-3">
-                    <div className="space-y-2">
-                      <Label>Sala vinculada *</Label>
-                      <Select value={salaUnica} onValueChange={setSalaUnica}>
-                        <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
-                        <SelectContent>
-                          {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Quantidade inicial</Label>
-                      <Input type="number" min={0} value={qtdInicialSala} onChange={(e) => setQtdInicialSala(Number(e.target.value))} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2 rounded-md border p-3">
-                    <Label className="text-xs text-muted-foreground">
-                      Quantidade inicial por sala (opcional, deixe 0 para iniciar zerado).
-                    </Label>
-                    <div className="divide-y">
-                      {salasQty.map((s) => {
-                        const sala = salas.find((x) => x.id === s.sala_id);
-                        if (!sala) return null;
-                        return (
-                          <div key={s.sala_id} className="flex items-center gap-3 py-2">
-                            <div className="flex-1 text-sm font-medium">{sala.nome}</div>
-                            <Input type="number" min={0} value={s.quantidade}
-                              onChange={(e) => setQty(s.sala_id, Number(e.target.value))}
-                              className="w-28 text-right font-mono" />
-                            <span className="text-xs text-muted-foreground w-8">{form.unidade || "un"}</span>
-                          </div>
-                        );
-                      })}
-                      {salasQty.length === 0 && (
-                        <div className="py-3 text-sm text-muted-foreground text-center">Nenhuma sala cadastrada.</div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label>Quantidade inicial</Label>
+                  <Input type="number" min={0} value={qtdInicialSala} onChange={(e) => setQtdInicialSala(Number(e.target.value))} />
+                </div>
               </div>
             )}
           </div>
