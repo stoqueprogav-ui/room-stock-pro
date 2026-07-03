@@ -1,77 +1,123 @@
-## Plano de entrega em 3 fases
+# Refatoração e Correções do Sistema
 
-Os três blocos pedidos são grandes e independentes. Vou entregá-los em fases para reduzir risco e permitir validação intermediária.
+Escopo grande e arquitetural. Proponho executar em 3 migrações + ajustes de frontend, na ordem abaixo. Cada bloco é atômico e reversível.
 
----
+## 1. Notificações completas para o Master
 
-### Fase 1 — Status de produto por sala (bug crítico)
+Ampliar os triggers `_tg_notif_emprestimo`, `_tg_notif_devolucao` e a função `quitar_divida` para enviar notificação também para todos os usuários com papel `master`, exceto o `actor_id` (quem executou a ação).
 
-Hoje `produtos.ativo` é global. Reativar/desativar afeta todas as salas — é o bug mais grave.
+Eventos cobertos para o Master:
+- `emprestimo.criado`
+- `emprestimo.aprovado` / `emprestimo.rejeitado` (pela sala credora)
+- `emprestimo.aprovado_master` / `emprestimo.rejeitado_master`
+- `emprestimo.editado`
+- `devolucao.parcial` / `devolucao.total`
+- `emprestimo.quitado_parcial` / `emprestimo.quitado_total`
+- `emprestimo.arquivado`
 
-**Banco**
-- Adicionar coluna `ativo boolean not null default true` na tabela `estoque`.
-- Backfill: copiar valor atual de `produtos.ativo` para todas as linhas existentes em `estoque`.
-- `produtos.ativo` passa a significar apenas "arquivado globalmente" (oculta de cadastros novos). Permanece, mas deixa de ser usado para filtrar disponibilidade por sala.
-- Função `toggle_produto_sala_ativo(_produto_id, _sala_id, _ativo)` com checagem de role (master/admin).
-- Registrar em `system_logs`: usuário, ação, produto, sala, data.
+Implementação: nova função `_notify_masters(evento, título, corpo, link, actor_id)` que insere em `notifications` para cada master (exceto o actor). Chamada em cada trigger/RPC relevante.
 
-**Frontend**
-- `EstoquePage`, `NovaRequisicao`, `NovoEmprestimo`, `ConsumoInternoPage`: filtrar por `estoque.ativo` (não mais `produtos.ativo`).
-- `ProdutosPage` (Master): ao expandir o produto, listar salas com badges "Ativo / Inativo" e ações "Ativar nesta sala" / "Desativar nesta sala" por linha.
-- Remover botão global "Ativar/Desativar produto" (ou renomear para "Arquivar globalmente" com confirmação).
+## 2. Unificar fluxo de "Quitar Empréstimo"
 
----
+Auditar todos os pontos que hoje encerram/quitam empréstimo:
+- `DividasPage` → RPC `quitar_divida` (correto)
+- Qualquer botão em `EmprestimosPage` ou `DevolverEmprestimoDialog` que apenas mude status → substituir por chamada à mesma RPC `quitar_divida` (ou remover o botão duplicado)
 
-### Fase 2 — Edição de solicitação de empréstimo pendente
+Regra ajustada conforme sua observação: **`quitar_divida` NÃO devolve estoque**. O estoque só volta via `registrar_devolucao` (devolução física registrada pelo Master). A RPC apenas:
+1. Verifica que `saldo = 0` (todos os itens já foram devolvidos fisicamente).
+2. Se ainda houver saldo, rejeita com mensagem clara: "existe saldo pendente; registre a devolução antes de quitar".
+3. Marca dívida como quitada / remove a linha.
+4. Marca `emprestimos.status = 'arquivado'` quando todas as dívidas ligadas àquele empréstimo estiverem zeradas.
+5. Registra `log_event('emprestimo.quitado', ...)`.
+6. Envia notificações (credora, devedora, master).
 
-**Banco**
-- RPC `editar_emprestimo(_id, _sala_credora_id, _itens, _observacao, _justificativa)` que:
-  - Valida status = `pendente`.
-  - Valida que o ator é o criador ou master.
-  - Substitui itens em `emprestimo_itens`, atualiza campos da `emprestimos`.
-  - Registra log detalhado (itens adicionados/removidos/alterados) em `system_logs`.
-  - Cria notificação para o Master "Solicitação #X atualizada pelo solicitante".
+Alteração da assinatura: `quitar_divida(_divida uuid)` — sem parâmetro `_quantidade`, pois a quitação é sempre total e depende do saldo já estar zerado.
 
-**Frontend**
-- `EmprestimosPage` e tela de detalhe: botão "Editar solicitação" visível apenas se `status='pendente'` e (usuário=criador OU role=master).
-- Reaproveitar o componente de criação (`NovoEmprestimo`) em modo edição (carrega itens existentes; submit chama `editar_emprestimo`).
-- Após aprovado/rejeitado/arquivado: botão some, formulário só-leitura.
+Frontend: `DividasPage` remove o input de quantidade e passa a mostrar botão "Quitar" apenas quando `saldo = 0` (ou exibir aviso "aguardando devolução").
 
----
+## 3. Cadastro de valor do produto não persiste
 
-### Fase 3 — Auto-save de rascunhos (IndexedDB)
+Bug de frontend em `ProdutosPage`: campo `custo_unitario` não está no payload do insert/update, ou está com key errada.
 
-**Infraestrutura**
-- Lib `src/lib/drafts.ts` usando IndexedDB (via `idb` ou wrapper próprio leve, sem dependência nova se possível).
-- Estrutura: `{ id, scope, userId, payload, updatedAt, itemCount }` onde `scope` = `requisicao:new`, `requisicao:edit:<id>`, `emprestimo:new`, `emprestimo:edit:<id>`, `devolucao:<id>`, `consumo:new`, `consumo:edit:<id>`, `produto:new`, `produto:edit:<id>`, `inventario:<id>`.
-- Hook `useDraft(scope, value, setValue)`:
-  - Debounce 400ms; salva a cada mudança de estado.
-  - Expõe `status: "idle" | "saving" | "saved" | "error"` e `lastSaved: Date`.
-  - Limpa rascunho via `clear()` quando o form submete com sucesso.
-- Componente `<DraftStatusBadge />` no topo do form: "● Salvando..." / "✓ Rascunho salvo às HH:MM:SS" / "⚠ Erro ao salvar".
-- Componente `<RecoverDraftDialog />` aberto ao montar a tela se houver rascunho do mesmo `scope` para o usuário atual. Botões "Recuperar" / "Descartar".
-- `beforeunload` warning quando há diff não salvo (status `saving`).
-- "Central de recuperação" em `Index.tsx` pós-login: lista rascunhos do usuário com tipo, data, contagem; permite abrir ou descartar.
+Correção:
+- Ajustar formulário para incluir `custo_unitario` no `.insert(...)` e `.update(...)`.
+- Exibir valor atual na edição.
+- Garantir que `log_custo_produto` (trigger já existente) grave o histórico.
 
-**Telas integradas (nesta ordem)**
-1. `NovaRequisicao` e edição
-2. `NovoEmprestimo` + edição (depende da Fase 2) + Devolução
-3. `ConsumoInternoPage` (cadastro/edição)
-4. `ProdutosPage` (cadastro/edição) e `InventarioPage` (conferência)
+Relatórios e custo médio já usam `custo_unitario`/`custo_medio` — nenhuma mudança adicional necessária.
 
-**Comentários do Master em aprovação/rejeição:** salva no `scope` `aprovacao:<id>` / `rejeicao:<id>`.
+## 4. Produtos inativos devem aparecer no histórico
 
----
+Auditar todas as queries que filtram por `ativo = true`. Manter esse filtro **apenas** em telas operacionais (nova requisição, novo empréstimo, seleção de produto para consumo interno, tela de estoque operacional).
 
-### Decisões já tomadas (já que pulou as perguntas)
+Remover o filtro `ativo` em:
+- Relatórios (`RelatoriosPage`, `DashboardGerencial`)
+- Inventário histórico
+- Movimentações
+- Auditoria
+- Central Analítica
 
-- Ordem: **Fase 1 → Fase 2 → Fase 3** (bug crítico primeiro, depois retrabalho operacional, por fim qualidade de vida).
-- Status por sala usa coluna nova em `estoque` (não cria tabela nova) — toda dupla produto×sala já tem linha.
-- Rascunhos em IndexedDB local, por usuário; nunca tocam o backend.
-- Auto-save começa por requisição e empréstimo (telas com mais itens), demais telas em segundo lote da Fase 3.
+Já implementado no backend nas RPCs de relatório (não filtram por `ativo`). O ajuste é frontend nas listagens/joins.
 
----
+## 5. Reativação de produto
 
-### Próximo passo
+Investigar `reativar_produto`: função existe e faz `UPDATE ativo=true`, mas o frontend pode estar chamando outro caminho, ou o botão está oculto após inativação (filtro `ativo=true` na lista).
 
-Vou começar pela **Fase 1**: migração que adiciona `estoque.ativo` + RPC `toggle_produto_sala_ativo` + ajustes de UI. Confirme aqui no chat (ou diga "siga") e eu disparo a migração.
+Correção:
+- Em `ProdutosPage` adicionar toggle "Mostrar inativos" e botão "Reativar" para produtos com `ativo=false`.
+- Confirmar chamada à RPC `reativar_produto`.
+
+## 6. Remover conceito de Produto Global
+
+**Este é o bloco mais crítico. Migração de dados obrigatória.**
+
+Estado atual: `produtos.sala_id` pode ser `NULL` (global) ou apontar para uma sala. Estoque global existe como linhas em `estoque` por (produto, sala).
+
+Migração proposta:
+
+```text
+Para cada produto P com sala_id IS NULL:
+  Para cada sala S onde existe estoque(P, S) com quantidade > 0
+                        OU movimentação histórica de (P, S):
+    1. Criar novo produto P_S clonando P (nome, descricao, unidade,
+       estoque_minimo, categoria_id, custo_unitario, ativo)
+       com sala_id = S.id
+    2. Repontuar em cascata:
+       - estoque(P, S) → produto_id = P_S.id
+       - movimentacoes(P, S) → produto_id = P_S.id
+       - emprestimo_itens onde produto=P e sala origem=S → P_S
+       - solicitacao_itens onde produto=P e sala=S → P_S
+       - dividas onde produto=P e (credora=S ou devedora=S) → P_S
+       - produto_custo_historico → clonar para P_S
+       - consumos_internos(P, S) → P_S
+       - devolucao_itens ligadas → P_S
+  Ao final, deletar P (não haverá mais referências).
+```
+
+Depois: `ALTER TABLE produtos ALTER COLUMN sala_id SET NOT NULL`.
+
+Ajustar triggers:
+- `seed_estoque_for_new_produto`: sempre criar 1 linha de estoque (para a sala do produto).
+- `seed_estoque_for_new_sala`: não copia mais produtos globais (não existem).
+
+Frontend:
+- `ProdutosPage` (master): agrupar por sala, obrigar seleção de sala ao criar.
+- `NovaRequisicao`, `NovoEmprestimo`, `ConsumoInterno`: já filtram por sala ativa — validar.
+
+Backup: a migração roda em transação; se algo falhar, rollback automático.
+
+## Ordem de execução proposta
+
+1. **Migração A** — notificações do Master + unificação de `quitar_divida` (baixo risco).
+2. **Frontend A** — bug do campo `custo_unitario`, reativação, mostrar inativos em relatórios, unificar botões de quitar.
+3. **Migração B** — remoção de Produto Global (com clone + repointing). Rodada isoladamente por segurança.
+4. **Frontend B** — telas de produtos por sala, remoção de UI global.
+
+## Confirmação antes de executar
+
+Antes de iniciar, quero confirmar dois pontos:
+
+1. **Migração de globais**: para produto global sem nenhum estoque > 0 e sem movimentação em nenhuma sala, posso **descartar** o registro (não há histórico), ou você prefere clonar para **todas** as salas mesmo assim?
+2. **Regra de quitação**: confirmo que `quitar_divida` passará a **exigir saldo = 0** (sem devolver estoque). Se o Master clicar em "Quitar" com saldo pendente, o sistema mostra erro e orienta a registrar a devolução primeiro. Ok?
+
+Assim que confirmar esses dois pontos executo na ordem acima.
