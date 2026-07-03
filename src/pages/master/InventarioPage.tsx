@@ -49,7 +49,7 @@ export default function InventarioPage() {
       const [s, c, p] = await Promise.all([
         supabase.from("salas").select("id, nome").order("nome"),
         supabase.from("categorias").select("id, nome").order("nome"),
-        supabase.from("produtos").select("id, nome, categoria_id").eq("ativo", true).order("nome"),
+        supabase.from("produtos").select("id, nome, categoria_id").order("nome"),
       ]);
       const allSalas = (s.data as any) ?? [];
       setSalas(role === "master" ? allSalas : allSalas.filter((sala: Sala) => salasAutorizadas.some((a) => a.sala_id === sala.id)));
