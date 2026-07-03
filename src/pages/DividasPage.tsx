@@ -137,8 +137,12 @@ export default function DividasPage() {
           <DialogHeader><DialogTitle>Quitar dívida</DialogTitle></DialogHeader>
           {editing && (
             <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">{editing.devedora.nome} deve <span className="font-mono">{editing.saldo}</span> {editing.produto.unidade} de <span className="font-medium text-foreground">{editing.produto.nome}</span> a {editing.credora.nome}.</div>
-              <div className="space-y-2"><Label>Quantidade a quitar</Label><Input type="number" min={1} max={editing.saldo} value={qtd} onChange={(e) => setQtd(Number(e.target.value))} /></div>
+              <div className="text-sm text-muted-foreground">
+                Todos os itens de <span className="font-medium text-foreground">{editing.produto.nome}</span> emprestados por {editing.credora.nome} a {editing.devedora.nome} já foram devolvidos.
+              </div>
+              <div className="text-sm">
+                Ao confirmar, a dívida será encerrada formalmente, registrada na auditoria e as salas serão notificadas. O estoque não é alterado — ele já foi restaurado no momento em que a devolução foi registrada.
+              </div>
             </div>
           )}
           <DialogFooter>
