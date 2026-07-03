@@ -55,9 +55,9 @@ export default function DividasPage() {
 
   const quitar = async () => {
     if (!editing) return;
-    const { error } = await supabase.rpc("quitar_divida", { _divida: editing.id, _quantidade: Number(qtd) });
+    const { error } = await supabase.rpc("quitar_divida" as any, { _divida: editing.id });
     if (error) return toast.error(error.message);
-    toast.success("Dívida atualizada"); setEditing(null); load();
+    toast.success("Dívida quitada"); setEditing(null); load();
   };
 
   const totalFinanceiro = rows.reduce((s, d) => s + Number(d.valor_financeiro ?? 0), 0);
