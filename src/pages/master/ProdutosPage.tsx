@@ -306,9 +306,7 @@ export default function ProdutosPage() {
                 <TableRow key={p.id} className={`table-row-hover ${inativo ? "opacity-60" : ""}`}>
                   <TableCell className="font-medium">{p.nome}</TableCell>
                   <TableCell>
-                    {p.sala_id
-                      ? <Badge variant="outline" className="gap-1 border-accent/40 text-accent"><Building2 className="size-3" /> {p.sala?.nome ?? "Sala"}</Badge>
-                      : <Badge variant="outline" className="gap-1 border-primary/40 text-primary"><Globe2 className="size-3" /> Global</Badge>}
+                    <Badge variant="outline" className="gap-1 border-accent/40 text-accent"><Building2 className="size-3" /> {p.sala?.nome ?? "—"}</Badge>
                   </TableCell>
                   <TableCell>
                     {p.categoria
