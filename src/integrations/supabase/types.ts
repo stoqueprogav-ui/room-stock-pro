@@ -1991,10 +1991,7 @@ export type Database = {
       marcar_senha_trocada: { Args: never; Returns: undefined }
       mark_conversation_read: { Args: { _conv: string }; Returns: undefined }
       patrimonio_global: { Args: never; Returns: number }
-      quitar_divida: {
-        Args: { _divida: string; _quantidade: number }
-        Returns: undefined
-      }
+      quitar_divida: { Args: { _divida: string }; Returns: undefined }
       reativar_produto: { Args: { _produto: string }; Returns: undefined }
       registrar_consumo_interno: {
         Args: {

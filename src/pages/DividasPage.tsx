@@ -55,9 +55,9 @@ export default function DividasPage() {
 
   const quitar = async () => {
     if (!editing) return;
-    const { error } = await supabase.rpc("quitar_divida", { _divida: editing.id, _quantidade: Number(qtd) });
+    const { error } = await supabase.rpc("quitar_divida" as any, { _divida: editing.id });
     if (error) return toast.error(error.message);
-    toast.success("Dívida atualizada"); setEditing(null); load();
+    toast.success("Dívida quitada"); setEditing(null); load();
   };
 
   const totalFinanceiro = rows.reduce((s, d) => s + Number(d.valor_financeiro ?? 0), 0);
@@ -114,7 +114,15 @@ export default function DividasPage() {
                 )}
                 {role === "master" && (
                   <TableCell className="text-right">
-                    <Button size="sm" variant="outline" onClick={() => { setEditing(d); setQtd(d.saldo); }}><Wallet className="size-4" /> Quitar</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={d.saldo > 0}
+                      title={d.saldo > 0 ? `Registre a devolução dos ${d.saldo} ${d.produto.unidade} pendentes antes de quitar` : "Encerrar formalmente a dívida"}
+                      onClick={() => { setEditing(d); setQtd(d.saldo); }}
+                    >
+                      <Wallet className="size-4" /> Quitar
+                    </Button>
                   </TableCell>
                 )}
               </TableRow>
@@ -129,8 +137,12 @@ export default function DividasPage() {
           <DialogHeader><DialogTitle>Quitar dívida</DialogTitle></DialogHeader>
           {editing && (
             <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">{editing.devedora.nome} deve <span className="font-mono">{editing.saldo}</span> {editing.produto.unidade} de <span className="font-medium text-foreground">{editing.produto.nome}</span> a {editing.credora.nome}.</div>
-              <div className="space-y-2"><Label>Quantidade a quitar</Label><Input type="number" min={1} max={editing.saldo} value={qtd} onChange={(e) => setQtd(Number(e.target.value))} /></div>
+              <div className="text-sm text-muted-foreground">
+                Todos os itens de <span className="font-medium text-foreground">{editing.produto.nome}</span> emprestados por {editing.credora.nome} a {editing.devedora.nome} já foram devolvidos.
+              </div>
+              <div className="text-sm">
+                Ao confirmar, a dívida será encerrada formalmente, registrada na auditoria e as salas serão notificadas. O estoque não é alterado — ele já foi restaurado no momento em que a devolução foi registrada.
+              </div>
             </div>
           )}
           <DialogFooter>
