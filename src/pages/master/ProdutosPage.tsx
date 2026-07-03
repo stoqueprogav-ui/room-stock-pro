@@ -259,7 +259,7 @@ export default function ProdutosPage() {
     <div className="space-y-4">
       <PageHeader
         title="Produtos"
-        description="Catálogo. Produtos podem ser globais (todas as salas) ou exclusivos de uma sala."
+        description="Catálogo. Cada produto pertence a uma sala específica."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="size-4" /> Importar</Button>
@@ -289,7 +289,7 @@ export default function ProdutosPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead className="w-[120px]">Escopo</TableHead>
+              <TableHead className="w-[140px]">Sala</TableHead>
               <TableHead className="w-[140px]">Categoria</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead className="w-[90px]">Unidade</TableHead>
@@ -306,9 +306,7 @@ export default function ProdutosPage() {
                 <TableRow key={p.id} className={`table-row-hover ${inativo ? "opacity-60" : ""}`}>
                   <TableCell className="font-medium">{p.nome}</TableCell>
                   <TableCell>
-                    {p.sala_id
-                      ? <Badge variant="outline" className="gap-1 border-accent/40 text-accent"><Building2 className="size-3" /> {p.sala?.nome ?? "Sala"}</Badge>
-                      : <Badge variant="outline" className="gap-1 border-primary/40 text-primary"><Globe2 className="size-3" /> Global</Badge>}
+                    <Badge variant="outline" className="gap-1 border-accent/40 text-accent"><Building2 className="size-3" /> {p.sala?.nome ?? "—"}</Badge>
                   </TableCell>
                   <TableCell>
                     {p.categoria
