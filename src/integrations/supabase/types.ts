@@ -899,7 +899,7 @@ export type Database = {
           estoque_minimo: number
           id: string
           nome: string
-          sala_id: string | null
+          sala_id: string
           unidade: string
           updated_at: string
         }
@@ -912,7 +912,7 @@ export type Database = {
           estoque_minimo?: number
           id?: string
           nome: string
-          sala_id?: string | null
+          sala_id: string
           unidade?: string
           updated_at?: string
         }
@@ -925,7 +925,7 @@ export type Database = {
           estoque_minimo?: number
           id?: string
           nome?: string
-          sala_id?: string | null
+          sala_id?: string
           unidade?: string
           updated_at?: string
         }
