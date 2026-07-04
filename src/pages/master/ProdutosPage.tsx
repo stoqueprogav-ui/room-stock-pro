@@ -77,17 +77,76 @@ export default function ProdutosPage() {
     toast.success("Categoria criada e selecionada");
   };
 
+  // Catálogo (identidade de itens, independente de sala)
+  const [catalogo, setCatalogo] = useState<CatalogoItem[]>([]);
+  const [tab, setTab] = useState<"catalogo" | "estoque">("catalogo");
+  const [catEditOpen, setCatEditOpen] = useState(false);
+  const [catEditing, setCatEditing] = useState<CatalogoItem | null>(null);
+  const [catForm, setCatForm] = useState({ nome: "", descricao: "", unidade_padrao: "Unidade", categoria_id: "", ativo: true });
+  const [catSaving, setCatSaving] = useState(false);
+  const [catFiltroCat, setCatFiltroCat] = useState<string>("all");
+  const [catMostrarInativos, setCatMostrarInativos] = useState(false);
+
   const load = async () => {
-    const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
+    const [{ data: p }, { data: s }, { data: c }, { data: cat }] = await Promise.all([
       supabase.from("produtos").select("*, categoria:categorias(id, nome), sala:salas(id, nome)").order("nome"),
       supabase.from("salas").select("*").order("nome"),
       supabase.from("categorias").select("*").order("nome"),
+      supabase.from("produtos_catalogo").select("id, nome, descricao, unidade_padrao, categoria_id, ativo, categoria:categorias(id, nome)").order("nome"),
     ]);
     setProdutos((p as any) ?? []);
     setSalas((s as Sala[]) ?? []);
     setCategorias((c as Categoria[]) ?? []);
+    // Conta salas por catálogo a partir dos produtos carregados
+    const contagem = new Map<string, number>();
+    ((p as any[]) ?? []).forEach((row) => {
+      const key = row.catalogo_id as string | null;
+      if (!key) return;
+      contagem.set(key, (contagem.get(key) ?? 0) + 1);
+    });
+    setCatalogo(((cat as any[]) ?? []).map((r) => ({ ...r, salas_count: contagem.get(r.id) ?? 0 })));
   };
   useEffect(() => { load(); }, []);
+
+  const openCatNew = () => {
+    setCatEditing(null);
+    setCatForm({ nome: "", descricao: "", unidade_padrao: "Unidade", categoria_id: "", ativo: true });
+    setCatEditOpen(true);
+  };
+  const openCatEdit = (item: CatalogoItem) => {
+    setCatEditing(item);
+    setCatForm({
+      nome: item.nome,
+      descricao: item.descricao ?? "",
+      unidade_padrao: item.unidade_padrao ?? "Unidade",
+      categoria_id: item.categoria_id ?? "",
+      ativo: item.ativo,
+    });
+    setCatEditOpen(true);
+  };
+  const saveCatalogo = async () => {
+    const nome = catForm.nome.trim();
+    if (!nome) return toast.error("Nome obrigatório");
+    setCatSaving(true);
+    const payload: any = {
+      nome,
+      descricao: catForm.descricao?.trim() || null,
+      unidade_padrao: (catForm.unidade_padrao || "Unidade").trim(),
+      categoria_id: catForm.categoria_id || null,
+      ativo: catForm.ativo,
+    };
+    let error;
+    if (catEditing) {
+      ({ error } = await supabase.from("produtos_catalogo").update(payload).eq("id", catEditing.id));
+    } else {
+      ({ error } = await supabase.from("produtos_catalogo").insert(payload));
+    }
+    setCatSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success(catEditing ? "Item do catálogo atualizado" : "Item adicionado ao catálogo");
+    setCatEditOpen(false);
+    load();
+  };
 
   const resetSalasQty = (salasList: Sala[]) => {
     setSalasQty(salasList.map((s) => ({ sala_id: s.id, selected: false, quantidade: 0 })));
