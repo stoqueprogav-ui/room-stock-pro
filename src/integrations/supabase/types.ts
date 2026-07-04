@@ -892,6 +892,7 @@ export type Database = {
       produtos: {
         Row: {
           ativo: boolean
+          catalogo_id: string
           categoria_id: string | null
           created_at: string
           custo_unitario: number
@@ -905,6 +906,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          catalogo_id: string
           categoria_id?: string | null
           created_at?: string
           custo_unitario?: number
@@ -918,6 +920,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          catalogo_id?: string
           categoria_id?: string | null
           created_at?: string
           custo_unitario?: number
@@ -931,6 +934,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "produtos_catalogo_id_fkey"
+            columns: ["catalogo_id"]
+            isOneToOne: false
+            referencedRelation: "produtos_catalogo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "produtos_categoria_id_fkey"
             columns: ["categoria_id"]
             isOneToOne: false
@@ -942,6 +952,50 @@ export type Database = {
             columns: ["sala_id"]
             isOneToOne: false
             referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      produtos_catalogo: {
+        Row: {
+          ativo: boolean
+          categoria_id: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          nome_normalizado: string
+          unidade_padrao: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          nome_normalizado: string
+          unidade_padrao?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          nome_normalizado?: string
+          unidade_padrao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produtos_catalogo_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
             referencedColumns: ["id"]
           },
         ]
@@ -1720,6 +1774,7 @@ export type Database = {
         Args: { _produto: string; _quantidade: number; _sala: string }
         Returns: undefined
       }
+      _norm_produto_nome: { Args: { _nome: string }; Returns: string }
       _notify_masters: {
         Args: {
           _actor_id: string
@@ -1791,6 +1846,23 @@ export type Database = {
       can_access_conversation: {
         Args: { _conv: string; _user: string }
         Returns: boolean
+      }
+      catalogo_disponibilidade: {
+        Args: {
+          _catalogo: string
+          _excluir_sala?: string
+          _quantidade?: number
+        }
+        Returns: {
+          atende_pct: number
+          atende_total: boolean
+          custo_unitario: number
+          produto_id: string
+          quantidade_disponivel: number
+          sala_id: string
+          sala_nome: string
+          unidade: string
+        }[]
       }
       comparativo_salas_financeiro: {
         Args: { _from?: string; _to?: string }
@@ -2143,6 +2215,7 @@ export type Database = {
         Args: { _ativo: boolean; _produto_id: string; _sala_id: string }
         Returns: undefined
       }
+      unaccent: { Args: { "": string }; Returns: string }
       user_has_sala_access: {
         Args: { _sala: string; _user: string }
         Returns: boolean

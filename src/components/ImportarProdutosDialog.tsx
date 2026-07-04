@@ -198,12 +198,15 @@ export default function ImportarProdutosDialog({ open, onOpenChange, salas, cate
             ativo: true,
           }).eq("id", prodId);
         } else {
+          if (salaDestino === "none") {
+            r._status = "erro"; r._msg = "Selecione uma sala destino para importar novos produtos"; continue;
+          }
           const { data, error } = await supabase.from("produtos").insert({
             nome: r.produto,
             unidade: r.unidade || "un",
             categoria_id: cat?.id ?? null,
-            sala_id: null,
-          }).select("id").single();
+            sala_id: salaDestino,
+          } as any).select("id").single();
           if (error || !data) { r._status = "erro"; r._msg = error?.message; continue; }
           prodId = data.id;
         }
