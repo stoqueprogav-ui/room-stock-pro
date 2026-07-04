@@ -32,6 +32,77 @@ export type Database = {
         }
         Relationships: []
       }
+      avaliacoes_patrimoniais: {
+        Row: {
+          created_at: string
+          id: string
+          observacao: string | null
+          produto_id: string
+          quantidade_avaliada: number
+          quantidade_restante: number
+          responsavel_id: string | null
+          sala_id: string
+          tipo: string
+          updated_at: string
+          valor_unitario: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          produto_id: string
+          quantidade_avaliada: number
+          quantidade_restante: number
+          responsavel_id?: string | null
+          sala_id: string
+          tipo: string
+          updated_at?: string
+          valor_unitario: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          produto_id?: string
+          quantidade_avaliada?: number
+          quantidade_restante?: number
+          responsavel_id?: string | null
+          sala_id?: string
+          tipo?: string
+          updated_at?: string
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avaliacoes_patrimoniais_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_patrimoniais_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "v_produtos_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_patrimoniais_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_patrimoniais_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categorias: {
         Row: {
           cor: string | null
@@ -1774,6 +1845,10 @@ export type Database = {
         Args: { _produto: string; _quantidade: number; _sala: string }
         Returns: undefined
       }
+      _consumir_avaliacao_peps: {
+        Args: { _produto: string; _quantidade: number; _sala: string }
+        Returns: number
+      }
       _norm_produto_nome: { Args: { _nome: string }; Returns: string }
       _notify_masters: {
         Args: {
@@ -1843,6 +1918,17 @@ export type Database = {
         Args: { _retirado_em?: string; _retirado_por?: string; _solic: string }
         Returns: undefined
       }
+      avaliacao_produto_resumo: {
+        Args: { _produto: string; _sala: string }
+        Returns: {
+          quantidade_avaliada: number
+          responsavel_nome: string
+          tem_avaliacao: boolean
+          tipo_predominante: string
+          ultima_avaliacao: string
+          valor_total: number
+        }[]
+      }
       can_access_conversation: {
         Args: { _conv: string; _user: string }
         Returns: boolean
@@ -1874,6 +1960,17 @@ export type Database = {
           valor_consumido: number
           valor_em_estoque: number
         }[]
+      }
+      criar_avaliacao_patrimonial: {
+        Args: {
+          _observacao?: string
+          _produto: string
+          _quantidade: number
+          _sala: string
+          _tipo: string
+          _valor_unitario: number
+        }
+        Returns: string
       }
       criar_emprestimo: {
         Args: { _itens: Json; _observacao: string; _sala_origem: string }
@@ -1959,6 +2056,10 @@ export type Database = {
           valor_consumido: number
         }[]
       }
+      excluir_avaliacao_patrimonial: {
+        Args: { _id: string }
+        Returns: undefined
+      }
       excluir_produto: { Args: { _produto: string }; Returns: Json }
       excluir_produto_sala: {
         Args: { _produto: string; _sala: string }
@@ -2004,6 +2105,27 @@ export type Database = {
           type: Database["public"]["Enums"]["conversation_type"]
           unread_count: number
           updated_at: string
+        }[]
+      }
+      listar_avaliacoes_patrimoniais: {
+        Args: { _sala?: string }
+        Returns: {
+          categoria_nome: string
+          created_at: string
+          id: string
+          observacao: string
+          produto_id: string
+          produto_nome: string
+          quantidade_avaliada: number
+          quantidade_restante: number
+          responsavel_id: string
+          responsavel_nome: string
+          sala_id: string
+          sala_nome: string
+          tipo: string
+          updated_at: string
+          valor_total: number
+          valor_unitario: number
         }[]
       }
       listar_minhas_salas: {
@@ -2063,7 +2185,36 @@ export type Database = {
       marcar_senha_trocada: { Args: never; Returns: undefined }
       mark_conversation_read: { Args: { _conv: string }; Returns: undefined }
       patrimonio_global: { Args: never; Returns: number }
+      patrimonio_totais: {
+        Args: { _sala?: string }
+        Returns: {
+          cobertura_pct: number
+          produtos_confirmados: number
+          produtos_estimados: number
+          produtos_sem_avaliacao: number
+          quantidade_avaliada: number
+          quantidade_estoque: number
+          valor_compras: number
+          valor_confirmado: number
+          valor_estimado: number
+          valor_patrimonial: number
+          valor_total_estoque: number
+        }[]
+      }
       produto_tem_historico: { Args: { _produto: string }; Returns: boolean }
+      produtos_sem_avaliacao: {
+        Args: { _sala?: string }
+        Returns: {
+          categoria_nome: string
+          custo_unitario_ref: number
+          produto_id: string
+          produto_nome: string
+          quantidade: number
+          sala_id: string
+          sala_nome: string
+          valor_total_atual: number
+        }[]
+      }
       quitar_divida: { Args: { _divida: string }; Returns: undefined }
       reativar_produto: { Args: { _produto: string }; Returns: undefined }
       registrar_consumo_interno: {
@@ -2093,6 +2244,7 @@ export type Database = {
         }
         Returns: string
       }
+      regularizar_avaliacoes_lote: { Args: { _itens: Json }; Returns: number }
       relatorio_categorias_financeiro: {
         Args: { _from?: string; _sala?: string; _to?: string }
         Returns: {

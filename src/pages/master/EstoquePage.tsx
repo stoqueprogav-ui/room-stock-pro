@@ -90,6 +90,9 @@ export default function EstoquePage() {
 
   // Última entrada por (produto, sala)
   const [ultimas, setUltimas] = useState<Map<string, UltimaEntrada>>(new Map());
+  // Avaliação patrimonial por (produto, sala)
+  type AvalInfo = { tipo: "confirmado" | "estimado"; qtd: number; valor: number };
+  const [avaliacoes, setAvaliacoes] = useState<Map<string, AvalInfo>>(new Map());
 
   // Ficha financeira expandida
   type EntradaHist = { id: string; data_entrada: string; quantidade: number; valor_unitario: number; valor_total: number; fornecedor: string | null; numero_nf: string | null; usuario_responsavel_nome: string | null };
@@ -145,6 +148,31 @@ export default function EstoquePage() {
       if (!map.has(k)) map.set(k, { data: row.data_entrada, valor_unitario: Number(row.valor_unitario), fornecedor: row.fornecedor });
     });
     setUltimas(map);
+
+    // Avaliações patrimoniais ativas (quantidade_restante > 0)
+    if (isMaster) {
+      const { data: avs } = await (supabase as any)
+        .from("avaliacoes_patrimoniais")
+        .select("produto_id, sala_id, tipo, quantidade_restante, valor_unitario")
+        .gt("quantidade_restante", 0);
+      const am = new Map<string, AvalInfo>();
+      (avs ?? []).forEach((a: any) => {
+        const k = `${a.produto_id}-${a.sala_id}`;
+        const cur = am.get(k);
+        const val = Number(a.quantidade_restante) * Number(a.valor_unitario);
+        if (!cur) {
+          am.set(k, { tipo: a.tipo, qtd: Number(a.quantidade_restante), valor: val });
+        } else {
+          // Se qualquer camada é 'confirmado', considera confirmado
+          am.set(k, {
+            tipo: cur.tipo === "confirmado" || a.tipo === "confirmado" ? "confirmado" : "estimado",
+            qtd: cur.qtd + Number(a.quantidade_restante),
+            valor: cur.valor + val,
+          });
+        }
+      });
+      setAvaliacoes(am);
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -531,6 +559,22 @@ export default function EstoquePage() {
                       <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
                     </span>
                   )}
+                  {(() => {
+                    const av = avaliacoes.get(`${r.produto_id}-${r.sala_id}`);
+                    if (!av) {
+                      if (r.quantidade > 0 && r.valor_total <= 0 && isMaster) {
+                        return <div className="mt-1"><Badge variant="outline" className="text-[10px] border-warning/50 text-warning">Sem avaliação patrimonial</Badge></div>;
+                      }
+                      return null;
+                    }
+                    return (
+                      <div className="mt-1">
+                        <Badge variant={av.tipo === "confirmado" ? "default" : "secondary"} className="text-[10px]" title={`${av.qtd} un · ${BRL(av.valor)}`}>
+                          Aval. {av.tipo === "confirmado" ? "confirmada" : "estimada"}
+                        </Badge>
+                      </div>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell>
                   {(r.produto as any)?.categoria?.nome
