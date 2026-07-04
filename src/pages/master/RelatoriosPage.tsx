@@ -93,9 +93,11 @@ export default function RelatoriosPage() {
   const [empSalas, setEmpSalas] = useState<EmpSalaRow[]>([]);
   const [empStatus, setEmpStatus] = useState<{ status: string; count: number }[]>([]);
   const [estoqueValor, setEstoqueValor] = useState<EstoqueValorRow[]>([]);
+  const [valorPatrimonial, setValorPatrimonial] = useState<number>(0);
   const [valorizacao, setValorizacao] = useState<ValorizacaoStats | null>(null);
   const [reqPorSala, setReqPorSala] = useState<{ sala_id: string; sala_nome: string; total: number }[]>([]);
   const [empMensal, setEmpMensal] = useState<{ mes: string; count: number }[]>([]);
+
 
   useEffect(() => {
     setSalaFilter(scopeSalaId ?? "all");
@@ -104,13 +106,15 @@ export default function RelatoriosPage() {
   // Bases (salas, categorias, produtos, valor estoque, emp por sala)
   useEffect(() => {
     (async () => {
-      const [ss, cc, pp, ev, es, vz] = await Promise.all([
+      const efetivaSala = isGlobal ? (salaFilter === "all" ? null : salaFilter) : scopeSalaId!;
+      const [ss, cc, pp, ev, es, vz, pt] = await Promise.all([
         supabase.from("salas").select("id, nome").order("nome"),
         supabase.from("categorias").select("id, nome").order("nome"),
         supabase.from("produtos").select("id, nome, custo_unitario, categoria_id").order("nome"),
         supabase.rpc("valor_estoque_por_sala"),
         supabase.rpc("relatorio_emprestimos_salas"),
         supabase.rpc("estatisticas_valorizacao"),
+        (supabase as any).rpc("patrimonio_totais", { _sala: efetivaSala }),
       ]);
       setSalas((ss.data as Sala[]) ?? []);
       setCategorias((cc.data as Categoria[]) ?? []);
@@ -119,8 +123,11 @@ export default function RelatoriosPage() {
       setEmpSalas((es.data as EmpSalaRow[]) ?? []);
       const vzRow = Array.isArray(vz.data) ? (vz.data as any[])[0] : (vz.data as any);
       if (vzRow) setValorizacao(vzRow as ValorizacaoStats);
+      const ptRow = Array.isArray(pt?.data) ? (pt.data as any[])[0] : (pt?.data as any);
+      setValorPatrimonial(Number(ptRow?.valor_patrimonial ?? 0));
     })();
-  }, []);
+  }, [salaFilter, scopeSalaId, isGlobal]);
+
 
   // Consumo filtrado
   useEffect(() => {
@@ -277,8 +284,10 @@ export default function RelatoriosPage() {
     const k = new Date().toISOString().slice(0, 7);
     return evolucaoMensal.find((m) => m.mes === k)?.valor ?? 0;
   }, [evolucaoMensal]);
-  const valorTotalEstoque = estoqueValor.reduce((s, x) => s + Number(x.valor_total), 0);
+  const valorCompras = estoqueValor.reduce((s, x) => s + Number(x.valor_total), 0);
+  const valorTotalEstoque = valorCompras + Number(valorPatrimonial ?? 0);
   const salaMaiorEstoque = [...estoqueValor].sort((a, b) => b.valor_total - a.valor_total)[0];
+
 
   // Comparativo: matriz produto x sala (top 10 produtos por qtd)
   const comparativo = useMemo(() => {
@@ -979,8 +988,9 @@ function PatrimonioPanel({ scopeSalaId }: { scopeSalaId: string | null }) {
           <div className="text-xs text-muted-foreground">Valor total do estoque</div>
           <div className="text-xl font-semibold mt-1">{BRL(tot?.valor_total_estoque ?? 0)}</div>
           <div className="text-[11px] text-muted-foreground mt-1">
-            Patrimonial {BRL(tot?.valor_patrimonial ?? 0)} + Compras {BRL(tot?.valor_compras ?? 0)}
+            Estimado {BRL(tot?.valor_patrimonial ?? 0)} + Confirmado {BRL(tot?.valor_compras ?? 0)}
           </div>
+
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Cobertura patrimonial</div>
