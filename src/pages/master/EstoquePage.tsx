@@ -706,7 +706,7 @@ export default function EstoquePage() {
                       >
                         {r.ativo ? <X className="size-4 text-warning" /> : <CheckCircle2 className="size-4 text-success" />}
                       </Button>
-                      <Button variant="ghost" size="icon" title="Editar produto" onClick={() => openEditProduto(r.produto)}>
+                      <Button variant="ghost" size="icon" title="Editar produto" onClick={() => openEditProduto(r.produto, r.sala)}>
                         <Pencil className="size-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Excluir produto" onClick={() => { setDelMode("sala"); setConfirmDel({ produto: r.produto, sala: r.sala }); }}>
