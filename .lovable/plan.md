@@ -1,123 +1,74 @@
-# Refatoração e Correções do Sistema
+# Catálogo de Produtos + Estoque por Sala
 
-Escopo grande e arquitetural. Proponho executar em 3 migrações + ajustes de frontend, na ordem abaixo. Cada bloco é atômico e reversível.
+Concordo 100% com a ressalva: agrupar por texto é fonte garantida de bug. A solução é uma nova tabela de **catálogo** (identidade) referenciada por cada registro de estoque da sala.
 
-## 1. Notificações completas para o Master
-
-Ampliar os triggers `_tg_notif_emprestimo`, `_tg_notif_devolucao` e a função `quitar_divida` para enviar notificação também para todos os usuários com papel `master`, exceto o `actor_id` (quem executou a ação).
-
-Eventos cobertos para o Master:
-- `emprestimo.criado`
-- `emprestimo.aprovado` / `emprestimo.rejeitado` (pela sala credora)
-- `emprestimo.aprovado_master` / `emprestimo.rejeitado_master`
-- `emprestimo.editado`
-- `devolucao.parcial` / `devolucao.total`
-- `emprestimo.quitado_parcial` / `emprestimo.quitado_total`
-- `emprestimo.arquivado`
-
-Implementação: nova função `_notify_masters(evento, título, corpo, link, actor_id)` que insere em `notifications` para cada master (exceto o actor). Chamada em cada trigger/RPC relevante.
-
-## 2. Unificar fluxo de "Quitar Empréstimo"
-
-Auditar todos os pontos que hoje encerram/quitam empréstimo:
-- `DividasPage` → RPC `quitar_divida` (correto)
-- Qualquer botão em `EmprestimosPage` ou `DevolverEmprestimoDialog` que apenas mude status → substituir por chamada à mesma RPC `quitar_divida` (ou remover o botão duplicado)
-
-Regra ajustada conforme sua observação: **`quitar_divida` NÃO devolve estoque**. O estoque só volta via `registrar_devolucao` (devolução física registrada pelo Master). A RPC apenas:
-1. Verifica que `saldo = 0` (todos os itens já foram devolvidos fisicamente).
-2. Se ainda houver saldo, rejeita com mensagem clara: "existe saldo pendente; registre a devolução antes de quitar".
-3. Marca dívida como quitada / remove a linha.
-4. Marca `emprestimos.status = 'arquivado'` quando todas as dívidas ligadas àquele empréstimo estiverem zeradas.
-5. Registra `log_event('emprestimo.quitado', ...)`.
-6. Envia notificações (credora, devedora, master).
-
-Alteração da assinatura: `quitar_divida(_divida uuid)` — sem parâmetro `_quantidade`, pois a quitação é sempre total e depende do saldo já estar zerado.
-
-Frontend: `DividasPage` remove o input de quantidade e passa a mostrar botão "Quitar" apenas quando `saldo = 0` (ou exibir aviso "aguardando devolução").
-
-## 3. Cadastro de valor do produto não persiste
-
-Bug de frontend em `ProdutosPage`: campo `custo_unitario` não está no payload do insert/update, ou está com key errada.
-
-Correção:
-- Ajustar formulário para incluir `custo_unitario` no `.insert(...)` e `.update(...)`.
-- Exibir valor atual na edição.
-- Garantir que `log_custo_produto` (trigger já existente) grave o histórico.
-
-Relatórios e custo médio já usam `custo_unitario`/`custo_medio` — nenhuma mudança adicional necessária.
-
-## 4. Produtos inativos devem aparecer no histórico
-
-Auditar todas as queries que filtram por `ativo = true`. Manter esse filtro **apenas** em telas operacionais (nova requisição, novo empréstimo, seleção de produto para consumo interno, tela de estoque operacional).
-
-Remover o filtro `ativo` em:
-- Relatórios (`RelatoriosPage`, `DashboardGerencial`)
-- Inventário histórico
-- Movimentações
-- Auditoria
-- Central Analítica
-
-Já implementado no backend nas RPCs de relatório (não filtram por `ativo`). O ajuste é frontend nas listagens/joins.
-
-## 5. Reativação de produto
-
-Investigar `reativar_produto`: função existe e faz `UPDATE ativo=true`, mas o frontend pode estar chamando outro caminho, ou o botão está oculto após inativação (filtro `ativo=true` na lista).
-
-Correção:
-- Em `ProdutosPage` adicionar toggle "Mostrar inativos" e botão "Reativar" para produtos com `ativo=false`.
-- Confirmar chamada à RPC `reativar_produto`.
-
-## 6. Remover conceito de Produto Global
-
-**Este é o bloco mais crítico. Migração de dados obrigatória.**
-
-Estado atual: `produtos.sala_id` pode ser `NULL` (global) ou apontar para uma sala. Estoque global existe como linhas em `estoque` por (produto, sala).
-
-Migração proposta:
+## Modelo alvo
 
 ```text
-Para cada produto P com sala_id IS NULL:
-  Para cada sala S onde existe estoque(P, S) com quantidade > 0
-                        OU movimentação histórica de (P, S):
-    1. Criar novo produto P_S clonando P (nome, descricao, unidade,
-       estoque_minimo, categoria_id, custo_unitario, ativo)
-       com sala_id = S.id
-    2. Repontuar em cascata:
-       - estoque(P, S) → produto_id = P_S.id
-       - movimentacoes(P, S) → produto_id = P_S.id
-       - emprestimo_itens onde produto=P e sala origem=S → P_S
-       - solicitacao_itens onde produto=P e sala=S → P_S
-       - dividas onde produto=P e (credora=S ou devedora=S) → P_S
-       - produto_custo_historico → clonar para P_S
-       - consumos_internos(P, S) → P_S
-       - devolucao_itens ligadas → P_S
-  Ao final, deletar P (não haverá mais referências).
+produtos_catalogo         ← IDENTIDADE do item
+  id, nome, descricao, unidade_padrao, categoria_id, ativo
+
+produtos                  ← REGISTRO DE ESTOQUE por sala (o que já existe hoje)
+  id, catalogo_id (FK), sala_id, custo_unitario, estoque_minimo, ativo
+  (nome/descricao/unidade/categoria passam a vir do catálogo via view/join)
+
+estoque, movimentacoes, emprestimo_itens, solicitacao_itens,
+dividas, devolucao_itens, produto_custo_historico, consumos_internos
+  → continuam apontando para produtos.id (registro da sala). Nada muda.
 ```
 
-Depois: `ALTER TABLE produtos ALTER COLUMN sala_id SET NOT NULL`.
+Um item novo é criado no catálogo **uma vez**. Depois cada sala que "adota" o item ganha um `produtos` (registro de estoque) apontando para o mesmo `catalogo_id`.
 
-Ajustar triggers:
-- `seed_estoque_for_new_produto`: sempre criar 1 linha de estoque (para a sala do produto).
-- `seed_estoque_for_new_sala`: não copia mais produtos globais (não existem).
+## Migração de dados (idempotente, em transação)
 
-Frontend:
-- `ProdutosPage` (master): agrupar por sala, obrigar seleção de sala ao criar.
-- `NovaRequisicao`, `NovoEmprestimo`, `ConsumoInterno`: já filtram por sala ativa — validar.
+1. `CREATE TABLE produtos_catalogo` com GRANTs + RLS (leitura autenticados, escrita master).
+2. Agrupar `produtos` existentes por `normalize(nome)` (`lower(unaccent(trim))`) e criar 1 linha de catálogo por grupo. Nome exibido = versão mais comum (moda).
+3. `ALTER TABLE produtos ADD COLUMN catalogo_id uuid REFERENCES produtos_catalogo(id)`.
+4. Backfill: `UPDATE produtos SET catalogo_id = ...` pelo mesmo `normalize(nome)`.
+5. `ALTER TABLE produtos ALTER COLUMN catalogo_id SET NOT NULL`.
+6. Índice `(catalogo_id, sala_id)` único → uma sala não pode ter 2 registros do mesmo item de catálogo.
+7. Trigger: ao criar novo `produtos`, se `nome` bater com catálogo existente (mesmo normalize), reaproveita o `catalogo_id`; senão cria um novo.
 
-Backup: a migração roda em transação; se algo falhar, rollback automático.
+## RPC nova: `catalogo_disponibilidade(_catalogo uuid, _quantidade int, _excluir_sala uuid)`
 
-## Ordem de execução proposta
+Retorna lista de salas ordenadas por atendimento:
 
-1. **Migração A** — notificações do Master + unificação de `quitar_divida` (baixo risco).
-2. **Frontend A** — bug do campo `custo_unitario`, reativação, mostrar inativos em relatórios, unificar botões de quitar.
-3. **Migração B** — remoção de Produto Global (com clone + repointing). Rodada isoladamente por segurança.
-4. **Frontend B** — telas de produtos por sala, remoção de UI global.
+```sql
+sala_id, sala_nome, produto_id, disponivel, atende_pct, atende_total
+```
 
-## Confirmação antes de executar
+Já filtra `estoque - reservado`. Reaproveita a lógica do modal atual, mas parte do catálogo em vez de produto físico.
 
-Antes de iniciar, quero confirmar dois pontos:
+## Frontend
 
-1. **Migração de globais**: para produto global sem nenhum estoque > 0 e sem movimentação em nenhuma sala, posso **descartar** o registro (não há histórico), ou você prefere clonar para **todas** as salas mesmo assim?
-2. **Regra de quitação**: confirmo que `quitar_divida` passará a **exigir saldo = 0** (sem devolver estoque). Se o Master clicar em "Quitar" com saldo pendente, o sistema mostra erro e orienta a registrar a devolução primeiro. Ok?
+### NovoEmprestimo / NovaRequisicao (fluxo novo)
+1. Combobox lista **catálogo** (um item = "Água sem gás"), não `produtos`.
+2. Usuário escolhe item + quantidade.
+3. Chama `catalogo_disponibilidade` → mostra salas com % de atendimento (UI já existente, só troca a fonte).
+4. Ao confirmar, o `emprestimo_itens.produto_id` gravado é o `produtos.id` **da sala credora escolhida** — schema não muda, só a origem do valor.
 
-Assim que confirmar esses dois pontos executo na ordem acima.
+### ProdutosPage (master)
+Duas abas:
+- **Catálogo**: cadastrar nome/categoria/unidade/descrição do item base.
+- **Estoque por sala**: para cada item do catálogo, listar salas onde ele existe (com custo, mínimo, ativo, saldo). Botão "Adicionar em outra sala" cria um `produtos` apontando ao mesmo catálogo.
+
+Formulário de "Novo produto" fica em duas etapas: escolher item do catálogo (ou criar novo) → escolher sala + custo inicial + qtd inicial.
+
+### Telas operacionais (Estoque, Inventário, Relatórios)
+Continuam por `produtos` (registro de sala) — é o que faz sentido operacionalmente. Só ganham a coluna extra "Item de catálogo" quando útil para agrupar.
+
+## Ordem de execução
+
+1. **Migração A**: cria `produtos_catalogo`, backfill, FK, unique index, trigger de auto-vinculação. Baixo risco, não altera queries existentes (nome/unidade continuam em `produtos`).
+2. **RPC B**: `catalogo_disponibilidade`.
+3. **Frontend C**: `NovoEmprestimo` e `NovaRequisicao` passam a buscar por catálogo.
+4. **Frontend D**: `ProdutosPage` reorganizada em Catálogo + Estoque por sala.
+5. **Cleanup opcional (futuro)**: mover `nome`/`descricao`/`unidade`/`categoria_id` de `produtos` para o catálogo (deixando `produtos` só como registro de estoque puro). Fica pra depois porque toca em muitas queries; por ora, sincronizamos via trigger `produtos.nome := catalogo.nome` em todo insert/update de catálogo, mantendo compat.
+
+## Perguntas antes de executar
+
+1. **Deduplicação inicial**: no backfill vou agrupar por `lower(unaccent(trim(nome)))`. Isso vai unificar "Água", "AGUA", "água" no mesmo catálogo. Ok? Se quiser revisão manual antes de consolidar, gero um relatório dos grupos e você aprova.
+2. **Unidade padrão**: se duas salas cadastraram o mesmo item com unidades diferentes ("Fardo" vs "Unidade"), qual regra? Sugiro manter a unidade específica de cada registro `produtos` (é o que já acontece) e o catálogo guarda só a "unidade de referência" (a mais comum). Isso preserva os dados históricos.
+3. **Categoria**: mesma situação. Sugiro que a categoria fique no catálogo (identidade do item), e removemos `categoria_id` de `produtos` no cleanup futuro. Ok?
+
+Depois que você confirmar, começo pela Migração A.
