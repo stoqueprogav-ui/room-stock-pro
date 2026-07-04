@@ -104,7 +104,7 @@ export default function EstoquePage() {
   // Última entrada por (produto, sala)
   const [ultimas, setUltimas] = useState<Map<string, UltimaEntrada>>(new Map());
   // Avaliação patrimonial por (produto, sala)
-  type AvalInfo = { tipo: "confirmado" | "estimado"; qtd: number; valor: number };
+  type AvalInfo = { tipo: "confirmado" | "estimado"; qtd: number; valor: number; valor_unitario: number; data: string | null };
   const [avaliacoes, setAvaliacoes] = useState<Map<string, AvalInfo>>(new Map());
 
   // Ficha financeira expandida
