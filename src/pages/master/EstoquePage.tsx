@@ -166,21 +166,25 @@ export default function EstoquePage() {
     if (isMaster) {
       const { data: avs } = await (supabase as any)
         .from("avaliacoes_patrimoniais")
-        .select("produto_id, sala_id, tipo, quantidade_restante, valor_unitario")
+        .select("produto_id, sala_id, tipo, quantidade_restante, valor_unitario, data_avaliacao, created_at")
         .gt("quantidade_restante", 0);
       const am = new Map<string, AvalInfo>();
       (avs ?? []).forEach((a: any) => {
         const k = `${a.produto_id}-${a.sala_id}`;
         const cur = am.get(k);
         const val = Number(a.quantidade_restante) * Number(a.valor_unitario);
+        const dt = a.data_avaliacao ?? a.created_at ?? null;
         if (!cur) {
-          am.set(k, { tipo: a.tipo, qtd: Number(a.quantidade_restante), valor: val });
+          am.set(k, { tipo: a.tipo, qtd: Number(a.quantidade_restante), valor: val, valor_unitario: Number(a.valor_unitario), data: dt });
         } else {
-          // Se qualquer camada é 'confirmado', considera confirmado
+          const novaQtd = cur.qtd + Number(a.quantidade_restante);
+          const novoValor = cur.valor + val;
           am.set(k, {
             tipo: cur.tipo === "confirmado" || a.tipo === "confirmado" ? "confirmado" : "estimado",
-            qtd: cur.qtd + Number(a.quantidade_restante),
-            valor: cur.valor + val,
+            qtd: novaQtd,
+            valor: novoValor,
+            valor_unitario: novaQtd > 0 ? novoValor / novaQtd : Number(a.valor_unitario),
+            data: cur.data && dt ? (new Date(dt) > new Date(cur.data) ? dt : cur.data) : (cur.data ?? dt),
           });
         }
       });
