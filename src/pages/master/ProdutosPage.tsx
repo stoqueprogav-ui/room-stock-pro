@@ -491,8 +491,8 @@ export default function ProdutosPage() {
                               : <RotateCcw className="size-4" />}
                             Reativar
                           </Button>
-                        )
                         ) : (
+
                           <>
                             <Button variant="ghost" size="icon" aria-label="Editar produto" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
                             <Button variant="ghost" size="icon" aria-label="Excluir produto" onClick={() => setConfirmDel(p)}>
