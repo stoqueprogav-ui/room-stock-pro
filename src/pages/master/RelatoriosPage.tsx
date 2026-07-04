@@ -22,6 +22,7 @@ import {
 import { exportToExcel, exportReportPdf, printReport, exportExecutiveExcel, exportExecutivePdf, type ExportColumn } from "@/lib/exporters";
 import { Button } from "@/components/ui/button";
 import MovimentacaoFinanceiraTab from "./tabs/MovimentacaoFinanceiraTab";
+import AvaliacaoPatrimonialPage from "./AvaliacaoPatrimonialPage";
 
 type Sala = { id: string; nome: string };
 type Categoria = { id: string; nome: string };
@@ -487,7 +488,7 @@ export default function RelatoriosPage() {
         </TabsContent>
 
         <TabsContent value="patrimonio" className="mt-4">
-          <PatrimonioPanel scopeSalaId={scopeSalaId} />
+          <AvaliacaoPatrimonialPage embedded />
         </TabsContent>
 
 

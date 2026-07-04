@@ -76,7 +76,7 @@ type LoteItemDraft = {
   selecionado: boolean;
 };
 
-export default function AvaliacaoPatrimonialPage() {
+export default function AvaliacaoPatrimonialPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { role } = useAuth();
   const { scopeSalaId } = useMasterScope();
 
@@ -274,10 +274,13 @@ export default function AvaliacaoPatrimonialPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Avaliação Patrimonial"
-        description="Atribua valor financeiro ao estoque existente sem alterar compras, custo médio ou movimentações."
-      />
+      {!embedded && (
+        <PageHeader
+          title="Avaliação Patrimonial"
+          description="Atribua valor financeiro ao estoque existente sem alterar compras, custo médio ou movimentações."
+        />
+      )}
+
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
