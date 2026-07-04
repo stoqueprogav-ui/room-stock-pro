@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt } from "lucide-react";
+import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt, Scale as ScaleIcon } from "lucide-react";
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveSala } from "@/contexts/ActiveSalaContext";
@@ -57,8 +57,21 @@ export default function EstoquePage() {
 
   // Edição rápida do PRODUTO
   const [editProd, setEditProd] = useState<Produto | null>(null);
+  const [editProdSala, setEditProdSala] = useState<Sala | null>(null);
   const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "" });
   const [savingProd, setSavingProd] = useState(false);
+
+  // Avaliação patrimonial (dentro do editar produto)
+  type ResumoAval = { tem_avaliacao: boolean; tipo: string | null; quantidade_coberta: number; valor_unitario: number; valor_total: number; ultima_atualizacao: string | null; responsavel_nome: string | null; motivo: string | null };
+  type HistAval = { id: string; created_at: string; quantidade: number; valor_anterior: number | null; valor_novo: number; tipo_anterior: string | null; tipo_novo: string; motivo: string; responsavel_nome: string | null };
+  const [resumoAval, setResumoAval] = useState<ResumoAval | null>(null);
+  const [histAval, setHistAval] = useState<HistAval[]>([]);
+  const [loadingAval, setLoadingAval] = useState(false);
+  const [updAvalOpen, setUpdAvalOpen] = useState(false);
+  const MOTIVOS_AVAL = ["Regularização inicial", "Atualização de mercado", "Correção administrativa", "Ajuste patrimonial", "Inventário", "Outro"];
+  const [updAvalForm, setUpdAvalForm] = useState<{ valor: string; tipo: "estimado" | "confirmado"; motivo: string; motivoOutro: string }>({ valor: "", tipo: "estimado", motivo: MOTIVOS_AVAL[0], motivoOutro: "" });
+  const [savingAval, setSavingAval] = useState(false);
+
 
   // Exclusão individual e em massa
   const [confirmDel, setConfirmDel] = useState<{ produto: Produto; sala: Sala } | null>(null);
@@ -312,8 +325,23 @@ export default function EstoquePage() {
   };
 
   // -------- Edição rápida do PRODUTO --------
-  const openEditProduto = (p: Produto) => {
+  const loadAvalProduto = async (produtoId: string, salaId: string) => {
+    setLoadingAval(true);
+    try {
+      const [{ data: r }, { data: h }] = await Promise.all([
+        (supabase as any).rpc("resumo_avaliacao_produto", { _produto: produtoId, _sala: salaId }),
+        (supabase as any).rpc("listar_historico_avaliacao_produto", { _produto: produtoId, _sala: salaId }),
+      ]);
+      setResumoAval((r?.[0] as ResumoAval) ?? null);
+      setHistAval((h as HistAval[]) ?? []);
+    } finally {
+      setLoadingAval(false);
+    }
+  };
+
+  const openEditProduto = (p: Produto, sala?: Sala) => {
     setEditProd(p);
+    setEditProdSala(sala ?? null);
     setEditProdForm({
       nome: p.nome,
       categoria_id: (p as any).categoria_id ?? "",
@@ -321,6 +349,9 @@ export default function EstoquePage() {
       estoque_minimo: p.estoque_minimo ?? 0,
       descricao: p.descricao ?? "",
     });
+    setResumoAval(null);
+    setHistAval([]);
+    if (sala && isMaster) loadAvalProduto(p.id, sala.id);
   };
   const salvarProduto = async () => {
     if (!editProd) return;
@@ -338,8 +369,42 @@ export default function EstoquePage() {
     if (error) return toast.error(error.message);
     toast.success("Produto atualizado");
     setEditProd(null);
+    setEditProdSala(null);
     load();
   };
+
+  const abrirAtualizarAval = () => {
+    setUpdAvalForm({
+      valor: resumoAval?.valor_unitario ? String(resumoAval.valor_unitario) : "",
+      tipo: (resumoAval?.tipo as any) === "confirmado" ? "confirmado" : "estimado",
+      motivo: MOTIVOS_AVAL[0],
+      motivoOutro: "",
+    });
+    setUpdAvalOpen(true);
+  };
+
+  const salvarAtualizacaoAval = async () => {
+    if (!editProd || !editProdSala) return;
+    const valor = parseFloat(String(updAvalForm.valor).replace(",", "."));
+    if (!Number.isFinite(valor) || valor < 0) return toast.error("Valor unitário inválido");
+    const motivoFinal = updAvalForm.motivo === "Outro" ? updAvalForm.motivoOutro.trim() : updAvalForm.motivo;
+    if (!motivoFinal) return toast.error("Motivo é obrigatório");
+    setSavingAval(true);
+    const { error } = await (supabase as any).rpc("atualizar_avaliacao_patrimonial_produto", {
+      _produto: editProd.id,
+      _sala: editProdSala.id,
+      _valor_unitario: valor,
+      _tipo: updAvalForm.tipo,
+      _motivo: motivoFinal,
+    });
+    setSavingAval(false);
+    if (error) return toast.error(error.message);
+    toast.success("Avaliação patrimonial atualizada");
+    setUpdAvalOpen(false);
+    await loadAvalProduto(editProd.id, editProdSala.id);
+    load();
+  };
+
 
   // -------- Exclusão --------
   const confirmarExclusao = async () => {
@@ -641,7 +706,7 @@ export default function EstoquePage() {
                       >
                         {r.ativo ? <X className="size-4 text-warning" /> : <CheckCircle2 className="size-4 text-success" />}
                       </Button>
-                      <Button variant="ghost" size="icon" title="Editar produto" onClick={() => openEditProduto(r.produto)}>
+                      <Button variant="ghost" size="icon" title="Editar produto" onClick={() => openEditProduto(r.produto, r.sala)}>
                         <Pencil className="size-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Excluir produto" onClick={() => { setDelMode("sala"); setConfirmDel({ produto: r.produto, sala: r.sala }); }}>
@@ -795,8 +860,8 @@ export default function EstoquePage() {
       </Dialog>
 
       {/* Modal: Edição rápida do PRODUTO */}
-      <Dialog open={!!editProd} onOpenChange={(v) => !v && setEditProd(null)}>
-        <DialogContent className="sm:max-w-lg">
+      <Dialog open={!!editProd} onOpenChange={(v) => { if (!v) { setEditProd(null); setEditProdSala(null); } }}>
+        <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="size-5 text-primary" /> Editar produto</DialogTitle>
             <DialogDescription>Atualize os dados do produto. Estas alterações se aplicam a todas as salas.</DialogDescription>
@@ -845,15 +910,154 @@ export default function EstoquePage() {
               <Label>Observações / descrição</Label>
               <Textarea value={editProdForm.descricao} onChange={(e) => setEditProdForm({ ...editProdForm, descricao: e.target.value })} rows={3} />
             </div>
+
+            {/* Seção: Avaliação Patrimonial (Master + sala definida) */}
+            {isMaster && editProdSala && (() => {
+              const qtdEstoque = rows.find((rr) => rr.produto_id === editProd?.id && rr.sala_id === editProdSala.id)?.quantidade ?? 0;
+              const valUnit = Number(resumoAval?.valor_unitario ?? 0);
+              const valTot = Number(resumoAval?.valor_total ?? 0);
+              return (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2 mt-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold flex items-center gap-1.5">
+                      <ScaleIcon className="size-4 text-primary" /> Avaliação Patrimonial
+                      <span className="text-xs text-muted-foreground font-normal">· {editProdSala.nome}</span>
+                    </div>
+                    <Button size="sm" onClick={abrirAtualizarAval} disabled={loadingAval || qtdEstoque <= 0}>
+                      Atualizar avaliação
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    <div className="rounded border bg-card p-2">
+                      <div className="text-muted-foreground text-[10px] uppercase">Qtd atual</div>
+                      <div className="font-mono font-semibold">{qtdEstoque}</div>
+                    </div>
+                    <div className="rounded border bg-card p-2">
+                      <div className="text-muted-foreground text-[10px] uppercase">Valor unitário</div>
+                      <div className="font-mono font-semibold">{valUnit > 0 ? BRL(valUnit) : "—"}</div>
+                    </div>
+                    <div className="rounded border bg-card p-2">
+                      <div className="text-muted-foreground text-[10px] uppercase">Valor total</div>
+                      <div className="font-mono font-semibold text-success">{valTot > 0 ? BRL(valTot) : "—"}</div>
+                    </div>
+                    <div className="rounded border bg-card p-2">
+                      <div className="text-muted-foreground text-[10px] uppercase">Tipo</div>
+                      <div>
+                        {resumoAval?.tipo
+                          ? <Badge variant={resumoAval.tipo === "confirmado" ? "default" : "secondary"} className="text-[10px]">{resumoAval.tipo === "confirmado" ? "Confirmado" : "Estimado"}</Badge>
+                          : <span className="text-muted-foreground">Sem avaliação</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {resumoAval?.tem_avaliacao && (
+                    <div className="text-[11px] text-muted-foreground">
+                      Última atualização: {resumoAval.ultima_atualizacao ? new Date(resumoAval.ultima_atualizacao).toLocaleString("pt-BR") : "—"}
+                      {resumoAval.responsavel_nome ? ` · por ${resumoAval.responsavel_nome}` : ""}
+                      {resumoAval.motivo ? ` · motivo: ${resumoAval.motivo}` : ""}
+                    </div>
+                  )}
+                  <div className="text-[11px] text-muted-foreground italic">
+                    Esta edição altera apenas a Avaliação Patrimonial. Não afeta estoque, custo médio, entradas, saídas ou compras.
+                  </div>
+
+                  {histAval.length > 0 && (
+                    <details className="mt-1">
+                      <summary className="text-xs cursor-pointer text-primary hover:underline">Histórico ({histAval.length})</summary>
+                      <div className="mt-2 rounded border bg-card overflow-x-auto max-h-64">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Data</TableHead>
+                              <TableHead className="text-xs">Valor</TableHead>
+                              <TableHead className="text-xs">Tipo</TableHead>
+                              <TableHead className="text-xs">Responsável</TableHead>
+                              <TableHead className="text-xs">Motivo</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {histAval.map((h) => (
+                              <TableRow key={h.id}>
+                                <TableCell className="text-xs">{new Date(h.created_at).toLocaleString("pt-BR")}</TableCell>
+                                <TableCell className="text-xs font-mono">
+                                  {h.valor_anterior != null && <span className="text-muted-foreground">{BRL(Number(h.valor_anterior))} → </span>}
+                                  <span className="font-semibold">{BRL(Number(h.valor_novo))}</span>
+                                </TableCell>
+                                <TableCell className="text-xs">
+                                  {h.tipo_anterior && <span className="text-muted-foreground">{h.tipo_anterior} → </span>}
+                                  {h.tipo_novo}
+                                </TableCell>
+                                <TableCell className="text-xs">{h.responsavel_nome ?? "—"}</TableCell>
+                                <TableCell className="text-xs">{h.motivo}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </details>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditProd(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setEditProd(null); setEditProdSala(null); }}>Cancelar</Button>
             <Button onClick={salvarProduto} disabled={savingProd}>
               {savingProd && <Loader2 className="size-4 animate-spin" />} Salvar alterações
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal: Atualizar Avaliação Patrimonial */}
+      <Dialog open={updAvalOpen} onOpenChange={setUpdAvalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><ScaleIcon className="size-5 text-primary" /> Atualizar Avaliação Patrimonial</DialogTitle>
+            <DialogDescription>
+              {editProd?.nome} · {editProdSala?.nome}. Esta alteração <strong>não</strong> altera estoque, custo médio ou movimentações.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Valor unitário (R$) *</Label>
+                <Input type="number" step="0.01" min={0} value={updAvalForm.valor}
+                  onChange={(e) => setUpdAvalForm({ ...updAvalForm, valor: e.target.value })} autoFocus />
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo *</Label>
+                <Select value={updAvalForm.tipo} onValueChange={(v: any) => setUpdAvalForm({ ...updAvalForm, tipo: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="estimado">Estimado</SelectItem>
+                    <SelectItem value="confirmado">Confirmado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Motivo da atualização *</Label>
+              <Select value={updAvalForm.motivo} onValueChange={(v) => setUpdAvalForm({ ...updAvalForm, motivo: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MOTIVOS_AVAL.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {updAvalForm.motivo === "Outro" && (
+                <Input placeholder="Descreva o motivo" value={updAvalForm.motivoOutro}
+                  onChange={(e) => setUpdAvalForm({ ...updAvalForm, motivoOutro: e.target.value })} />
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUpdAvalOpen(false)}>Cancelar</Button>
+            <Button onClick={salvarAtualizacaoAval} disabled={savingAval}>
+              {savingAval && <Loader2 className="size-4 animate-spin" />} Salvar avaliação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Modal: Confirmar exclusão individual */}
       <Dialog open={!!confirmDel} onOpenChange={(v) => { if (!v) { setConfirmDel(null); setDelMode("sala"); } }}>

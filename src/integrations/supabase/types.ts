@@ -36,6 +36,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          motivo: string | null
           observacao: string | null
           produto_id: string
           quantidade_avaliada: number
@@ -49,6 +50,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          motivo?: string | null
           observacao?: string | null
           produto_id: string
           quantidade_avaliada: number
@@ -62,6 +64,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          motivo?: string | null
           observacao?: string | null
           produto_id?: string
           quantidade_avaliada?: number
@@ -96,6 +99,80 @@ export type Database = {
           },
           {
             foreignKeyName: "avaliacoes_patrimoniais_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      avaliacoes_patrimoniais_historico: {
+        Row: {
+          created_at: string
+          id: string
+          motivo: string
+          produto_id: string
+          quantidade: number
+          responsavel_id: string | null
+          responsavel_nome: string | null
+          sala_id: string
+          tipo_anterior: string | null
+          tipo_novo: string
+          valor_anterior: number | null
+          valor_novo: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          motivo: string
+          produto_id: string
+          quantidade: number
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          sala_id: string
+          tipo_anterior?: string | null
+          tipo_novo: string
+          valor_anterior?: number | null
+          valor_novo: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          motivo?: string
+          produto_id?: string
+          quantidade?: number
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
+          sala_id?: string
+          tipo_anterior?: string | null
+          tipo_novo?: string
+          valor_anterior?: number | null
+          valor_novo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avaliacoes_patrimoniais_historico_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_patrimoniais_historico_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "v_produtos_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_patrimoniais_historico_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "avaliacoes_patrimoniais_historico_sala_id_fkey"
             columns: ["sala_id"]
             isOneToOne: false
             referencedRelation: "salas"
@@ -1918,6 +1995,16 @@ export type Database = {
         Args: { _retirado_em?: string; _retirado_por?: string; _solic: string }
         Returns: undefined
       }
+      atualizar_avaliacao_patrimonial_produto: {
+        Args: {
+          _motivo: string
+          _produto: string
+          _sala: string
+          _tipo: string
+          _valor_unitario: number
+        }
+        Returns: string
+      }
       avaliacao_produto_resumo: {
         Args: { _produto: string; _sala: string }
         Returns: {
@@ -2126,6 +2213,20 @@ export type Database = {
           updated_at: string
           valor_total: number
           valor_unitario: number
+        }[]
+      }
+      listar_historico_avaliacao_produto: {
+        Args: { _produto: string; _sala: string }
+        Returns: {
+          created_at: string
+          id: string
+          motivo: string
+          quantidade: number
+          responsavel_nome: string
+          tipo_anterior: string
+          tipo_novo: string
+          valor_anterior: number
+          valor_novo: number
         }[]
       }
       listar_minhas_salas: {
@@ -2352,6 +2453,19 @@ export type Database = {
         }[]
       }
       reset_sistema_total: { Args: { _caller?: string }; Returns: Json }
+      resumo_avaliacao_produto: {
+        Args: { _produto: string; _sala: string }
+        Returns: {
+          motivo: string
+          quantidade_coberta: number
+          responsavel_nome: string
+          tem_avaliacao: boolean
+          tipo: string
+          ultima_atualizacao: string
+          valor_total: number
+          valor_unitario: number
+        }[]
+      }
       seed_categorias_padrao: { Args: never; Returns: undefined }
       send_message: {
         Args: {
