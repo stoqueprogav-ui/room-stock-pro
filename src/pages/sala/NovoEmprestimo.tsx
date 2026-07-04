@@ -51,6 +51,7 @@ const nivelLabel = (n: Nivel) =>
 
 export default function NovoEmprestimo() {
   const { profile } = useAuth();
+  const { activeSalaId } = useActiveSala();
   const navigate = useNavigate();
   const [salas, setSalas] = useState<Sala[]>([]);
   const [catalogo, setCatalogo] = useState<Catalogo[]>([]);
