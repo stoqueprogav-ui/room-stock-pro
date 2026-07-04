@@ -51,7 +51,7 @@ function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
       },
       { to: "/app/consumo-interno", label: "Consumo Interno", icon: Trash2 },
       { to: "/app/inventario", label: "Inventário", icon: ClipboardCheck },
-      { to: "/app/avaliacao-patrimonial", label: "Avaliação Patrimonial", icon: ScaleIcon },
+      
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       {
         label: "Relatórios", icon: BarChart3,
