@@ -470,10 +470,21 @@ export default function RelatoriosPage() {
           <TabsTrigger value="top-produtos">Top produtos</TabsTrigger>
           <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+          <TabsTrigger value="mov-financeira">Mov. Financeira</TabsTrigger>
           <TabsTrigger value="categorias">Categorias</TabsTrigger>
           <TabsTrigger value="abc">Curva ABC</TabsTrigger>
           <TabsTrigger value="estoque">Valor de estoque</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="mov-financeira" className="mt-4">
+          <MovimentacaoFinanceiraTab
+            salas={salas}
+            categorias={categorias}
+            produtos={produtos}
+            scopeSalaId={scopeSalaId}
+          />
+        </TabsContent>
+
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="mt-4 space-y-4">
