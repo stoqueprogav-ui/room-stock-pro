@@ -625,15 +625,15 @@ export default function ProdutosPage() {
       <Dialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Inativar “{confirmDel?.nome}”?</DialogTitle>
+            <DialogTitle>Excluir “{confirmDel?.nome}”?</DialogTitle>
             <DialogDescription>
-              Se este produto já teve <span className="font-medium text-foreground">qualquer movimentação</span> —
-              entradas, saídas, requisições, empréstimos, devoluções, dívidas, consumos internos, histórico de custos
-              ou estoque atual — ele será apenas <span className="font-medium text-foreground">inativado</span> para
-              preservar 100% dos relatórios, auditoria e Central Analítica. Assim ele deixa de aparecer em novas
-              operações, mas continua no histórico.
+              Esta operação remove o produto apenas do estoque da sala
+              <strong> {confirmDel?.sala?.nome ?? "—"}</strong>. Outras salas com produtos de mesmo nome não são afetadas.
               <br /><br />
-              A exclusão definitiva só acontece quando o produto <span className="font-medium text-foreground">nunca foi utilizado</span> em nenhuma operação.
+              Se houver <span className="font-medium text-foreground">qualquer movimentação</span> associada
+              (entradas, saídas, requisições, empréstimos, devoluções, dívidas, consumos internos, histórico de custos ou estoque atual),
+              o produto será apenas <span className="font-medium text-foreground">inativado</span> para preservar relatórios,
+              auditoria e Central Analítica. A exclusão definitiva só acontece quando o produto nunca foi utilizado.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
