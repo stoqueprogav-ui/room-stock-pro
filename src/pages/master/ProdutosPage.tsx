@@ -490,15 +490,19 @@ export default function ProdutosPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Confirmação de exclusão */}
+      {/* Confirmação de inativação/exclusão */}
       <Dialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Excluir “{confirmDel?.nome}”?</DialogTitle>
+            <DialogTitle>Inativar “{confirmDel?.nome}”?</DialogTitle>
             <DialogDescription>
-              Se houver histórico (movimentações, requisições ou empréstimos) o produto será apenas{" "}
-              <span className="font-medium text-foreground">desativado</span> para preservar os dados.
-              Caso contrário, será excluído permanentemente.
+              Se este produto já teve <span className="font-medium text-foreground">qualquer movimentação</span> —
+              entradas, saídas, requisições, empréstimos, devoluções, dívidas, consumos internos, histórico de custos
+              ou estoque atual — ele será apenas <span className="font-medium text-foreground">inativado</span> para
+              preservar 100% dos relatórios, auditoria e Central Analítica. Assim ele deixa de aparecer em novas
+              operações, mas continua no histórico.
+              <br /><br />
+              A exclusão definitiva só acontece quando o produto <span className="font-medium text-foreground">nunca foi utilizado</span> em nenhuma operação.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -509,6 +513,7 @@ export default function ProdutosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* Criar categoria inline */}
       <Dialog open={novaCatOpen} onOpenChange={setNovaCatOpen}>
