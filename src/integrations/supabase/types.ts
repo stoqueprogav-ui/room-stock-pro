@@ -2063,6 +2063,7 @@ export type Database = {
       marcar_senha_trocada: { Args: never; Returns: undefined }
       mark_conversation_read: { Args: { _conv: string }; Returns: undefined }
       patrimonio_global: { Args: never; Returns: number }
+      produto_tem_historico: { Args: { _produto: string }; Returns: boolean }
       quitar_divida: { Args: { _divida: string }; Returns: undefined }
       reativar_produto: { Args: { _produto: string }; Returns: undefined }
       registrar_consumo_interno: {
