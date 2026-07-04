@@ -209,7 +209,13 @@ export default function ProdutosPage() {
 
     const { data: novo, error } = await supabase
       .from("produtos").insert(payload).select("id").single();
-    if (error || !novo) return toast.error(error?.message ?? "Erro ao criar produto");
+    if (error || !novo) {
+      const msg = (error?.message ?? "").toLowerCase();
+      if (msg.includes("produtos_nome_sala_uniq") || msg.includes("uniq_produtos_catalogo_sala") || (msg.includes("duplicate") && msg.includes("nome"))) {
+        return toast.error("Já existe um produto com este nome nesta sala.");
+      }
+      return toast.error(error?.message ?? "Erro ao criar produto");
+    }
 
     if (Number(qtdInicialSala) > 0) {
       const { error: e2 } = await supabase.rpc("ajustar_estoque", {
