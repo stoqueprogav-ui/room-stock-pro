@@ -104,7 +104,7 @@ export default function EstoquePage() {
   // Última entrada por (produto, sala)
   const [ultimas, setUltimas] = useState<Map<string, UltimaEntrada>>(new Map());
   // Avaliação patrimonial por (produto, sala)
-  type AvalInfo = { tipo: "confirmado" | "estimado"; qtd: number; valor: number };
+  type AvalInfo = { tipo: "confirmado" | "estimado"; qtd: number; valor: number; valor_unitario: number; data: string | null };
   const [avaliacoes, setAvaliacoes] = useState<Map<string, AvalInfo>>(new Map());
 
   // Ficha financeira expandida
@@ -166,21 +166,25 @@ export default function EstoquePage() {
     if (isMaster) {
       const { data: avs } = await (supabase as any)
         .from("avaliacoes_patrimoniais")
-        .select("produto_id, sala_id, tipo, quantidade_restante, valor_unitario")
+        .select("produto_id, sala_id, tipo, quantidade_restante, valor_unitario, data_avaliacao, created_at")
         .gt("quantidade_restante", 0);
       const am = new Map<string, AvalInfo>();
       (avs ?? []).forEach((a: any) => {
         const k = `${a.produto_id}-${a.sala_id}`;
         const cur = am.get(k);
         const val = Number(a.quantidade_restante) * Number(a.valor_unitario);
+        const dt = a.data_avaliacao ?? a.created_at ?? null;
         if (!cur) {
-          am.set(k, { tipo: a.tipo, qtd: Number(a.quantidade_restante), valor: val });
+          am.set(k, { tipo: a.tipo, qtd: Number(a.quantidade_restante), valor: val, valor_unitario: Number(a.valor_unitario), data: dt });
         } else {
-          // Se qualquer camada é 'confirmado', considera confirmado
+          const novaQtd = cur.qtd + Number(a.quantidade_restante);
+          const novoValor = cur.valor + val;
           am.set(k, {
             tipo: cur.tipo === "confirmado" || a.tipo === "confirmado" ? "confirmado" : "estimado",
-            qtd: cur.qtd + Number(a.quantidade_restante),
-            valor: cur.valor + val,
+            qtd: novaQtd,
+            valor: novoValor,
+            valor_unitario: novaQtd > 0 ? novoValor / novaQtd : Number(a.valor_unitario),
+            data: cur.data && dt ? (new Date(dt) > new Date(cur.data) ? dt : cur.data) : (cur.data ?? dt),
           });
         }
       });
@@ -587,6 +591,7 @@ export default function EstoquePage() {
               {isMaster && <TableHead className="text-right w-[110px]">CMP</TableHead>}
               {isMaster && <TableHead className="text-right w-[120px]">V. estoque</TableHead>}
               {isMaster && <TableHead className="w-[150px]">Última compra</TableHead>}
+              {isMaster && <TableHead className="w-[160px]">Origem do valor</TableHead>}
               <TableHead className="w-[120px]">Status</TableHead>
               {isMaster && <TableHead className="w-[320px] text-right">Ações</TableHead>}
             </TableRow>
@@ -651,22 +656,72 @@ export default function EstoquePage() {
                 <TableCell className="text-right font-mono text-warning">{r.quantidade_reservada > 0 ? r.quantidade_reservada : <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-right font-mono font-semibold text-primary">{Math.max(r.quantidade - r.quantidade_reservada, 0)}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
-                {isMaster && <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>}
-                {isMaster && <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>}
-                {isMaster && (
-                  <TableCell className="text-xs">
-                    {(() => {
-                      const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
-                      if (!u) return <span className="text-muted-foreground">Sem compras</span>;
-                      return (
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
-                          <div className="font-mono">{BRL(u.valor_unitario)}{u.fornecedor ? ` · ${u.fornecedor}` : ""}</div>
-                        </div>
-                      );
-                    })()}
-                  </TableCell>
-                )}
+                {isMaster && (() => {
+                  const av = avaliacoes.get(`${r.produto_id}-${r.sala_id}`);
+                  const hasCompra = r.custo_medio > 0;
+                  const hasAval = !!av && av.valor_unitario > 0;
+                  const cmpValor = hasCompra ? r.custo_medio : (hasAval ? av!.valor_unitario : 0);
+                  const vEstoque = hasCompra ? r.valor_total : (hasAval ? r.quantidade * av!.valor_unitario : 0);
+                  const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
+                  const tipoAval = av?.tipo;
+                  return (
+                    <>
+                      <TableCell className="text-right font-mono text-xs">
+                        {cmpValor > 0 ? (
+                          <div className="space-y-0.5">
+                            <div>{BRL(cmpValor)}</div>
+                            {!hasCompra && hasAval && (
+                              <Badge variant={tipoAval === "confirmado" ? "default" : "secondary"} className="text-[9px]">
+                                {tipoAval === "confirmado" ? "Confirmado" : "Estimado"}
+                              </Badge>
+                            )}
+                          </div>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-success font-semibold">
+                        {vEstoque > 0 ? BRL(vEstoque) : <span className="text-muted-foreground font-normal">—</span>}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {u ? (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
+                            <div className="font-mono">{BRL(u.valor_unitario)}{u.fornecedor ? ` · ${u.fornecedor}` : ""}</div>
+                          </div>
+                        ) : (
+                          <div className="space-y-0.5">
+                            <span className="text-muted-foreground">Sem compras</span>
+                            {hasAval && (
+                              <div className="text-[10px] text-muted-foreground">
+                                {tipoAval === "confirmado" ? "Avaliação Patrimonial" : "Valor Estimado"}
+                                {av?.data ? ` · ${new Date(av.data).toLocaleDateString("pt-BR")}` : ""}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {hasCompra ? (
+                          <Badge className="bg-success/15 text-success border border-success/30 text-[10px] gap-1">
+                            <span className="size-1.5 rounded-full bg-success" /> Compra
+                          </Badge>
+                        ) : hasAval ? (
+                          <Badge className={
+                            tipoAval === "confirmado"
+                              ? "bg-success/15 text-success border border-success/30 text-[10px] gap-1"
+                              : "bg-warning/15 text-warning border border-warning/30 text-[10px] gap-1"
+                          }>
+                            <span className={`size-1.5 rounded-full ${tipoAval === "confirmado" ? "bg-success" : "bg-warning"}`} />
+                            Aval. {tipoAval === "confirmado" ? "(Confirmado)" : "(Estimado)"}
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-destructive/15 text-destructive border border-destructive/30 text-[10px] gap-1">
+                            <span className="size-1.5 rounded-full bg-destructive" /> Sem valor
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </>
+                  );
+                })()}
                 <TableCell>
                   <div className="flex flex-col gap-1">
                     <StatusBadgeCell q={r.quantidade} p={r.produto} />
@@ -718,7 +773,7 @@ export default function EstoquePage() {
               </TableRow>
               {isMaster && expanded.has(`${r.produto_id}-${r.sala_id}`) && (
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableCell colSpan={13} className="p-0">
+                  <TableCell colSpan={14} className="p-0">
                     <FichaFinanceira
                       row={r}
                       loading={historyLoading.has(`${r.produto_id}-${r.sala_id}`)}
@@ -729,7 +784,7 @@ export default function EstoquePage() {
               )}
             </React.Fragment>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 13 : 8} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 14 : 8} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
