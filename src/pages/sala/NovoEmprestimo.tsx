@@ -161,7 +161,7 @@ export default function NovoEmprestimo() {
       const { data, error } = await supabase.rpc("catalogo_disponibilidade" as any, {
         _catalogo: it.item.id,
         _quantidade: it.quantidade,
-        _excluir_sala: profile?.sala_ativa_id ?? null,
+        _excluir_sala: activeSalaId ?? null,
       });
       if (error) {
         setBuscando(false);
