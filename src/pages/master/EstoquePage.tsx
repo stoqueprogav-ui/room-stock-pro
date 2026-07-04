@@ -410,25 +410,21 @@ export default function EstoquePage() {
   };
 
 
-  // -------- Exclusão --------
+  // -------- Exclusão (sempre por sala; cada produto pertence exclusivamente a uma sala) --------
   const confirmarExclusao = async () => {
     if (!confirmDel) return;
     setDelLoading(true);
-    let resp;
-    if (delMode === "sala") {
-      resp = await supabase.rpc("excluir_produto_sala", { _produto: confirmDel.produto.id, _sala: confirmDel.sala.id });
-    } else {
-      resp = await supabase.rpc("excluir_produto", { _produto: confirmDel.produto.id });
-    }
+    const { data, error } = await supabase.rpc("excluir_produto_sala", {
+      _produto: confirmDel.produto.id,
+      _sala: confirmDel.sala.id,
+    });
     setDelLoading(false);
-    const { data, error } = resp;
     if (error) return toast.error(error.message ?? "Não foi possível excluir");
     const res = (data as any) ?? {};
-    if (res.modo === "desativado") toast.warning(res.mensagem ?? "Produto desativado (possui histórico ou estoque).");
-    else toast.success(res.mensagem ?? "Operação concluída");
+    if (res.modo === "desativado") toast.warning(res.mensagem ?? "Produto desativado (possui histórico).");
+    else toast.success(res.mensagem ?? "Produto removido do estoque desta sala.");
     setSelectedIds((prev) => { const n = new Set(prev); n.delete(confirmDel.produto.id); return n; });
     setConfirmDel(null);
-    setDelMode("sala");
     load();
   };
 
