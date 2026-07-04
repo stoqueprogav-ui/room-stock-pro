@@ -474,6 +474,7 @@ export default function RelatoriosPage() {
           <TabsTrigger value="categorias">Categorias</TabsTrigger>
           <TabsTrigger value="abc">Curva ABC</TabsTrigger>
           <TabsTrigger value="estoque">Valor de estoque</TabsTrigger>
+          <TabsTrigger value="patrimonio">Patrimônio</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mov-financeira" className="mt-4">
@@ -483,6 +484,10 @@ export default function RelatoriosPage() {
             produtos={produtos}
             scopeSalaId={scopeSalaId}
           />
+        </TabsContent>
+
+        <TabsContent value="patrimonio" className="mt-4">
+          <PatrimonioPanel scopeSalaId={scopeSalaId} />
         </TabsContent>
 
 
