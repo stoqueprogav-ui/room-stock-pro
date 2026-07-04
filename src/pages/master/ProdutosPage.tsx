@@ -53,6 +53,7 @@ export default function ProdutosPage() {
 
   const [filtroCat, setFiltroCat] = useState<string>("all");
   const [mostrarInativos, setMostrarInativos] = useState(false);
+  const [busca, setBusca] = useState("");
 
   // Confirmação de exclusão
   const [confirmDel, setConfirmDel] = useState<Produto | null>(null);
