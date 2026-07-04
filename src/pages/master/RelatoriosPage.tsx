@@ -988,8 +988,9 @@ function PatrimonioPanel({ scopeSalaId }: { scopeSalaId: string | null }) {
           <div className="text-xs text-muted-foreground">Valor total do estoque</div>
           <div className="text-xl font-semibold mt-1">{BRL(tot?.valor_total_estoque ?? 0)}</div>
           <div className="text-[11px] text-muted-foreground mt-1">
-            Patrimonial {BRL(tot?.valor_patrimonial ?? 0)} + Compras {BRL(tot?.valor_compras ?? 0)}
+            Estimado {BRL(tot?.valor_patrimonial ?? 0)} + Confirmado {BRL(tot?.valor_compras ?? 0)}
           </div>
+
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Cobertura patrimonial</div>
