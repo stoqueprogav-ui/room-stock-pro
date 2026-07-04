@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { exportToExcel, exportReportPdf, printReport, exportExecutiveExcel, exportExecutivePdf, type ExportColumn } from "@/lib/exporters";
 import { Button } from "@/components/ui/button";
+import MovimentacaoFinanceiraTab from "./tabs/MovimentacaoFinanceiraTab";
 
 type Sala = { id: string; nome: string };
 type Categoria = { id: string; nome: string };
