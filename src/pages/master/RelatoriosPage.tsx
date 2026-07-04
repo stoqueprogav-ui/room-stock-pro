@@ -94,6 +94,8 @@ export default function RelatoriosPage() {
   const [empStatus, setEmpStatus] = useState<{ status: string; count: number }[]>([]);
   const [estoqueValor, setEstoqueValor] = useState<EstoqueValorRow[]>([]);
   const [valorPatrimonial, setValorPatrimonial] = useState<number>(0);
+  const [patTotais, setPatTotais] = useState<any | null>(null);
+  const [pendValorAprox, setPendValorAprox] = useState<number>(0);
   const [valorizacao, setValorizacao] = useState<ValorizacaoStats | null>(null);
   const [reqPorSala, setReqPorSala] = useState<{ sala_id: string; sala_nome: string; total: number }[]>([]);
   const [empMensal, setEmpMensal] = useState<{ mes: string; count: number }[]>([]);
