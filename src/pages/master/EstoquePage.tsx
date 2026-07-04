@@ -75,7 +75,6 @@ export default function EstoquePage() {
 
   // Exclusão individual e em massa
   const [confirmDel, setConfirmDel] = useState<{ produto: Produto; sala: Sala } | null>(null);
-  const [delMode, setDelMode] = useState<"sala" | "todas">("sala");
   const [delLoading, setDelLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulk, setConfirmBulk] = useState(false);
