@@ -433,8 +433,13 @@ export default function EstoquePage() {
     if (ids.length === 0) return;
     setBulkLoading(true);
     let excl = 0, desat = 0, erros = 0;
+    // Cada produto pertence a exatamente uma sala — usa exclusão por sala.
+    const alvo = new Map<string, string>(); // produto_id -> sala_id
+    rows.forEach((r) => { if (ids.includes(r.produto.id)) alvo.set(r.produto.id, r.sala.id); });
     for (const id of ids) {
-      const { data, error } = await supabase.rpc("excluir_produto", { _produto: id });
+      const salaId = alvo.get(id);
+      if (!salaId) { erros++; continue; }
+      const { data, error } = await supabase.rpc("excluir_produto_sala", { _produto: id, _sala: salaId });
       if (error) { erros++; continue; }
       const r = (data as any) ?? {};
       if (r.modo === "desativado") desat++;
