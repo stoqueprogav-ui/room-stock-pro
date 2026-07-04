@@ -33,7 +33,7 @@ import ConsumoInternoPage from "./pages/master/ConsumoInternoPage";
 import InventarioPage from "./pages/master/InventarioPage";
 import DashboardGerencial from "./pages/master/DashboardGerencial";
 import EntradasEstoquePage from "./pages/master/EntradasEstoquePage";
-import AvaliacaoPatrimonialPage from "./pages/master/AvaliacaoPatrimonialPage";
+
 
 const queryClient = new QueryClient();
 
@@ -70,7 +70,7 @@ const App = () => (
               <Route path="inventario" element={<InventarioPage />} />
               <Route path="dashboard-gerencial" element={<DashboardGerencial />} />
               <Route path="entradas" element={<EntradasEstoquePage />} />
-              <Route path="avaliacao-patrimonial" element={<AvaliacaoPatrimonialPage />} />
+              <Route path="avaliacao-patrimonial" element={<Navigate to="/app/relatorios" replace />} />
               {/* Compartilhado */}
               <Route path="emprestimos" element={<EmprestimosPage />} />
               <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />
