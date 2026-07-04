@@ -1061,3 +1061,112 @@ function PatrimonioPanel({ scopeSalaId }: { scopeSalaId: string | null }) {
     </div>
   );
 }
+
+// ================== COMPOSIÇÃO DO VALOR DO ESTOQUE ==================
+function ComposicaoEstoquePanel({
+  valorConfirmado, valorEstimado,
+  produtosConfirmados, produtosEstimados, produtosSemAvaliacao,
+  coberturaPct, pendValorAprox,
+}: {
+  valorConfirmado: number; valorEstimado: number;
+  produtosConfirmados: number; produtosEstimados: number; produtosSemAvaliacao: number;
+  coberturaPct: number; pendValorAprox: number;
+}) {
+  const total = valorConfirmado + valorEstimado;
+  const pctConf = total > 0 ? (valorConfirmado / total) * 100 : 0;
+  const pctEst = total > 0 ? (valorEstimado / total) * 100 : 0;
+  const totalProdutos = produtosConfirmados + produtosEstimados + produtosSemAvaliacao;
+  const data = [
+    { name: "Confirmado", value: valorConfirmado, color: "hsl(var(--success))" },
+    { name: "Estimado", value: valorEstimado, color: "hsl(var(--warning))" },
+  ];
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+        <div>
+          <div className="text-sm font-medium">Composição do Valor do Estoque</div>
+          <div className="text-xs text-muted-foreground">Confiabilidade financeira do patrimônio total</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[11px] text-muted-foreground">Valor total</div>
+          <div className="text-2xl font-semibold text-primary">{BRL(total)}</div>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-[220px_1fr] gap-6 items-center">
+        <div className="h-[180px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Pie>
+              <Tooltip formatter={(v: any) => BRL(Number(v))} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="space-y-3">
+          {/* Barra horizontal empilhada */}
+          <div className="w-full h-3 rounded-full overflow-hidden bg-muted flex">
+            <div style={{ width: `${pctConf}%`, background: "hsl(var(--success))" }} />
+            <div style={{ width: `${pctEst}%`, background: "hsl(var(--warning))" }} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md border p-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="size-2 rounded-full bg-success" /> Confirmado (compras)
+              </div>
+              <div className="text-lg font-semibold text-success mt-1">{BRL(valorConfirmado)}</div>
+              <div className="text-[11px] text-muted-foreground">{pctConf.toFixed(1)}% do total</div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="size-2 rounded-full bg-warning" /> Estimado (avaliação patrimonial)
+              </div>
+              <div className="text-lg font-semibold text-warning mt-1">{BRL(valorEstimado)}</div>
+              <div className="text-[11px] text-muted-foreground">{pctEst.toFixed(1)}% do total</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Indicadores complementares */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t">
+        <div>
+          <div className="text-[11px] text-muted-foreground">Com valor confirmado</div>
+          <div className="text-lg font-semibold">{NUM(produtosConfirmados)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-muted-foreground">Com valor estimado</div>
+          <div className="text-lg font-semibold">{NUM(produtosEstimados)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-muted-foreground">Sem avaliação</div>
+          <div className="text-lg font-semibold text-destructive">{NUM(produtosSemAvaliacao)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-muted-foreground">Cobertura financeira</div>
+          <div className="text-lg font-semibold text-primary">{coberturaPct.toFixed(1)}%</div>
+          <div className="text-[10px] text-muted-foreground">Meta: 100%</div>
+        </div>
+      </div>
+
+      {/* Meta de cobertura */}
+      {produtosSemAvaliacao > 0 ? (
+        <div className="mt-3 rounded-md border border-warning/30 bg-warning/5 p-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="text-xs">
+            <span className="font-medium text-warning">Faltam regularizar:</span>{" "}
+            <span className="font-semibold">{NUM(produtosSemAvaliacao)}</span> produto(s)
+            {pendValorAprox > 0 && <> · valor aproximado <span className="font-semibold">{BRL(pendValorAprox)}</span></>}
+            {totalProdutos > 0 && <> · {((produtosSemAvaliacao / totalProdutos) * 100).toFixed(1)}% do catálogo</>}
+          </div>
+          <a href="/app/relatorios" className="text-xs text-primary hover:underline">Ir para Patrimônio →</a>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-md border border-success/30 bg-success/5 p-3 text-xs text-success">
+          🎉 100% de cobertura patrimonial — todo o estoque está avaliado.
+        </div>
+      )}
+    </Card>
+  );
+}
