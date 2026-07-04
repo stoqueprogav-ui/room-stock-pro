@@ -477,6 +477,17 @@ export default function RelatoriosPage() {
         <KpiCard icon={ArrowLeftRight} label="Empréstimos pendentes" value={empStatus.find((e) => e.status === "pendente")?.count ?? 0} accent="text-destructive" />
       </div>
 
+      {/* Composição do Valor do Estoque */}
+      <ComposicaoEstoquePanel
+        valorConfirmado={Number(patTotais?.valor_compras ?? 0)}
+        valorEstimado={Number(patTotais?.valor_patrimonial ?? 0)}
+        produtosConfirmados={Number(patTotais?.produtos_confirmados ?? 0)}
+        produtosEstimados={Number(patTotais?.produtos_estimados ?? 0)}
+        produtosSemAvaliacao={Number(patTotais?.produtos_sem_avaliacao ?? 0)}
+        coberturaPct={Number(patTotais?.cobertura_pct ?? 0)}
+        pendValorAprox={pendValorAprox}
+      />
+
       <Tabs defaultValue="dashboard">
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
