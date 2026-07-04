@@ -15,12 +15,24 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw, FileSpreadsheet, Loader2, Package, Boxes } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Produto, Sala, Categoria } from "@/lib/types";
 import ImportarProdutosDialog from "@/components/ImportarProdutosDialog";
 
 const UNIDADES_PRESET = ["Unidade", "Caixa", "Fardo", "Pacote", "Kit", "Litro", "Galão", "Rolo", "Par", "Metro"];
+
+type CatalogoItem = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  unidade_padrao: string;
+  categoria_id: string | null;
+  ativo: boolean;
+  categoria?: { id: string; nome: string } | null;
+  salas_count?: number;
+};
 
 type SalaQty = { sala_id: string; selected: boolean; quantidade: number };
 type Escopo = "global" | "sala";
@@ -65,17 +77,76 @@ export default function ProdutosPage() {
     toast.success("Categoria criada e selecionada");
   };
 
+  // Catálogo (identidade de itens, independente de sala)
+  const [catalogo, setCatalogo] = useState<CatalogoItem[]>([]);
+  const [tab, setTab] = useState<"catalogo" | "estoque">("catalogo");
+  const [catEditOpen, setCatEditOpen] = useState(false);
+  const [catEditing, setCatEditing] = useState<CatalogoItem | null>(null);
+  const [catForm, setCatForm] = useState({ nome: "", descricao: "", unidade_padrao: "Unidade", categoria_id: "", ativo: true });
+  const [catSaving, setCatSaving] = useState(false);
+  const [catFiltroCat, setCatFiltroCat] = useState<string>("all");
+  const [catMostrarInativos, setCatMostrarInativos] = useState(false);
+
   const load = async () => {
-    const [{ data: p }, { data: s }, { data: c }] = await Promise.all([
+    const [{ data: p }, { data: s }, { data: c }, { data: cat }] = await Promise.all([
       supabase.from("produtos").select("*, categoria:categorias(id, nome), sala:salas(id, nome)").order("nome"),
       supabase.from("salas").select("*").order("nome"),
       supabase.from("categorias").select("*").order("nome"),
+      supabase.from("produtos_catalogo").select("id, nome, descricao, unidade_padrao, categoria_id, ativo, categoria:categorias(id, nome)").order("nome"),
     ]);
     setProdutos((p as any) ?? []);
     setSalas((s as Sala[]) ?? []);
     setCategorias((c as Categoria[]) ?? []);
+    // Conta salas por catálogo a partir dos produtos carregados
+    const contagem = new Map<string, number>();
+    ((p as any[]) ?? []).forEach((row) => {
+      const key = row.catalogo_id as string | null;
+      if (!key) return;
+      contagem.set(key, (contagem.get(key) ?? 0) + 1);
+    });
+    setCatalogo(((cat as any[]) ?? []).map((r) => ({ ...r, salas_count: contagem.get(r.id) ?? 0 })));
   };
   useEffect(() => { load(); }, []);
+
+  const openCatNew = () => {
+    setCatEditing(null);
+    setCatForm({ nome: "", descricao: "", unidade_padrao: "Unidade", categoria_id: "", ativo: true });
+    setCatEditOpen(true);
+  };
+  const openCatEdit = (item: CatalogoItem) => {
+    setCatEditing(item);
+    setCatForm({
+      nome: item.nome,
+      descricao: item.descricao ?? "",
+      unidade_padrao: item.unidade_padrao ?? "Unidade",
+      categoria_id: item.categoria_id ?? "",
+      ativo: item.ativo,
+    });
+    setCatEditOpen(true);
+  };
+  const saveCatalogo = async () => {
+    const nome = catForm.nome.trim();
+    if (!nome) return toast.error("Nome obrigatório");
+    setCatSaving(true);
+    const payload: any = {
+      nome,
+      descricao: catForm.descricao?.trim() || null,
+      unidade_padrao: (catForm.unidade_padrao || "Unidade").trim(),
+      categoria_id: catForm.categoria_id || null,
+      ativo: catForm.ativo,
+    };
+    let error;
+    if (catEditing) {
+      ({ error } = await supabase.from("produtos_catalogo").update(payload).eq("id", catEditing.id));
+    } else {
+      ({ error } = await supabase.from("produtos_catalogo").insert(payload));
+    }
+    setCatSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success(catEditing ? "Item do catálogo atualizado" : "Item adicionado ao catálogo");
+    setCatEditOpen(false);
+    load();
+  };
 
   const resetSalasQty = (salasList: Sala[]) => {
     setSalasQty(salasList.map((s) => ({ sala_id: s.id, selected: false, quantidade: 0 })));
@@ -255,131 +326,226 @@ export default function ProdutosPage() {
     [produtos, filtroCat, mostrarInativos]
   );
 
+  const catalogoLista = useMemo(() => catalogo
+    .filter((c) => catMostrarInativos ? true : c.ativo)
+    .filter((c) => catFiltroCat === "all" || c.categoria_id === catFiltroCat),
+    [catalogo, catFiltroCat, catMostrarInativos]
+  );
+
   return (
     <div className="space-y-4">
       <PageHeader
         title="Produtos"
-        description="Catálogo. Cada produto pertence a uma sala específica."
+        description="Catálogo (identidade dos itens) e estoque específico de cada sala."
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="size-4" /> Importar</Button>
-            <Button onClick={openNew}><Plus className="size-4" /> Novo produto</Button>
+            {tab === "estoque" && (
+              <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="size-4" /> Importar</Button>
+            )}
+            {tab === "estoque" ? (
+              <Button onClick={openNew}><Plus className="size-4" /> Novo produto na sala</Button>
+            ) : (
+              <Button onClick={openCatNew}><Plus className="size-4" /> Novo item</Button>
+            )}
           </div>
         }
       />
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
-        <Button size="sm" variant={filtroCat === "all" ? "default" : "outline"} onClick={() => setFiltroCat("all")}>
-          Todas
-        </Button>
-        {categorias.map((c) => (
-          <Button key={c.id} size="sm" variant={filtroCat === c.id ? "default" : "outline"} onClick={() => setFiltroCat(c.id)}>
-            <Tag className="size-3" /> {c.nome}
-          </Button>
-        ))}
-        <div className="ml-auto flex items-center gap-2 text-xs">
-          <Checkbox id="inativos" checked={mostrarInativos} onCheckedChange={(v) => setMostrarInativos(!!v)} />
-          <label htmlFor="inativos" className="cursor-pointer text-muted-foreground">Mostrar inativos</label>
-        </div>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+        <TabsList>
+          <TabsTrigger value="catalogo" className="gap-2"><Package className="size-4" /> Catálogo</TabsTrigger>
+          <TabsTrigger value="estoque" className="gap-2"><Boxes className="size-4" /> Estoque por sala</TabsTrigger>
+        </TabsList>
 
-      <div className="panel overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead className="w-[140px]">Sala</TableHead>
-              <TableHead className="w-[140px]">Categoria</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="w-[90px]">Unidade</TableHead>
-              <TableHead className="w-[90px] text-right">Mínimo</TableHead>
-              <TableHead className="w-[120px] text-right">Custo inicial</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[140px] text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lista.map((p) => {
-              const inativo = p.ativo === false;
-              return (
-                <TableRow key={p.id} className={`table-row-hover ${inativo ? "opacity-60" : ""}`}>
-                  <TableCell className="font-medium">{p.nome}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="gap-1 border-accent/40 text-accent"><Building2 className="size-3" /> {p.sala?.nome ?? "—"}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {p.categoria
-                      ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {p.categoria.nome}</Badge>
-                      : <span className="text-xs text-destructive">— sem categoria</span>}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground max-w-md truncate">{p.descricao ?? "—"}</TableCell>
-                  <TableCell>{p.unidade}</TableCell>
-                  <TableCell className="text-right font-mono text-warning">{p.estoque_minimo}</TableCell>
-                  <TableCell className="text-right font-mono">{Number((p as any).custo_unitario ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                  <TableCell>
-                    {inativo
-                      ? <Badge className="bg-muted text-muted-foreground border">Inativo</Badge>
-                      : <Badge className="bg-success/15 text-success border border-success/30">Ativo</Badge>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {inativo ? (
-                      <DropdownMenu
-                        open={reativarFor === p.id}
-                        onOpenChange={(o) => {
-                          if (o) { setReativarFor(p.id); loadSalasInativas(p.id, p.ativo !== false); }
-                          else setReativarFor(null);
-                        }}
-                      >
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="gap-1">
-                            <RotateCcw className="size-4" /> Reativar
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
-                          <DropdownMenuLabel className="text-xs">Reativar em qual sala?</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {reativarLoading && (
-                            <div className="px-2 py-3 text-xs text-muted-foreground flex items-center gap-2">
-                              <Loader2 className="size-3 animate-spin" /> Carregando salas...
-                            </div>
-                          )}
-                          {!reativarLoading && salasInativas.length === 0 && (
-                            <div className="px-2 py-3 text-xs text-muted-foreground">
-                              Nenhuma sala inativa para este produto.
-                            </div>
-                          )}
-                          {!reativarLoading && salasInativas.map((s) => (
-                            <DropdownMenuItem
-                              key={s.sala_id}
-                              disabled={reativandoSala === s.sala_id}
-                              onSelect={(e) => { e.preventDefault(); reativarNaSala(p.id, s.sala_id); }}
-                              className="gap-2"
-                            >
-                              <Building2 className="size-4 text-accent" />
-                              <span className="flex-1">{s.nome}</span>
-                              {reativandoSala === s.sala_id && <Loader2 className="size-3 animate-spin" />}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <>
-                        <Button variant="ghost" size="icon" aria-label="Editar produto" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
-                        <Button variant="ghost" size="icon" aria-label="Excluir produto" onClick={() => setConfirmDel(p)}>
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </>
-                    )}
-                  </TableCell>
+        {/* ============================ CATÁLOGO ============================ */}
+        <TabsContent value="catalogo" className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            O <strong>Catálogo</strong> define a identidade de cada item (ex.: "Água sem gás"). Cada item aparece uma única vez aqui,
+            independente de em quantas salas ele exista. O estoque, custo e mínimos de cada sala ficam na aba "Estoque por sala".
+          </p>
 
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
+            <Button size="sm" variant={catFiltroCat === "all" ? "default" : "outline"} onClick={() => setCatFiltroCat("all")}>Todas</Button>
+            {categorias.map((c) => (
+              <Button key={c.id} size="sm" variant={catFiltroCat === c.id ? "default" : "outline"} onClick={() => setCatFiltroCat(c.id)}>
+                <Tag className="size-3" /> {c.nome}
+              </Button>
+            ))}
+            <div className="ml-auto flex items-center gap-2 text-xs">
+              <Checkbox id="cat-inativos" checked={catMostrarInativos} onCheckedChange={(v) => setCatMostrarInativos(!!v)} />
+              <label htmlFor="cat-inativos" className="cursor-pointer text-muted-foreground">Mostrar inativos</label>
+            </div>
+          </div>
+
+          <div className="panel overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead className="w-[160px]">Categoria</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="w-[110px]">Unidade padrão</TableHead>
+                  <TableHead className="w-[110px] text-right">Salas</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="w-[100px] text-right">Ações</TableHead>
                 </TableRow>
-              );
-            })}
-            {lista.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {catalogoLista.map((c) => (
+                  <TableRow key={c.id} className={`table-row-hover ${!c.ativo ? "opacity-60" : ""}`}>
+                    <TableCell className="font-medium">{c.nome}</TableCell>
+                    <TableCell>
+                      {c.categoria
+                        ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {c.categoria.nome}</Badge>
+                        : <span className="text-xs text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground max-w-md truncate">{c.descricao ?? "—"}</TableCell>
+                    <TableCell>{c.unidade_padrao}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      <Badge variant="outline" className="gap-1"><Building2 className="size-3" /> {c.salas_count ?? 0}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {c.ativo
+                        ? <Badge className="bg-success/15 text-success border border-success/30">Ativo</Badge>
+                        : <Badge className="bg-muted text-muted-foreground border">Inativo</Badge>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" aria-label="Editar item" onClick={() => openCatEdit(c)}>
+                        <Pencil className="size-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {catalogoLista.length === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhum item no catálogo.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        {/* ======================== ESTOQUE POR SALA ======================== */}
+        <TabsContent value="estoque" className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Cada linha aqui é um item <strong>em uma sala específica</strong>, com seu estoque, custo e mínimo próprios.
+            Para editar o nome ou identidade do item, use a aba "Catálogo".
+          </p>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
+            <Button size="sm" variant={filtroCat === "all" ? "default" : "outline"} onClick={() => setFiltroCat("all")}>
+              Todas
+            </Button>
+            {categorias.map((c) => (
+              <Button key={c.id} size="sm" variant={filtroCat === c.id ? "default" : "outline"} onClick={() => setFiltroCat(c.id)}>
+                <Tag className="size-3" /> {c.nome}
+              </Button>
+            ))}
+            <div className="ml-auto flex items-center gap-2 text-xs">
+              <Checkbox id="inativos" checked={mostrarInativos} onCheckedChange={(v) => setMostrarInativos(!!v)} />
+              <label htmlFor="inativos" className="cursor-pointer text-muted-foreground">Mostrar inativos</label>
+            </div>
+          </div>
+
+          <div className="panel overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead className="w-[140px]">Sala</TableHead>
+                  <TableHead className="w-[140px]">Categoria</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="w-[90px]">Unidade</TableHead>
+                  <TableHead className="w-[90px] text-right">Mínimo</TableHead>
+                  <TableHead className="w-[120px] text-right">Custo inicial</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="w-[140px] text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lista.map((p) => {
+                  const inativo = p.ativo === false;
+                  return (
+                    <TableRow key={p.id} className={`table-row-hover ${inativo ? "opacity-60" : ""}`}>
+                      <TableCell className="font-medium">{p.nome}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="gap-1 border-accent/40 text-accent"><Building2 className="size-3" /> {p.sala?.nome ?? "—"}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {p.categoria
+                          ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {p.categoria.nome}</Badge>
+                          : <span className="text-xs text-destructive">— sem categoria</span>}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground max-w-md truncate">{p.descricao ?? "—"}</TableCell>
+                      <TableCell>{p.unidade}</TableCell>
+                      <TableCell className="text-right font-mono text-warning">{p.estoque_minimo}</TableCell>
+                      <TableCell className="text-right font-mono">{Number((p as any).custo_unitario ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell>
+                        {inativo
+                          ? <Badge className="bg-muted text-muted-foreground border">Inativo</Badge>
+                          : <Badge className="bg-success/15 text-success border border-success/30">Ativo</Badge>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {inativo ? (
+                          <DropdownMenu
+                            open={reativarFor === p.id}
+                            onOpenChange={(o) => {
+                              if (o) { setReativarFor(p.id); loadSalasInativas(p.id, p.ativo !== false); }
+                              else setReativarFor(null);
+                            }}
+                          >
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="gap-1">
+                                <RotateCcw className="size-4" /> Reativar
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-64">
+                              <DropdownMenuLabel className="text-xs">Reativar em qual sala?</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {reativarLoading && (
+                                <div className="px-2 py-3 text-xs text-muted-foreground flex items-center gap-2">
+                                  <Loader2 className="size-3 animate-spin" /> Carregando salas...
+                                </div>
+                              )}
+                              {!reativarLoading && salasInativas.length === 0 && (
+                                <div className="px-2 py-3 text-xs text-muted-foreground">
+                                  Nenhuma sala inativa para este produto.
+                                </div>
+                              )}
+                              {!reativarLoading && salasInativas.map((s) => (
+                                <DropdownMenuItem
+                                  key={s.sala_id}
+                                  disabled={reativandoSala === s.sala_id}
+                                  onSelect={(e) => { e.preventDefault(); reativarNaSala(p.id, s.sala_id); }}
+                                  className="gap-2"
+                                >
+                                  <Building2 className="size-4 text-accent" />
+                                  <span className="flex-1">{s.nome}</span>
+                                  {reativandoSala === s.sala_id && <Loader2 className="size-3 animate-spin" />}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="icon" aria-label="Editar produto" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
+                            <Button variant="ghost" size="icon" aria-label="Excluir produto" onClick={() => setConfirmDel(p)}>
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {lista.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
+
 
       {/* Cadastro / Edição */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -538,6 +704,77 @@ export default function ProdutosPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Editar / Criar item do Catálogo */}
+      <Dialog open={catEditOpen} onOpenChange={setCatEditOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{catEditing ? "Editar item do catálogo" : "Novo item do catálogo"}</DialogTitle>
+            <DialogDescription>
+              Define apenas a <strong>identidade</strong> do item. Estoque, custo e mínimos são definidos por sala na aba "Estoque por sala".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input value={catForm.nome} onChange={(e) => setCatForm({ ...catForm, nome: e.target.value })} placeholder="Ex.: Água sem gás" />
+            </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={catForm.categoria_id || "__none"} onValueChange={(v) => setCatForm({ ...catForm, categoria_id: v === "__none" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">— Sem categoria —</SelectItem>
+                  {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea value={catForm.descricao} onChange={(e) => setCatForm({ ...catForm, descricao: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Unidade padrão</Label>
+              <Select
+                value={UNIDADES_PRESET.includes(catForm.unidade_padrao) ? catForm.unidade_padrao : "__custom"}
+                onValueChange={(v) => {
+                  if (v === "__custom") setCatForm({ ...catForm, unidade_padrao: "" });
+                  else setCatForm({ ...catForm, unidade_padrao: v });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {UNIDADES_PRESET.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                  <SelectItem value="__custom">Outros (personalizado)</SelectItem>
+                </SelectContent>
+              </Select>
+              {!UNIDADES_PRESET.includes(catForm.unidade_padrao) && (
+                <Input
+                  value={catForm.unidade_padrao}
+                  onChange={(e) => setCatForm({ ...catForm, unidade_padrao: e.target.value })}
+                  placeholder="Digite a unidade (ex: Bobina)"
+                />
+              )}
+              <p className="text-xs text-muted-foreground">Unidade de referência do item. Cada sala pode ter sua própria unidade específica no estoque.</p>
+            </div>
+            {catEditing && (
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <div className="text-sm font-medium">Item ativo no catálogo</div>
+                  <div className="text-xs text-muted-foreground">Inativos deixam de aparecer em novas operações, mas continuam no histórico.</div>
+                </div>
+                <Switch checked={catForm.ativo} onCheckedChange={(v) => setCatForm({ ...catForm, ativo: v })} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCatEditOpen(false)}>Cancelar</Button>
+            <Button onClick={saveCatalogo} disabled={catSaving}>
+              {catSaving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ImportarProdutosDialog
         open={importOpen}
         onOpenChange={setImportOpen}
@@ -547,5 +784,6 @@ export default function ProdutosPage() {
         onDone={load}
       />
     </div>
+
   );
 }
