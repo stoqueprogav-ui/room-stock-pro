@@ -15,12 +15,24 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, Globe2, Building2, RotateCcw, FileSpreadsheet, Loader2, Package, Boxes } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Produto, Sala, Categoria } from "@/lib/types";
 import ImportarProdutosDialog from "@/components/ImportarProdutosDialog";
 
 const UNIDADES_PRESET = ["Unidade", "Caixa", "Fardo", "Pacote", "Kit", "Litro", "Galão", "Rolo", "Par", "Metro"];
+
+type CatalogoItem = {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  unidade_padrao: string;
+  categoria_id: string | null;
+  ativo: boolean;
+  categoria?: { id: string; nome: string } | null;
+  salas_count?: number;
+};
 
 type SalaQty = { sala_id: string; selected: boolean; quantidade: number };
 type Escopo = "global" | "sala";
