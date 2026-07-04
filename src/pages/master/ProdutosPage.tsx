@@ -329,8 +329,9 @@ export default function ProdutosPage() {
 
   const lista = useMemo(() => produtos
     .filter((p) => mostrarInativos ? true : (p.ativo !== false))
-    .filter((p) => filtroCat === "all" || p.categoria_id === filtroCat),
-    [produtos, filtroCat, mostrarInativos]
+    .filter((p) => filtroCat === "all" || p.categoria_id === filtroCat)
+    .filter((p) => !busca.trim() || p.nome.toLowerCase().includes(busca.trim().toLowerCase())),
+    [produtos, filtroCat, mostrarInativos, busca]
   );
 
   const catalogoLista = useMemo(() => catalogo
