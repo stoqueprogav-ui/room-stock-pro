@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import {
-  ShieldCheck, ScaleIcon, PackageSearch, Loader2, Save, Trash2, ClipboardList, BadgeCheck, BadgeAlert,
+  ShieldCheck, Scale as ScaleIcon, PackageSearch, Loader2, Save, Trash2, ClipboardList, BadgeCheck, BadgeAlert,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
