@@ -94,6 +94,8 @@ export default function RelatoriosPage() {
   const [empStatus, setEmpStatus] = useState<{ status: string; count: number }[]>([]);
   const [estoqueValor, setEstoqueValor] = useState<EstoqueValorRow[]>([]);
   const [valorPatrimonial, setValorPatrimonial] = useState<number>(0);
+  const [patTotais, setPatTotais] = useState<any | null>(null);
+  const [pendValorAprox, setPendValorAprox] = useState<number>(0);
   const [valorizacao, setValorizacao] = useState<ValorizacaoStats | null>(null);
   const [reqPorSala, setReqPorSala] = useState<{ sala_id: string; sala_nome: string; total: number }[]>([]);
   const [empMensal, setEmpMensal] = useState<{ mes: string; count: number }[]>([]);
@@ -107,7 +109,7 @@ export default function RelatoriosPage() {
   useEffect(() => {
     (async () => {
       const efetivaSala = isGlobal ? (salaFilter === "all" ? null : salaFilter) : scopeSalaId!;
-      const [ss, cc, pp, ev, es, vz, pt] = await Promise.all([
+      const [ss, cc, pp, ev, es, vz, pt, ps] = await Promise.all([
         supabase.from("salas").select("id, nome").order("nome"),
         supabase.from("categorias").select("id, nome").order("nome"),
         supabase.from("produtos").select("id, nome, custo_unitario, categoria_id").order("nome"),
@@ -115,6 +117,7 @@ export default function RelatoriosPage() {
         supabase.rpc("relatorio_emprestimos_salas"),
         supabase.rpc("estatisticas_valorizacao"),
         (supabase as any).rpc("patrimonio_totais", { _sala: efetivaSala }),
+        (supabase as any).rpc("produtos_sem_avaliacao", { _sala: efetivaSala }),
       ]);
       setSalas((ss.data as Sala[]) ?? []);
       setCategorias((cc.data as Categoria[]) ?? []);
@@ -125,6 +128,9 @@ export default function RelatoriosPage() {
       if (vzRow) setValorizacao(vzRow as ValorizacaoStats);
       const ptRow = Array.isArray(pt?.data) ? (pt.data as any[])[0] : (pt?.data as any);
       setValorPatrimonial(Number(ptRow?.valor_patrimonial ?? 0));
+      setPatTotais(ptRow ?? null);
+      const pendRows: any[] = (ps?.data as any[]) ?? [];
+      setPendValorAprox(pendRows.reduce((s, r) => s + Number(r.valor_total_atual ?? (Number(r.quantidade ?? 0) * Number(r.custo_unitario_ref ?? 0))), 0));
     })();
   }, [salaFilter, scopeSalaId, isGlobal]);
 
@@ -470,6 +476,17 @@ export default function RelatoriosPage() {
         <KpiCard icon={Building2} label="Maior estoque financeiro" value={salaMaiorEstoque?.sala_nome ?? "—"} sub={salaMaiorEstoque ? BRL(Number(salaMaiorEstoque.valor_total)) : ""} accent="text-warning" />
         <KpiCard icon={ArrowLeftRight} label="Empréstimos pendentes" value={empStatus.find((e) => e.status === "pendente")?.count ?? 0} accent="text-destructive" />
       </div>
+
+      {/* Composição do Valor do Estoque */}
+      <ComposicaoEstoquePanel
+        valorConfirmado={Number(patTotais?.valor_compras ?? 0)}
+        valorEstimado={Number(patTotais?.valor_patrimonial ?? 0)}
+        produtosConfirmados={Number(patTotais?.produtos_confirmados ?? 0)}
+        produtosEstimados={Number(patTotais?.produtos_estimados ?? 0)}
+        produtosSemAvaliacao={Number(patTotais?.produtos_sem_avaliacao ?? 0)}
+        coberturaPct={Number(patTotais?.cobertura_pct ?? 0)}
+        pendValorAprox={pendValorAprox}
+      />
 
       <Tabs defaultValue="dashboard">
         <TabsList className="flex flex-wrap h-auto">
@@ -1042,5 +1059,114 @@ function PatrimonioPanel({ scopeSalaId }: { scopeSalaId: string | null }) {
         </div>
       </Card>
     </div>
+  );
+}
+
+// ================== COMPOSIÇÃO DO VALOR DO ESTOQUE ==================
+function ComposicaoEstoquePanel({
+  valorConfirmado, valorEstimado,
+  produtosConfirmados, produtosEstimados, produtosSemAvaliacao,
+  coberturaPct, pendValorAprox,
+}: {
+  valorConfirmado: number; valorEstimado: number;
+  produtosConfirmados: number; produtosEstimados: number; produtosSemAvaliacao: number;
+  coberturaPct: number; pendValorAprox: number;
+}) {
+  const total = valorConfirmado + valorEstimado;
+  const pctConf = total > 0 ? (valorConfirmado / total) * 100 : 0;
+  const pctEst = total > 0 ? (valorEstimado / total) * 100 : 0;
+  const totalProdutos = produtosConfirmados + produtosEstimados + produtosSemAvaliacao;
+  const data = [
+    { name: "Confirmado", value: valorConfirmado, color: "hsl(var(--success))" },
+    { name: "Estimado", value: valorEstimado, color: "hsl(var(--warning))" },
+  ];
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+        <div>
+          <div className="text-sm font-medium">Composição do Valor do Estoque</div>
+          <div className="text-xs text-muted-foreground">Confiabilidade financeira do patrimônio total</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[11px] text-muted-foreground">Valor total</div>
+          <div className="text-2xl font-semibold text-primary">{BRL(total)}</div>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-[220px_1fr] gap-6 items-center">
+        <div className="h-[180px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Pie>
+              <Tooltip formatter={(v: any) => BRL(Number(v))} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="space-y-3">
+          {/* Barra horizontal empilhada */}
+          <div className="w-full h-3 rounded-full overflow-hidden bg-muted flex">
+            <div style={{ width: `${pctConf}%`, background: "hsl(var(--success))" }} />
+            <div style={{ width: `${pctEst}%`, background: "hsl(var(--warning))" }} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md border p-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="size-2 rounded-full bg-success" /> Confirmado (compras)
+              </div>
+              <div className="text-lg font-semibold text-success mt-1">{BRL(valorConfirmado)}</div>
+              <div className="text-[11px] text-muted-foreground">{pctConf.toFixed(1)}% do total</div>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="size-2 rounded-full bg-warning" /> Estimado (avaliação patrimonial)
+              </div>
+              <div className="text-lg font-semibold text-warning mt-1">{BRL(valorEstimado)}</div>
+              <div className="text-[11px] text-muted-foreground">{pctEst.toFixed(1)}% do total</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Indicadores complementares */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t">
+        <div>
+          <div className="text-[11px] text-muted-foreground">Com valor confirmado</div>
+          <div className="text-lg font-semibold">{NUM(produtosConfirmados)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-muted-foreground">Com valor estimado</div>
+          <div className="text-lg font-semibold">{NUM(produtosEstimados)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-muted-foreground">Sem avaliação</div>
+          <div className="text-lg font-semibold text-destructive">{NUM(produtosSemAvaliacao)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-muted-foreground">Cobertura financeira</div>
+          <div className="text-lg font-semibold text-primary">{coberturaPct.toFixed(1)}%</div>
+          <div className="text-[10px] text-muted-foreground">Meta: 100%</div>
+        </div>
+      </div>
+
+      {/* Meta de cobertura */}
+      {produtosSemAvaliacao > 0 ? (
+        <div className="mt-3 rounded-md border border-warning/30 bg-warning/5 p-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="text-xs">
+            <span className="font-medium text-warning">Faltam regularizar:</span>{" "}
+            <span className="font-semibold">{NUM(produtosSemAvaliacao)}</span> produto(s)
+            {pendValorAprox > 0 && <> · valor aproximado <span className="font-semibold">{BRL(pendValorAprox)}</span></>}
+            {totalProdutos > 0 && <> · {((produtosSemAvaliacao / totalProdutos) * 100).toFixed(1)}% do catálogo</>}
+          </div>
+          <a href="/app/relatorios" className="text-xs text-primary hover:underline">Ir para Patrimônio →</a>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-md border border-success/30 bg-success/5 p-3 text-xs text-success">
+          🎉 100% de cobertura patrimonial — todo o estoque está avaliado.
+        </div>
+      )}
+    </Card>
   );
 }
