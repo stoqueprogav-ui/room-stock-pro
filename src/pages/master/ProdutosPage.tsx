@@ -53,6 +53,7 @@ export default function ProdutosPage() {
 
   const [filtroCat, setFiltroCat] = useState<string>("all");
   const [mostrarInativos, setMostrarInativos] = useState(false);
+  const [busca, setBusca] = useState("");
 
   // Confirmação de exclusão
   const [confirmDel, setConfirmDel] = useState<Produto | null>(null);
@@ -196,7 +197,19 @@ export default function ProdutosPage() {
       payload.sala_id = form.sala_id;
       const { error } = await supabase.from("produtos").update(payload).eq("id", editing.id);
       if (error) return toast.error(error.message);
-      toast.success("Produto atualizado");
+      // Sincroniza o vínculo em estoque com o status do produto na sala
+      // (evita casos onde produto.ativo=true, mas estoque.ativo=false continua ocultando o item).
+      const { error: eSync } = await supabase.rpc("toggle_produto_sala_ativo", {
+        _produto_id: editing.id, _sala_id: form.sala_id, _ativo: form.ativo,
+      });
+      if (eSync) {
+        // fallback: garantir que o vínculo exista se não houver
+        await supabase.from("estoque").upsert(
+          { produto_id: editing.id, sala_id: form.sala_id, quantidade: 0, ativo: form.ativo },
+          { onConflict: "produto_id,sala_id" }
+        );
+      }
+      toast.success(form.ativo ? "Produto atualizado e reativado na sala" : "Produto atualizado");
       setOpen(false); load();
       return;
     }
@@ -328,8 +341,9 @@ export default function ProdutosPage() {
 
   const lista = useMemo(() => produtos
     .filter((p) => mostrarInativos ? true : (p.ativo !== false))
-    .filter((p) => filtroCat === "all" || p.categoria_id === filtroCat),
-    [produtos, filtroCat, mostrarInativos]
+    .filter((p) => filtroCat === "all" || p.categoria_id === filtroCat)
+    .filter((p) => !busca.trim() || p.nome.toLowerCase().includes(busca.trim().toLowerCase())),
+    [produtos, filtroCat, mostrarInativos, busca]
   );
 
   const catalogoLista = useMemo(() => catalogo
@@ -439,6 +453,12 @@ export default function ProdutosPage() {
           </p>
 
           <div className="flex flex-wrap gap-2 items-center">
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Pesquisar produto por nome…"
+              className="w-64"
+            />
             <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
             <Button size="sm" variant={filtroCat === "all" ? "default" : "outline"} onClick={() => setFiltroCat("all")}>
               Todas
