@@ -326,131 +326,226 @@ export default function ProdutosPage() {
     [produtos, filtroCat, mostrarInativos]
   );
 
+  const catalogoLista = useMemo(() => catalogo
+    .filter((c) => catMostrarInativos ? true : c.ativo)
+    .filter((c) => catFiltroCat === "all" || c.categoria_id === catFiltroCat),
+    [catalogo, catFiltroCat, catMostrarInativos]
+  );
+
   return (
     <div className="space-y-4">
       <PageHeader
         title="Produtos"
-        description="Catálogo. Cada produto pertence a uma sala específica."
+        description="Catálogo (identidade dos itens) e estoque específico de cada sala."
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="size-4" /> Importar</Button>
-            <Button onClick={openNew}><Plus className="size-4" /> Novo produto</Button>
+            {tab === "estoque" && (
+              <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="size-4" /> Importar</Button>
+            )}
+            {tab === "estoque" ? (
+              <Button onClick={openNew}><Plus className="size-4" /> Novo produto na sala</Button>
+            ) : (
+              <Button onClick={openCatNew}><Plus className="size-4" /> Novo item</Button>
+            )}
           </div>
         }
       />
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
-        <Button size="sm" variant={filtroCat === "all" ? "default" : "outline"} onClick={() => setFiltroCat("all")}>
-          Todas
-        </Button>
-        {categorias.map((c) => (
-          <Button key={c.id} size="sm" variant={filtroCat === c.id ? "default" : "outline"} onClick={() => setFiltroCat(c.id)}>
-            <Tag className="size-3" /> {c.nome}
-          </Button>
-        ))}
-        <div className="ml-auto flex items-center gap-2 text-xs">
-          <Checkbox id="inativos" checked={mostrarInativos} onCheckedChange={(v) => setMostrarInativos(!!v)} />
-          <label htmlFor="inativos" className="cursor-pointer text-muted-foreground">Mostrar inativos</label>
-        </div>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+        <TabsList>
+          <TabsTrigger value="catalogo" className="gap-2"><Package className="size-4" /> Catálogo</TabsTrigger>
+          <TabsTrigger value="estoque" className="gap-2"><Boxes className="size-4" /> Estoque por sala</TabsTrigger>
+        </TabsList>
 
-      <div className="panel overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead className="w-[140px]">Sala</TableHead>
-              <TableHead className="w-[140px]">Categoria</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="w-[90px]">Unidade</TableHead>
-              <TableHead className="w-[90px] text-right">Mínimo</TableHead>
-              <TableHead className="w-[120px] text-right">Custo inicial</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[140px] text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lista.map((p) => {
-              const inativo = p.ativo === false;
-              return (
-                <TableRow key={p.id} className={`table-row-hover ${inativo ? "opacity-60" : ""}`}>
-                  <TableCell className="font-medium">{p.nome}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="gap-1 border-accent/40 text-accent"><Building2 className="size-3" /> {p.sala?.nome ?? "—"}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {p.categoria
-                      ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {p.categoria.nome}</Badge>
-                      : <span className="text-xs text-destructive">— sem categoria</span>}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground max-w-md truncate">{p.descricao ?? "—"}</TableCell>
-                  <TableCell>{p.unidade}</TableCell>
-                  <TableCell className="text-right font-mono text-warning">{p.estoque_minimo}</TableCell>
-                  <TableCell className="text-right font-mono">{Number((p as any).custo_unitario ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                  <TableCell>
-                    {inativo
-                      ? <Badge className="bg-muted text-muted-foreground border">Inativo</Badge>
-                      : <Badge className="bg-success/15 text-success border border-success/30">Ativo</Badge>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {inativo ? (
-                      <DropdownMenu
-                        open={reativarFor === p.id}
-                        onOpenChange={(o) => {
-                          if (o) { setReativarFor(p.id); loadSalasInativas(p.id, p.ativo !== false); }
-                          else setReativarFor(null);
-                        }}
-                      >
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="gap-1">
-                            <RotateCcw className="size-4" /> Reativar
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
-                          <DropdownMenuLabel className="text-xs">Reativar em qual sala?</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {reativarLoading && (
-                            <div className="px-2 py-3 text-xs text-muted-foreground flex items-center gap-2">
-                              <Loader2 className="size-3 animate-spin" /> Carregando salas...
-                            </div>
-                          )}
-                          {!reativarLoading && salasInativas.length === 0 && (
-                            <div className="px-2 py-3 text-xs text-muted-foreground">
-                              Nenhuma sala inativa para este produto.
-                            </div>
-                          )}
-                          {!reativarLoading && salasInativas.map((s) => (
-                            <DropdownMenuItem
-                              key={s.sala_id}
-                              disabled={reativandoSala === s.sala_id}
-                              onSelect={(e) => { e.preventDefault(); reativarNaSala(p.id, s.sala_id); }}
-                              className="gap-2"
-                            >
-                              <Building2 className="size-4 text-accent" />
-                              <span className="flex-1">{s.nome}</span>
-                              {reativandoSala === s.sala_id && <Loader2 className="size-3 animate-spin" />}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <>
-                        <Button variant="ghost" size="icon" aria-label="Editar produto" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
-                        <Button variant="ghost" size="icon" aria-label="Excluir produto" onClick={() => setConfirmDel(p)}>
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </>
-                    )}
-                  </TableCell>
+        {/* ============================ CATÁLOGO ============================ */}
+        <TabsContent value="catalogo" className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            O <strong>Catálogo</strong> define a identidade de cada item (ex.: "Água sem gás"). Cada item aparece uma única vez aqui,
+            independente de em quantas salas ele exista. O estoque, custo e mínimos de cada sala ficam na aba "Estoque por sala".
+          </p>
 
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
+            <Button size="sm" variant={catFiltroCat === "all" ? "default" : "outline"} onClick={() => setCatFiltroCat("all")}>Todas</Button>
+            {categorias.map((c) => (
+              <Button key={c.id} size="sm" variant={catFiltroCat === c.id ? "default" : "outline"} onClick={() => setCatFiltroCat(c.id)}>
+                <Tag className="size-3" /> {c.nome}
+              </Button>
+            ))}
+            <div className="ml-auto flex items-center gap-2 text-xs">
+              <Checkbox id="cat-inativos" checked={catMostrarInativos} onCheckedChange={(v) => setCatMostrarInativos(!!v)} />
+              <label htmlFor="cat-inativos" className="cursor-pointer text-muted-foreground">Mostrar inativos</label>
+            </div>
+          </div>
+
+          <div className="panel overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead className="w-[160px]">Categoria</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="w-[110px]">Unidade padrão</TableHead>
+                  <TableHead className="w-[110px] text-right">Salas</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="w-[100px] text-right">Ações</TableHead>
                 </TableRow>
-              );
-            })}
-            {lista.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {catalogoLista.map((c) => (
+                  <TableRow key={c.id} className={`table-row-hover ${!c.ativo ? "opacity-60" : ""}`}>
+                    <TableCell className="font-medium">{c.nome}</TableCell>
+                    <TableCell>
+                      {c.categoria
+                        ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {c.categoria.nome}</Badge>
+                        : <span className="text-xs text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground max-w-md truncate">{c.descricao ?? "—"}</TableCell>
+                    <TableCell>{c.unidade_padrao}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      <Badge variant="outline" className="gap-1"><Building2 className="size-3" /> {c.salas_count ?? 0}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {c.ativo
+                        ? <Badge className="bg-success/15 text-success border border-success/30">Ativo</Badge>
+                        : <Badge className="bg-muted text-muted-foreground border">Inativo</Badge>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" aria-label="Editar item" onClick={() => openCatEdit(c)}>
+                        <Pencil className="size-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {catalogoLista.length === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhum item no catálogo.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        {/* ======================== ESTOQUE POR SALA ======================== */}
+        <TabsContent value="estoque" className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Cada linha aqui é um item <strong>em uma sala específica</strong>, com seu estoque, custo e mínimo próprios.
+            Para editar o nome ou identidade do item, use a aba "Catálogo".
+          </p>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
+            <Button size="sm" variant={filtroCat === "all" ? "default" : "outline"} onClick={() => setFiltroCat("all")}>
+              Todas
+            </Button>
+            {categorias.map((c) => (
+              <Button key={c.id} size="sm" variant={filtroCat === c.id ? "default" : "outline"} onClick={() => setFiltroCat(c.id)}>
+                <Tag className="size-3" /> {c.nome}
+              </Button>
+            ))}
+            <div className="ml-auto flex items-center gap-2 text-xs">
+              <Checkbox id="inativos" checked={mostrarInativos} onCheckedChange={(v) => setMostrarInativos(!!v)} />
+              <label htmlFor="inativos" className="cursor-pointer text-muted-foreground">Mostrar inativos</label>
+            </div>
+          </div>
+
+          <div className="panel overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead className="w-[140px]">Sala</TableHead>
+                  <TableHead className="w-[140px]">Categoria</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="w-[90px]">Unidade</TableHead>
+                  <TableHead className="w-[90px] text-right">Mínimo</TableHead>
+                  <TableHead className="w-[120px] text-right">Custo inicial</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="w-[140px] text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lista.map((p) => {
+                  const inativo = p.ativo === false;
+                  return (
+                    <TableRow key={p.id} className={`table-row-hover ${inativo ? "opacity-60" : ""}`}>
+                      <TableCell className="font-medium">{p.nome}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="gap-1 border-accent/40 text-accent"><Building2 className="size-3" /> {p.sala?.nome ?? "—"}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {p.categoria
+                          ? <Badge variant="secondary" className="gap-1"><Tag className="size-3" /> {p.categoria.nome}</Badge>
+                          : <span className="text-xs text-destructive">— sem categoria</span>}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground max-w-md truncate">{p.descricao ?? "—"}</TableCell>
+                      <TableCell>{p.unidade}</TableCell>
+                      <TableCell className="text-right font-mono text-warning">{p.estoque_minimo}</TableCell>
+                      <TableCell className="text-right font-mono">{Number((p as any).custo_unitario ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell>
+                        {inativo
+                          ? <Badge className="bg-muted text-muted-foreground border">Inativo</Badge>
+                          : <Badge className="bg-success/15 text-success border border-success/30">Ativo</Badge>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {inativo ? (
+                          <DropdownMenu
+                            open={reativarFor === p.id}
+                            onOpenChange={(o) => {
+                              if (o) { setReativarFor(p.id); loadSalasInativas(p.id, p.ativo !== false); }
+                              else setReativarFor(null);
+                            }}
+                          >
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="gap-1">
+                                <RotateCcw className="size-4" /> Reativar
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-64">
+                              <DropdownMenuLabel className="text-xs">Reativar em qual sala?</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {reativarLoading && (
+                                <div className="px-2 py-3 text-xs text-muted-foreground flex items-center gap-2">
+                                  <Loader2 className="size-3 animate-spin" /> Carregando salas...
+                                </div>
+                              )}
+                              {!reativarLoading && salasInativas.length === 0 && (
+                                <div className="px-2 py-3 text-xs text-muted-foreground">
+                                  Nenhuma sala inativa para este produto.
+                                </div>
+                              )}
+                              {!reativarLoading && salasInativas.map((s) => (
+                                <DropdownMenuItem
+                                  key={s.sala_id}
+                                  disabled={reativandoSala === s.sala_id}
+                                  onSelect={(e) => { e.preventDefault(); reativarNaSala(p.id, s.sala_id); }}
+                                  className="gap-2"
+                                >
+                                  <Building2 className="size-4 text-accent" />
+                                  <span className="flex-1">{s.nome}</span>
+                                  {reativandoSala === s.sala_id && <Loader2 className="size-3 animate-spin" />}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <>
+                            <Button variant="ghost" size="icon" aria-label="Editar produto" onClick={() => openEdit(p)}><Pencil className="size-4" /></Button>
+                            <Button variant="ghost" size="icon" aria-label="Excluir produto" onClick={() => setConfirmDel(p)}>
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {lista.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
+
 
       {/* Cadastro / Edição */}
       <Dialog open={open} onOpenChange={setOpen}>
