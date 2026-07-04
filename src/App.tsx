@@ -70,6 +70,7 @@ const App = () => (
               <Route path="inventario" element={<InventarioPage />} />
               <Route path="dashboard-gerencial" element={<DashboardGerencial />} />
               <Route path="entradas" element={<EntradasEstoquePage />} />
+              <Route path="avaliacao-patrimonial" element={<AvaliacaoPatrimonialPage />} />
               {/* Compartilhado */}
               <Route path="emprestimos" element={<EmprestimosPage />} />
               <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />
