@@ -12,34 +12,58 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Send, Trash2, Loader2, Search, Tag, Plus, Minus, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { Sala, Produto, Categoria } from "@/lib/types";
+import type { Sala, Categoria } from "@/lib/types";
 import { useDraft } from "@/hooks/useDraft";
 import DraftStatusBadge from "@/components/DraftStatusBadge";
 import RecoverDraftDialog from "@/components/RecoverDraftDialog";
 
-type Nivel = "verde" | "amarelo" | "vermelho";
-type DispRow = { sala_id: string; sala_nome: string; produto_id: string; nivel: Nivel };
+// Item de catálogo (identidade única)
+type Catalogo = {
+  id: string;
+  nome: string;
+  unidade_padrao: string;
+  categoria_id: string | null;
+  categoria?: { id: string; nome: string } | null;
+};
 
+// Disponibilidade de um catálogo em uma sala
+type DispRow = {
+  sala_id: string;
+  sala_nome: string;
+  produto_id: string;
+  unidade: string;
+  custo_unitario: number;
+  quantidade_disponivel: number;
+  atende_pct: number;
+  atende_total: boolean;
+};
+
+type Nivel = "verde" | "amarelo" | "vermelho";
+const nivelFromRow = (r: DispRow, qtd: number): Nivel => {
+  if (r.atende_total) return "verde";
+  if (r.quantidade_disponivel > 0) return "amarelo";
+  return "vermelho";
+};
 const nivelEmoji = (n: Nivel) => (n === "verde" ? "🟢" : n === "amarelo" ? "🟡" : "🔴");
 const nivelLabel = (n: Nivel) =>
-  n === "verde" ? "Disponível" : n === "amarelo" ? "Estoque baixo" : "Sem estoque";
+  n === "verde" ? "Atende total" : n === "amarelo" ? "Atende parcial" : "Sem estoque";
 
 export default function NovoEmprestimo() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [salas, setSalas] = useState<Sala[]>([]);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [catalogo, setCatalogo] = useState<Catalogo[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [catFilter, setCatFilter] = useState<string>("");
   const [busca, setBusca] = useState("");
 
-  // carrinho: produto_id -> quantidade
+  // carrinho: catalogo_id -> quantidade
   const [carrinho, setCarrinho] = useState<Record<string, number>>({});
-  // disponibilidade por sala (resultado da busca)
-  const [disp, setDisp] = useState<DispRow[] | null>(null);
+
+  // Disponibilidade: catalogo_id -> DispRow[]
+  const [disp, setDisp] = useState<Record<string, DispRow[]> | null>(null);
   const [buscando, setBuscando] = useState(false);
 
-  // pedido por sala (após selecionar uma sala como origem)
   const [salaSelecionada, setSalaSelecionada] = useState<string | null>(null);
   const [obs, setObs] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -60,13 +84,15 @@ export default function NovoEmprestimo() {
 
   useEffect(() => {
     (async () => {
-      const [{ data: ss }, { data: pp }, { data: cc }] = await Promise.all([
+      const [{ data: ss }, { data: cat }, { data: cc }] = await Promise.all([
         supabase.from("salas").select("*").order("nome"),
-        supabase.from("produtos").select("*, categoria:categorias(id, nome)").eq("ativo", true).order("nome"),
+        supabase.from("produtos_catalogo")
+          .select("id, nome, unidade_padrao, categoria_id, categoria:categorias(id, nome)")
+          .eq("ativo", true).order("nome"),
         supabase.from("categorias").select("*").order("nome"),
       ]);
       setSalas((ss as Sala[]) ?? []);
-      setProdutos((pp as any) ?? []);
+      setCatalogo((cat as any) ?? []);
       setCategorias((cc as Categoria[]) ?? []);
     })();
   }, []);
@@ -96,20 +122,20 @@ export default function NovoEmprestimo() {
   };
   const descartarRecuperacao = async () => { await clearDraft(); setRecoverOpen(false); };
 
-  const produtosFiltrados = useMemo(
+  const catalogoFiltrado = useMemo(
     () =>
-      produtos
+      catalogo
         .filter((p) => !catFilter || p.categoria_id === catFilter)
         .filter((p) => !busca || p.nome.toLowerCase().includes(busca.toLowerCase())),
-    [produtos, catFilter, busca]
+    [catalogo, catFilter, busca]
   );
 
   const itensCarrinho = useMemo(
     () =>
       Object.entries(carrinho)
-        .map(([id, q]) => ({ produto: produtos.find((p) => p.id === id)!, quantidade: q }))
-        .filter((i) => i.produto && i.quantidade > 0),
-    [carrinho, produtos]
+        .map(([id, q]) => ({ item: catalogo.find((p) => p.id === id)!, quantidade: q }))
+        .filter((i) => i.item && i.quantidade > 0),
+    [carrinho, catalogo]
   );
 
   const setQtd = (id: string, q: number) => {
@@ -127,44 +153,62 @@ export default function NovoEmprestimo() {
     setBuscando(true);
     setDisp(null);
     setSalaSelecionada(null);
-    const ids = itensCarrinho.map((i) => i.produto.id);
-    const { data, error } = await supabase.rpc("disponibilidade_produtos", { _produto_ids: ids });
+
+    const results: Record<string, DispRow[]> = {};
+    for (const it of itensCarrinho) {
+      const { data, error } = await supabase.rpc("catalogo_disponibilidade" as any, {
+        _catalogo: it.item.id,
+        _quantidade: it.quantidade,
+        _excluir_sala: profile?.sala_ativa_id ?? null,
+      });
+      if (error) {
+        setBuscando(false);
+        return toast.error(error.message);
+      }
+      results[it.item.id] = (data as DispRow[]) ?? [];
+    }
     setBuscando(false);
-    if (error) return toast.error(error.message);
-    setDisp((data as DispRow[]) ?? []);
+    setDisp(results);
   };
 
-  // Mapa: sala_id -> { produto_id -> nivel }
+  // Mapa: sala_id -> { catalogo_id -> DispRow }
   const dispMap = useMemo(() => {
-    const m: Record<string, Record<string, Nivel>> = {};
-    (disp ?? []).forEach((r) => {
-      m[r.sala_id] = m[r.sala_id] || {};
-      m[r.sala_id][r.produto_id] = r.nivel;
+    const m: Record<string, Record<string, DispRow>> = {};
+    if (!disp) return m;
+    Object.entries(disp).forEach(([catId, rows]) => {
+      rows.forEach((r) => {
+        m[r.sala_id] = m[r.sala_id] || {};
+        m[r.sala_id][catId] = r;
+      });
     });
     return m;
   }, [disp]);
 
-  // Salas candidatas: aquelas presentes no resultado, ordenadas por "completude" (mais itens verde/amarelo)
+  // Salas candidatas ordenadas por cobertura
   const salasCandidatas = useMemo(() => {
     if (!disp) return [];
-    const ids = itensCarrinho.map((i) => i.produto.id);
-    const lista = Object.entries(dispMap).map(([sala_id, prods]) => {
+    const lista = Object.entries(dispMap).map(([sala_id, byCat]) => {
       const sala = salas.find((s) => s.id === sala_id);
-      const cobre = ids.filter((pid) => prods[pid] === "verde" || prods[pid] === "amarelo").length;
-      const verdes = ids.filter((pid) => prods[pid] === "verde").length;
-      return { sala_id, sala_nome: sala?.nome ?? "—", cobre, verdes, total: ids.length };
+      const totais = itensCarrinho.map((i) => byCat[i.item.id]);
+      const verdes = totais.filter((r) => r?.atende_total).length;
+      const parciais = totais.filter((r) => r && !r.atende_total && r.quantidade_disponivel > 0).length;
+      const cobre = verdes + parciais;
+      return { sala_id, sala_nome: sala?.nome ?? "—", cobre, verdes, total: itensCarrinho.length };
     });
     return lista.sort((a, b) => b.verdes - a.verdes || b.cobre - a.cobre || a.sala_nome.localeCompare(b.sala_nome));
   }, [disp, dispMap, itensCarrinho, salas]);
 
   const itensParaSala = (sid: string) =>
-    itensCarrinho.filter((i) => {
-      const n = dispMap[sid]?.[i.produto.id];
-      return n === "verde" || n === "amarelo";
-    });
+    itensCarrinho
+      .map((i) => {
+        const row = dispMap[sid]?.[i.item.id];
+        if (!row || row.quantidade_disponivel <= 0) return null;
+        return { item: i.item, quantidade: i.quantidade, produto_id: row.produto_id };
+      })
+      .filter((x): x is { item: Catalogo; quantidade: number; produto_id: string } => !!x);
 
   const enviarPedidoParaSala = async (sid: string) => {
-    const itens = itensParaSala(sid).map((i) => ({ produto_id: i.produto.id, quantidade: i.quantidade }));
+    const itens = itensParaSala(sid).map((i) => ({ produto_id: i.produto_id, quantidade: i.quantidade }));
     if (itens.length === 0) return toast.error("Esta sala não tem itens disponíveis do seu carrinho");
     setEnviando(true);
     const { error } = await supabase.rpc("criar_emprestimo", {
@@ -175,18 +219,17 @@ export default function NovoEmprestimo() {
     setEnviando(false);
     if (error) return toast.error(error.message);
     toast.success("Pedido enviado. Aguardando aprovação da sala de origem.");
-    // remove os itens já solicitados do carrinho
+    const enviadosCat = new Set(itensParaSala(sid).map((i) => i.item.id));
     setCarrinho((c) => {
       const next = { ...c };
-      itens.forEach((i) => delete next[i.produto_id]);
+      enviadosCat.forEach((cid) => delete next[cid]);
       return next;
     });
     setSalaSelecionada(null);
-    if (Object.keys(carrinho).length - itens.length === 0) {
+    if (Object.keys(carrinho).length - enviadosCat.size === 0) {
       await clearDraft();
       navigate("/app/emprestimos");
     } else {
-      // re-buscar disponibilidade dos restantes
       setDisp(null);
     }
   };
@@ -229,12 +272,12 @@ export default function NovoEmprestimo() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {produtosFiltrados.map((p) => {
+                {catalogoFiltrado.map((p) => {
                   const q = carrinho[p.id] ?? 0;
                   return (
                     <TableRow key={p.id} className="table-row-hover">
                       <TableCell className="font-medium">
-                        {p.nome} <span className="text-muted-foreground text-xs">({p.unidade})</span>
+                        {p.nome} <span className="text-muted-foreground text-xs">({p.unidade_padrao})</span>
                       </TableCell>
                       <TableCell>
                         {p.categoria?.nome
@@ -261,7 +304,7 @@ export default function NovoEmprestimo() {
                     </TableRow>
                   );
                 })}
-                {produtosFiltrados.length === 0 && (
+                {catalogoFiltrado.length === 0 && (
                   <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-12">Nenhum produto.</TableCell></TableRow>
                 )}
               </TableBody>
@@ -279,12 +322,12 @@ export default function NovoEmprestimo() {
           ) : (
             <div className="space-y-1.5 max-h-64 overflow-auto">
               {itensCarrinho.map((i) => (
-                <div key={i.produto.id} className="flex items-center justify-between text-sm rounded border border-border px-2 py-1.5">
+                <div key={i.item.id} className="flex items-center justify-between text-sm rounded border border-border px-2 py-1.5">
                   <div className="truncate">
-                    <div className="font-medium truncate">{i.produto.nome}</div>
-                    <div className="text-xs text-muted-foreground">{i.quantidade} {i.produto.unidade}</div>
+                    <div className="font-medium truncate">{i.item.nome}</div>
+                    <div className="text-xs text-muted-foreground">{i.quantidade} {i.item.unidade_padrao}</div>
                   </div>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setQtd(i.produto.id, 0)}>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setQtd(i.item.id, 0)}>
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
@@ -314,7 +357,7 @@ export default function NovoEmprestimo() {
             <div>
               <h3 className="font-semibold">Salas sugeridas</h3>
               <p className="text-xs text-muted-foreground">
-                🟢 disponível · 🟡 estoque baixo · 🔴 sem estoque · As quantidades exatas não são exibidas.
+                🟢 atende total · 🟡 atende parcial · 🔴 sem estoque · As quantidades exatas não são exibidas.
               </p>
             </div>
           </div>
@@ -330,8 +373,8 @@ export default function NovoEmprestimo() {
                   <TableRow>
                     <TableHead>Sala</TableHead>
                     {itensCarrinho.map((i) => (
-                      <TableHead key={i.produto.id} className="text-center">
-                        {i.produto.nome}
+                      <TableHead key={i.item.id} className="text-center">
+                        {i.item.nome}
                         <div className="text-[10px] font-normal text-muted-foreground">qtd: {i.quantidade}</div>
                       </TableHead>
                     ))}
@@ -346,9 +389,12 @@ export default function NovoEmprestimo() {
                       <TableRow key={s.sala_id} className="table-row-hover">
                         <TableCell className="font-medium">{s.sala_nome}</TableCell>
                         {itensCarrinho.map((i) => {
-                          const n = dispMap[s.sala_id]?.[i.produto.id] ?? "vermelho";
+                          const row = dispMap[s.sala_id]?.[i.item.id];
+                          const n: Nivel = !row || row.quantidade_disponivel <= 0
+                            ? "vermelho"
+                            : row.atende_total ? "verde" : "amarelo";
                           return (
-                            <TableCell key={i.produto.id} className="text-center" title={nivelLabel(n)}>
+                            <TableCell key={i.item.id} className="text-center" title={nivelLabel(n)}>
                               <span className="text-lg">{nivelEmoji(n)}</span>
                             </TableCell>
                           );
@@ -389,7 +435,7 @@ export default function NovoEmprestimo() {
               <div className="font-medium mb-1">Itens que serão solicitados a <strong>{salas.find((s) => s.id === salaSelecionada)?.nome}</strong>:</div>
               <ul className="list-disc list-inside text-muted-foreground">
                 {itensParaSala(salaSelecionada).map((i) => (
-                  <li key={i.produto.id}>{i.produto.nome} — {i.quantidade} {i.produto.unidade}</li>
+                  <li key={i.item.id}>{i.item.nome} — {i.quantidade} {i.item.unidade_padrao}</li>
                 ))}
               </ul>
               {itensParaSala(salaSelecionada).length < itensCarrinho.length && (
