@@ -591,6 +591,7 @@ export default function EstoquePage() {
               {isMaster && <TableHead className="text-right w-[110px]">CMP</TableHead>}
               {isMaster && <TableHead className="text-right w-[120px]">V. estoque</TableHead>}
               {isMaster && <TableHead className="w-[150px]">Última compra</TableHead>}
+              {isMaster && <TableHead className="w-[160px]">Origem do valor</TableHead>}
               <TableHead className="w-[120px]">Status</TableHead>
               {isMaster && <TableHead className="w-[320px] text-right">Ações</TableHead>}
             </TableRow>
