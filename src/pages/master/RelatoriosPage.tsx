@@ -106,13 +106,15 @@ export default function RelatoriosPage() {
   // Bases (salas, categorias, produtos, valor estoque, emp por sala)
   useEffect(() => {
     (async () => {
-      const [ss, cc, pp, ev, es, vz] = await Promise.all([
+      const efetivaSala = isGlobal ? (salaFilter === "all" ? null : salaFilter) : scopeSalaId!;
+      const [ss, cc, pp, ev, es, vz, pt] = await Promise.all([
         supabase.from("salas").select("id, nome").order("nome"),
         supabase.from("categorias").select("id, nome").order("nome"),
         supabase.from("produtos").select("id, nome, custo_unitario, categoria_id").order("nome"),
         supabase.rpc("valor_estoque_por_sala"),
         supabase.rpc("relatorio_emprestimos_salas"),
         supabase.rpc("estatisticas_valorizacao"),
+        (supabase as any).rpc("patrimonio_totais", { _sala: efetivaSala }),
       ]);
       setSalas((ss.data as Sala[]) ?? []);
       setCategorias((cc.data as Categoria[]) ?? []);
@@ -121,8 +123,11 @@ export default function RelatoriosPage() {
       setEmpSalas((es.data as EmpSalaRow[]) ?? []);
       const vzRow = Array.isArray(vz.data) ? (vz.data as any[])[0] : (vz.data as any);
       if (vzRow) setValorizacao(vzRow as ValorizacaoStats);
+      const ptRow = Array.isArray(pt?.data) ? (pt.data as any[])[0] : (pt?.data as any);
+      setValorPatrimonial(Number(ptRow?.valor_patrimonial ?? 0));
     })();
-  }, []);
+  }, [salaFilter, scopeSalaId, isGlobal]);
+
 
   // Consumo filtrado
   useEffect(() => {
