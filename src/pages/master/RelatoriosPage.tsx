@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { exportToExcel, exportReportPdf, printReport, exportExecutiveExcel, exportExecutivePdf, type ExportColumn } from "@/lib/exporters";
 import { Button } from "@/components/ui/button";
+import MovimentacaoFinanceiraTab from "./tabs/MovimentacaoFinanceiraTab";
 
 type Sala = { id: string; nome: string };
 type Categoria = { id: string; nome: string };
@@ -469,10 +470,21 @@ export default function RelatoriosPage() {
           <TabsTrigger value="top-produtos">Top produtos</TabsTrigger>
           <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+          <TabsTrigger value="mov-financeira">Mov. Financeira</TabsTrigger>
           <TabsTrigger value="categorias">Categorias</TabsTrigger>
           <TabsTrigger value="abc">Curva ABC</TabsTrigger>
           <TabsTrigger value="estoque">Valor de estoque</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="mov-financeira" className="mt-4">
+          <MovimentacaoFinanceiraTab
+            salas={salas}
+            categorias={categorias}
+            produtos={produtos}
+            scopeSalaId={scopeSalaId}
+          />
+        </TabsContent>
+
 
         {/* ===== DASHBOARD ===== */}
         <TabsContent value="dashboard" className="mt-4 space-y-4">
