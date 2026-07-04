@@ -60,10 +60,13 @@ export default function SalasPage() {
   const confirmForce = async () => {
     if (!deps) return;
     setForcing(true);
-    const { error } = await supabase.rpc("excluir_sala", { _sala: deps.sala.id, _force: true });
+    const { data, error } = await supabase.rpc("excluir_sala", { _sala: deps.sala.id, _force: true });
     setForcing(false);
     if (error) return toast.error(error.message);
-    toast.success(`Sala "${deps.sala.nome}" e dados vinculados removidos`);
+    const res = (data as any) ?? {};
+    const rem = res?.removidos ?? {};
+    const total = Object.values(rem).reduce<number>((acc, v) => acc + (Number(v) || 0), 0);
+    toast.success(`Sala "${deps.sala.nome}" removida — ${total} registro(s) vinculado(s) apagado(s).`);
     setDeps(null); load();
   };
 
