@@ -302,8 +302,9 @@ export default function AvaliacaoPatrimonialPage({ embedded = false }: { embedde
           </div>
           <div className="mt-2 text-xl font-semibold">{BRL(totais?.valor_total_estoque ?? 0)}</div>
           <div className="text-[11px] text-muted-foreground mt-1">
-            Patrimonial {BRL(totais?.valor_patrimonial ?? 0)} + Compras {BRL(totais?.valor_compras ?? 0)}
+            Estimado {BRL(totais?.valor_patrimonial ?? 0)} + Confirmado {BRL(totais?.valor_compras ?? 0)}
           </div>
+
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs">
