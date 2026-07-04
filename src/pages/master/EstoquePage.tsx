@@ -166,14 +166,14 @@ export default function EstoquePage() {
     if (isMaster) {
       const { data: avs } = await (supabase as any)
         .from("avaliacoes_patrimoniais")
-        .select("produto_id, sala_id, tipo, quantidade_restante, valor_unitario, data_avaliacao, created_at")
+        .select("produto_id, sala_id, tipo, quantidade_restante, valor_unitario, created_at")
         .gt("quantidade_restante", 0);
       const am = new Map<string, AvalInfo>();
       (avs ?? []).forEach((a: any) => {
         const k = `${a.produto_id}-${a.sala_id}`;
         const cur = am.get(k);
         const val = Number(a.quantidade_restante) * Number(a.valor_unitario);
-        const dt = a.data_avaliacao ?? a.created_at ?? null;
+        const dt = a.created_at ?? null;
         if (!cur) {
           am.set(k, { tipo: a.tipo, qtd: Number(a.quantidade_restante), valor: val, valor_unitario: Number(a.valor_unitario), data: dt });
         } else {
