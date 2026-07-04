@@ -704,6 +704,77 @@ export default function ProdutosPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Editar / Criar item do Catálogo */}
+      <Dialog open={catEditOpen} onOpenChange={setCatEditOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{catEditing ? "Editar item do catálogo" : "Novo item do catálogo"}</DialogTitle>
+            <DialogDescription>
+              Define apenas a <strong>identidade</strong> do item. Estoque, custo e mínimos são definidos por sala na aba "Estoque por sala".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input value={catForm.nome} onChange={(e) => setCatForm({ ...catForm, nome: e.target.value })} placeholder="Ex.: Água sem gás" />
+            </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={catForm.categoria_id || "__none"} onValueChange={(v) => setCatForm({ ...catForm, categoria_id: v === "__none" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Selecione a categoria" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">— Sem categoria —</SelectItem>
+                  {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea value={catForm.descricao} onChange={(e) => setCatForm({ ...catForm, descricao: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Unidade padrão</Label>
+              <Select
+                value={UNIDADES_PRESET.includes(catForm.unidade_padrao) ? catForm.unidade_padrao : "__custom"}
+                onValueChange={(v) => {
+                  if (v === "__custom") setCatForm({ ...catForm, unidade_padrao: "" });
+                  else setCatForm({ ...catForm, unidade_padrao: v });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {UNIDADES_PRESET.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                  <SelectItem value="__custom">Outros (personalizado)</SelectItem>
+                </SelectContent>
+              </Select>
+              {!UNIDADES_PRESET.includes(catForm.unidade_padrao) && (
+                <Input
+                  value={catForm.unidade_padrao}
+                  onChange={(e) => setCatForm({ ...catForm, unidade_padrao: e.target.value })}
+                  placeholder="Digite a unidade (ex: Bobina)"
+                />
+              )}
+              <p className="text-xs text-muted-foreground">Unidade de referência do item. Cada sala pode ter sua própria unidade específica no estoque.</p>
+            </div>
+            {catEditing && (
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <div className="text-sm font-medium">Item ativo no catálogo</div>
+                  <div className="text-xs text-muted-foreground">Inativos deixam de aparecer em novas operações, mas continuam no histórico.</div>
+                </div>
+                <Switch checked={catForm.ativo} onCheckedChange={(v) => setCatForm({ ...catForm, ativo: v })} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCatEditOpen(false)}>Cancelar</Button>
+            <Button onClick={saveCatalogo} disabled={catSaving}>
+              {catSaving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ImportarProdutosDialog
         open={importOpen}
         onOpenChange={setImportOpen}
@@ -713,5 +784,6 @@ export default function ProdutosPage() {
         onDone={load}
       />
     </div>
+
   );
 }
