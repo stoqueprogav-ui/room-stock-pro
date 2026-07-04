@@ -109,7 +109,7 @@ export default function RelatoriosPage() {
   useEffect(() => {
     (async () => {
       const efetivaSala = isGlobal ? (salaFilter === "all" ? null : salaFilter) : scopeSalaId!;
-      const [ss, cc, pp, ev, es, vz, pt] = await Promise.all([
+      const [ss, cc, pp, ev, es, vz, pt, ps] = await Promise.all([
         supabase.from("salas").select("id, nome").order("nome"),
         supabase.from("categorias").select("id, nome").order("nome"),
         supabase.from("produtos").select("id, nome, custo_unitario, categoria_id").order("nome"),
@@ -117,6 +117,7 @@ export default function RelatoriosPage() {
         supabase.rpc("relatorio_emprestimos_salas"),
         supabase.rpc("estatisticas_valorizacao"),
         (supabase as any).rpc("patrimonio_totais", { _sala: efetivaSala }),
+        (supabase as any).rpc("produtos_sem_avaliacao", { _sala: efetivaSala }),
       ]);
       setSalas((ss.data as Sala[]) ?? []);
       setCategorias((cc.data as Categoria[]) ?? []);
@@ -127,6 +128,9 @@ export default function RelatoriosPage() {
       if (vzRow) setValorizacao(vzRow as ValorizacaoStats);
       const ptRow = Array.isArray(pt?.data) ? (pt.data as any[])[0] : (pt?.data as any);
       setValorPatrimonial(Number(ptRow?.valor_patrimonial ?? 0));
+      setPatTotais(ptRow ?? null);
+      const pendRows: any[] = (ps?.data as any[]) ?? [];
+      setPendValorAprox(pendRows.reduce((s, r) => s + Number(r.valor_total_atual ?? (Number(r.quantidade ?? 0) * Number(r.custo_unitario_ref ?? 0))), 0));
     })();
   }, [salaFilter, scopeSalaId, isGlobal]);
 
