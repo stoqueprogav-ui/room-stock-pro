@@ -1114,52 +1114,34 @@ export default function EstoquePage() {
       </Dialog>
 
 
-      {/* Modal: Confirmar exclusão individual */}
-      <Dialog open={!!confirmDel} onOpenChange={(v) => { if (!v) { setConfirmDel(null); setDelMode("sala"); } }}>
+      {/* Modal: Confirmar exclusão (sempre por sala — cada produto pertence a uma única sala) */}
+      <Dialog open={!!confirmDel} onOpenChange={(v) => { if (!v) setConfirmDel(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="size-5" /> Como deseja excluir este produto?
+              <AlertTriangle className="size-5" /> Deseja excluir este produto?
             </DialogTitle>
             <DialogDescription>
-              Escolha o escopo da exclusão. Os estoques de cada sala são independentes.
+              Esta operação remove apenas este produto do estoque da sala selecionada.
+              O histórico será preservado conforme as regras do sistema.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+            <div className="text-xs text-muted-foreground">Produto</div>
             <div className="font-display font-bold text-base">{confirmDel?.produto.nome}</div>
-            <div className="text-xs text-muted-foreground">Sala atual: <strong>{confirmDel?.sala.nome}</strong></div>
-          </div>
-          <div className="space-y-2">
-            <label className="flex items-start gap-2 p-3 rounded-md border cursor-pointer hover:bg-muted/40">
-              <input type="radio" name="delmode" className="mt-1" checked={delMode === "sala"} onChange={() => setDelMode("sala")} />
-              <div>
-                <div className="font-medium text-sm">Apenas desta sala ({confirmDel?.sala.nome})</div>
-                <div className="text-xs text-muted-foreground">
-                  Remove o produto somente do estoque desta sala. As demais salas não são afetadas. Histórico, requisições e empréstimos preservados.
-                </div>
-              </div>
-            </label>
-            {isMaster && (
-              <label className="flex items-start gap-2 p-3 rounded-md border cursor-pointer hover:bg-muted/40">
-                <input type="radio" name="delmode" className="mt-1" checked={delMode === "todas"} onChange={() => setDelMode("todas")} />
-                <div>
-                  <div className="font-medium text-sm">De todas as salas <span className="text-xs text-muted-foreground">(somente Master)</span></div>
-                  <div className="text-xs text-muted-foreground">
-                    Remove o produto de todos os estoques. Se houver histórico ou saldo, o produto é desativado em vez de apagado.
-                  </div>
-                </div>
-              </label>
-            )}
+            <div className="text-xs text-muted-foreground mt-2">Sala</div>
+            <div className="font-medium text-sm">{confirmDel?.sala.nome}</div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setConfirmDel(null); setDelMode("sala"); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setConfirmDel(null)}>Cancelar</Button>
             <Button variant="destructive" onClick={confirmarExclusao} disabled={delLoading}>
               {delLoading && <Loader2 className="size-4 animate-spin" />}
-              <Trash2 className="size-4" /> Confirmar
+              <Trash2 className="size-4" /> Excluir Produto
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* Modal: Confirmar exclusão em massa */}
       <Dialog open={confirmBulk} onOpenChange={setConfirmBulk}>
