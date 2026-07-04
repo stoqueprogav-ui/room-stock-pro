@@ -559,6 +559,22 @@ export default function EstoquePage() {
                       <span className="text-muted-foreground text-xs">({r.produto.unidade})</span>
                     </span>
                   )}
+                  {(() => {
+                    const av = avaliacoes.get(`${r.produto_id}-${r.sala_id}`);
+                    if (!av) {
+                      if (r.quantidade > 0 && r.valor_total <= 0 && isMaster) {
+                        return <div className="mt-1"><Badge variant="outline" className="text-[10px] border-warning/50 text-warning">Sem avaliação patrimonial</Badge></div>;
+                      }
+                      return null;
+                    }
+                    return (
+                      <div className="mt-1">
+                        <Badge variant={av.tipo === "confirmado" ? "default" : "secondary"} className="text-[10px]" title={`${av.qtd} un · ${BRL(av.valor)}`}>
+                          Aval. {av.tipo === "confirmado" ? "confirmada" : "estimada"}
+                        </Badge>
+                      </div>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell>
                   {(r.produto as any)?.categoria?.nome
