@@ -656,22 +656,72 @@ export default function EstoquePage() {
                 <TableCell className="text-right font-mono text-warning">{r.quantidade_reservada > 0 ? r.quantidade_reservada : <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-right font-mono font-semibold text-primary">{Math.max(r.quantidade - r.quantidade_reservada, 0)}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">{r.produto.estoque_minimo}</TableCell>
-                {isMaster && <TableCell className="text-right font-mono text-xs">{r.custo_medio > 0 ? BRL(r.custo_medio) : <span className="text-muted-foreground">—</span>}</TableCell>}
-                {isMaster && <TableCell className="text-right font-mono text-xs text-success font-semibold">{r.valor_total > 0 ? BRL(r.valor_total) : <span className="text-muted-foreground font-normal">—</span>}</TableCell>}
-                {isMaster && (
-                  <TableCell className="text-xs">
-                    {(() => {
-                      const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
-                      if (!u) return <span className="text-muted-foreground">Sem compras</span>;
-                      return (
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
-                          <div className="font-mono">{BRL(u.valor_unitario)}{u.fornecedor ? ` · ${u.fornecedor}` : ""}</div>
-                        </div>
-                      );
-                    })()}
-                  </TableCell>
-                )}
+                {isMaster && (() => {
+                  const av = avaliacoes.get(`${r.produto_id}-${r.sala_id}`);
+                  const hasCompra = r.custo_medio > 0;
+                  const hasAval = !!av && av.valor_unitario > 0;
+                  const cmpValor = hasCompra ? r.custo_medio : (hasAval ? av!.valor_unitario : 0);
+                  const vEstoque = hasCompra ? r.valor_total : (hasAval ? r.quantidade * av!.valor_unitario : 0);
+                  const u = ultimas.get(`${r.produto_id}-${r.sala_id}`);
+                  const tipoAval = av?.tipo;
+                  return (
+                    <>
+                      <TableCell className="text-right font-mono text-xs">
+                        {cmpValor > 0 ? (
+                          <div className="space-y-0.5">
+                            <div>{BRL(cmpValor)}</div>
+                            {!hasCompra && hasAval && (
+                              <Badge variant={tipoAval === "confirmado" ? "default" : "secondary"} className="text-[9px]">
+                                {tipoAval === "confirmado" ? "Confirmado" : "Estimado"}
+                              </Badge>
+                            )}
+                          </div>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-success font-semibold">
+                        {vEstoque > 0 ? BRL(vEstoque) : <span className="text-muted-foreground font-normal">—</span>}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {u ? (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1 text-muted-foreground"><Calendar className="size-3" />{new Date(u.data).toLocaleDateString("pt-BR")}</div>
+                            <div className="font-mono">{BRL(u.valor_unitario)}{u.fornecedor ? ` · ${u.fornecedor}` : ""}</div>
+                          </div>
+                        ) : (
+                          <div className="space-y-0.5">
+                            <span className="text-muted-foreground">Sem compras</span>
+                            {hasAval && (
+                              <div className="text-[10px] text-muted-foreground">
+                                {tipoAval === "confirmado" ? "Avaliação Patrimonial" : "Valor Estimado"}
+                                {av?.data ? ` · ${new Date(av.data).toLocaleDateString("pt-BR")}` : ""}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {hasCompra ? (
+                          <Badge className="bg-success/15 text-success border border-success/30 text-[10px] gap-1">
+                            <span className="size-1.5 rounded-full bg-success" /> Compra
+                          </Badge>
+                        ) : hasAval ? (
+                          <Badge className={
+                            tipoAval === "confirmado"
+                              ? "bg-success/15 text-success border border-success/30 text-[10px] gap-1"
+                              : "bg-warning/15 text-warning border border-warning/30 text-[10px] gap-1"
+                          }>
+                            <span className={`size-1.5 rounded-full ${tipoAval === "confirmado" ? "bg-success" : "bg-warning"}`} />
+                            Aval. {tipoAval === "confirmado" ? "(Confirmado)" : "(Estimado)"}
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-destructive/15 text-destructive border border-destructive/30 text-[10px] gap-1">
+                            <span className="size-1.5 rounded-full bg-destructive" /> Sem valor
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </>
+                  );
+                })()}
                 <TableCell>
                   <div className="flex flex-col gap-1">
                     <StatusBadgeCell q={r.quantidade} p={r.produto} />
