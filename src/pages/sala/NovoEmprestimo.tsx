@@ -16,6 +16,7 @@ import type { Sala, Categoria } from "@/lib/types";
 import { useDraft } from "@/hooks/useDraft";
 import DraftStatusBadge from "@/components/DraftStatusBadge";
 import RecoverDraftDialog from "@/components/RecoverDraftDialog";
+import { useActiveSala } from "@/contexts/ActiveSalaContext";
 
 // Item de catálogo (identidade única)
 type Catalogo = {
