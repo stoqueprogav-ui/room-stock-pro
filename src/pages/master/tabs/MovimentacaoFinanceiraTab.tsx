@@ -342,12 +342,12 @@ export default function MovimentacaoFinanceiraTab({
     { header: "Categoria", key: "categoria_nome" },
     { header: "Tipo", key: "tipo_label" },
     { header: "Origem", key: "origem" },
-    { header: "Fluxo", map: (r) => r.fluxo === "entrada" ? "Entrada" : "Saída" },
+    { header: "Fluxo", key: "fluxo", map: (r) => r.fluxo === "entrada" ? "Entrada" : "Saída" },
     { header: "Quantidade", key: "quantidade" },
-    { header: "Valor unitário (R$)", map: (r) => Number(r.valor_unitario.toFixed(2)) },
-    { header: "Valor total (R$)", map: (r) => Number(r.valor_total.toFixed(2)) },
+    { header: "Valor unitário (R$)", key: "valor_unitario", map: (r) => Number(r.valor_unitario.toFixed(2)) },
+    { header: "Valor total (R$)", key: "valor_total", map: (r) => Number(r.valor_total.toFixed(2)) },
     { header: "Usuário", key: "usuario_nome" },
-    { header: "Observação", map: (r) => r.observacao ?? "" },
+    { header: "Observação", key: "observacao", map: (r) => r.observacao ?? "" },
   ];
 
   const meta = {
