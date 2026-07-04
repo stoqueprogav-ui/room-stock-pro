@@ -33,6 +33,7 @@ import ConsumoInternoPage from "./pages/master/ConsumoInternoPage";
 import InventarioPage from "./pages/master/InventarioPage";
 import DashboardGerencial from "./pages/master/DashboardGerencial";
 import EntradasEstoquePage from "./pages/master/EntradasEstoquePage";
+import AvaliacaoPatrimonialPage from "./pages/master/AvaliacaoPatrimonialPage";
 
 const queryClient = new QueryClient();
 
