@@ -57,8 +57,21 @@ export default function EstoquePage() {
 
   // Edição rápida do PRODUTO
   const [editProd, setEditProd] = useState<Produto | null>(null);
+  const [editProdSala, setEditProdSala] = useState<Sala | null>(null);
   const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "" });
   const [savingProd, setSavingProd] = useState(false);
+
+  // Avaliação patrimonial (dentro do editar produto)
+  type ResumoAval = { tem_avaliacao: boolean; tipo: string | null; quantidade_coberta: number; valor_unitario: number; valor_total: number; ultima_atualizacao: string | null; responsavel_nome: string | null; motivo: string | null };
+  type HistAval = { id: string; created_at: string; quantidade: number; valor_anterior: number | null; valor_novo: number; tipo_anterior: string | null; tipo_novo: string; motivo: string; responsavel_nome: string | null };
+  const [resumoAval, setResumoAval] = useState<ResumoAval | null>(null);
+  const [histAval, setHistAval] = useState<HistAval[]>([]);
+  const [loadingAval, setLoadingAval] = useState(false);
+  const [updAvalOpen, setUpdAvalOpen] = useState(false);
+  const MOTIVOS_AVAL = ["Regularização inicial", "Atualização de mercado", "Correção administrativa", "Ajuste patrimonial", "Inventário", "Outro"];
+  const [updAvalForm, setUpdAvalForm] = useState<{ valor: string; tipo: "estimado" | "confirmado"; motivo: string; motivoOutro: string }>({ valor: "", tipo: "estimado", motivo: MOTIVOS_AVAL[0], motivoOutro: "" });
+  const [savingAval, setSavingAval] = useState(false);
+
 
   // Exclusão individual e em massa
   const [confirmDel, setConfirmDel] = useState<{ produto: Produto; sala: Sala } | null>(null);
