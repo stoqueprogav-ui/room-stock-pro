@@ -441,6 +441,12 @@ export default function ProdutosPage() {
           </p>
 
           <div className="flex flex-wrap gap-2 items-center">
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Pesquisar produto por nome…"
+              className="w-64"
+            />
             <span className="text-xs text-muted-foreground mr-1">Categoria:</span>
             <Button size="sm" variant={filtroCat === "all" ? "default" : "outline"} onClick={() => setFiltroCat("all")}>
               Todas
