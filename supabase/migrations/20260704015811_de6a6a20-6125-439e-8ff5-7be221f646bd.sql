@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.produtos_nome_global_uniq;
