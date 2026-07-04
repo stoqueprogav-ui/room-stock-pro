@@ -148,6 +148,31 @@ export default function EstoquePage() {
       if (!map.has(k)) map.set(k, { data: row.data_entrada, valor_unitario: Number(row.valor_unitario), fornecedor: row.fornecedor });
     });
     setUltimas(map);
+
+    // Avaliações patrimoniais ativas (quantidade_restante > 0)
+    if (isMaster) {
+      const { data: avs } = await (supabase as any)
+        .from("avaliacoes_patrimoniais")
+        .select("produto_id, sala_id, tipo, quantidade_restante, valor_unitario")
+        .gt("quantidade_restante", 0);
+      const am = new Map<string, AvalInfo>();
+      (avs ?? []).forEach((a: any) => {
+        const k = `${a.produto_id}-${a.sala_id}`;
+        const cur = am.get(k);
+        const val = Number(a.quantidade_restante) * Number(a.valor_unitario);
+        if (!cur) {
+          am.set(k, { tipo: a.tipo, qtd: Number(a.quantidade_restante), valor: val });
+        } else {
+          // Se qualquer camada é 'confirmado', considera confirmado
+          am.set(k, {
+            tipo: cur.tipo === "confirmado" || a.tipo === "confirmado" ? "confirmado" : "estimado",
+            qtd: cur.qtd + Number(a.quantidade_restante),
+            valor: cur.valor + val,
+          });
+        }
+      });
+      setAvaliacoes(am);
+    }
   };
 
   useEffect(() => { load(); }, []);
