@@ -284,8 +284,10 @@ export default function RelatoriosPage() {
     const k = new Date().toISOString().slice(0, 7);
     return evolucaoMensal.find((m) => m.mes === k)?.valor ?? 0;
   }, [evolucaoMensal]);
-  const valorTotalEstoque = estoqueValor.reduce((s, x) => s + Number(x.valor_total), 0);
+  const valorCompras = estoqueValor.reduce((s, x) => s + Number(x.valor_total), 0);
+  const valorTotalEstoque = valorCompras + Number(valorPatrimonial ?? 0);
   const salaMaiorEstoque = [...estoqueValor].sort((a, b) => b.valor_total - a.valor_total)[0];
+
 
   // Comparativo: matriz produto x sala (top 10 produtos por qtd)
   const comparativo = useMemo(() => {
