@@ -89,7 +89,7 @@ export default function RelatoriosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [consumo, setConsumo] = useState<ConsumoRow[]>([]);
   
-  const [movMensalRaw, setMovMensalRaw] = useState<{ created_at: string; quantidade: number; tipo: string; produto_id: string; sala_id: string }[]>([]);
+  const [evolucaoMensal, setEvolucaoMensal] = useState<{ mes: string; qtd: number; valor: number }[]>([]);
   const [empSalas, setEmpSalas] = useState<EmpSalaRow[]>([]);
   const [empStatus, setEmpStatus] = useState<{ status: string; count: number }[]>([]);
   const [estoqueValor, setEstoqueValor] = useState<EstoqueValorRow[]>([]);
