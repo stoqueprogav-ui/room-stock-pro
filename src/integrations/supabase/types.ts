@@ -2359,6 +2359,16 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_saida_estoque: {
+        Args: {
+          _motivo?: string
+          _observacao?: string
+          _produto: string
+          _quantidade: number
+          _sala: string
+        }
+        Returns: undefined
+      }
       regularizar_avaliacoes_lote: { Args: { _itens: Json }; Returns: number }
       relatorio_categorias_financeiro: {
         Args: { _from?: string; _sala?: string; _to?: string }
@@ -2492,6 +2502,10 @@ export type Database = {
         Returns: string
       }
       set_minha_sala_ativa: { Args: { _sala: string }; Returns: undefined }
+      set_user_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"]; _user: string }
+        Returns: undefined
+      }
       toggle_produto_sala_ativo: {
         Args: { _ativo: boolean; _produto_id: string; _sala_id: string }
         Returns: undefined
