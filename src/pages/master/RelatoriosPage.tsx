@@ -225,7 +225,7 @@ export default function RelatoriosPage() {
 
   // Consolidado por região (apenas super master)
   useEffect(() => {
-    if (!isSuperMaster) { setConsolidadoRegioes([]); return; }
+    if (!isSuperMode) { setConsolidadoRegioes([]); return; }
     (async () => {
       const desde = periodo === "all" ? null : isoDaysAgo(parseInt(periodo, 10));
       const ate = null;
