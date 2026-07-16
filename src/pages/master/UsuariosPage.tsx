@@ -190,7 +190,7 @@ export default function UsuariosPage() {
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead className="w-[180px]">Perfil</TableHead>
-              <TableHead className="w-[200px]">Sala</TableHead>
+              <TableHead className="w-[240px]">Sala / Região</TableHead>
               <TableHead className="w-[120px]">Status</TableHead>
               <TableHead className="w-[140px] text-right">Ações</TableHead>
             </TableRow>
@@ -204,15 +204,24 @@ export default function UsuariosPage() {
                   <Select value={u.role} onValueChange={(v) => updateRole(u, v as AppRole)} disabled={u.id === profile?.id}>
                     <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="master">Master</SelectItem>
+                      {isSuperMaster && <SelectItem value="super_master">Super Master</SelectItem>}
+                      {isSuperMaster && <SelectItem value="master">Master</SelectItem>}
                       <SelectItem value="admin">Administrador</SelectItem>
                       <SelectItem value="analista">Analista</SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>
                 <TableCell>
-                  {u.role === "master" ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Globe2 className="size-3.5" /> Todas as salas</span>
+                  {u.role === "super_master" ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Globe2 className="size-3.5" /> Todas as regiões</span>
+                  ) : u.role === "master" ? (
+                    <div className="flex flex-wrap gap-1">
+                      {(u.regiao_ids ?? []).length === 0 && <span className="text-xs text-muted-foreground">Sem região</span>}
+                      {(u.regiao_ids ?? []).map((rid) => {
+                        const r = regioes.find((x) => x.id === rid);
+                        return r ? <span key={rid} className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-medium">{r.nome}</span> : null;
+                      })}
+                    </div>
                   ) : (
                     <Button variant="outline" size="sm" className="h-8" onClick={() => setSalasDialog(u)}>
                       <Building2 className="size-3.5" />
@@ -276,7 +285,8 @@ export default function UsuariosPage() {
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {isGlobal && <SelectItem value="master">Master</SelectItem>}
+                    {isGlobal && isSuperMaster && <SelectItem value="super_master">Super Master</SelectItem>}
+                    {isGlobal && isSuperMaster && <SelectItem value="master">Master</SelectItem>}
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="analista">Analista</SelectItem>
                   </SelectContent>
@@ -285,7 +295,24 @@ export default function UsuariosPage() {
             </div>
             <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             <div className="space-y-2"><Label>Senha provisória</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
-            {form.role !== "master" && (
+            {isMasterRole ? (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Globe2 className="size-3.5 text-primary" /> Regiões autorizadas {form.role === "super_master" && <span className="text-xs text-muted-foreground">(opcional — vê todas)</span>}</Label>
+                <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
+                  {regioes.length === 0 && <div className="text-xs text-muted-foreground px-2 py-2">Nenhuma região cadastrada.</div>}
+                  {regioes.map((r) => (
+                    <label key={r.id} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer">
+                      <Checkbox
+                        checked={form.regioes.includes(r.id)}
+                        onCheckedChange={() => toggleFormRegiao(r.id)}
+                      />
+                      <span className="text-sm flex-1">{r.nome}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="text-xs text-muted-foreground">{form.regioes.length} região{form.regioes.length === 1 ? "" : "s"} selecionada{form.regioes.length === 1 ? "" : "s"}.</div>
+              </div>
+            ) : (
               <div className="space-y-2">
                 <Label className="flex items-center gap-2"><Building2 className="size-3.5 text-primary" /> Salas autorizadas</Label>
                 <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
