@@ -2358,6 +2358,10 @@ export type Database = {
       }
       marcar_senha_trocada: { Args: never; Returns: undefined }
       mark_conversation_read: { Args: { _conv: string }; Returns: undefined }
+      master_scope_sala: {
+        Args: { _sala: string; _user: string }
+        Returns: boolean
+      }
       patrimonio_global: { Args: never; Returns: number }
       patrimonio_totais: {
         Args: { _sala?: string }
