@@ -72,8 +72,8 @@ function monthKey(iso: string) {
 }
 
 export default function RelatoriosPage() {
-  const { scopeSalaId } = useMasterScope();
-  const { profile, isSuperMaster } = useAuth();
+  const { scopeSalaId, isSuperMode } = useMasterScope();
+  const { profile } = useAuth();
   const { logoUrl } = useCompanyLogo();
   const isGlobal = scopeSalaId === null;
 
