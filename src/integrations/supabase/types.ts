@@ -2048,6 +2048,20 @@ export type Database = {
           valor_em_estoque: number
         }[]
       }
+      consumo_mensal: {
+        Args: {
+          _categoria?: string
+          _from?: string
+          _produto?: string
+          _sala?: string
+          _to?: string
+        }
+        Returns: {
+          mes: string
+          quantidade: number
+          valor: number
+        }[]
+      }
       criar_avaliacao_patrimonial: {
         Args: {
           _observacao?: string
