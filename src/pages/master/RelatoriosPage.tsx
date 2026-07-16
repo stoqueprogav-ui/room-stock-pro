@@ -207,9 +207,11 @@ export default function RelatoriosPage() {
   // Requisições por sala
   useEffect(() => {
     (async () => {
+      const efetivaSala = isGlobal ? (salaFilter === "all" ? null : salaFilter) : scopeSalaId!;
       const desde = periodo === "all" ? null : isoDaysAgo(parseInt(periodo, 10));
       let q = supabase.from("solicitacoes").select("sala_id").limit(50000);
       if (desde) q = q.gte("created_at", desde);
+      if (efetivaSala) q = q.eq("sala_id", efetivaSala);
       const { data } = await q;
       const map = new Map<string, number>();
       ((data as any[]) ?? []).forEach((r) => map.set(r.sala_id, (map.get(r.sala_id) ?? 0) + 1));
@@ -218,7 +220,7 @@ export default function RelatoriosPage() {
         .sort((a, b) => b.total - a.total);
       setReqPorSala(arr);
     })();
-  }, [periodo, salas]);
+  }, [periodo, salas, salaFilter, scopeSalaId, isGlobal]);
 
   // ===== Derivados =====
 
