@@ -11,14 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt, Scale as ScaleIcon, Plus, FileSpreadsheet, Boxes, Package } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { AlertTriangle, Plus, FileSpreadsheet, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt, Scale as ScaleIcon } from "lucide-react";
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import CatalogoTab from "@/components/CatalogoTab";
 import NovoProdutoNaSalaDialog from "@/components/NovoProdutoNaSalaDialog";
 import ImportarProdutosDialog from "@/components/ImportarProdutosDialog";
 
@@ -53,9 +51,6 @@ export default function EstoquePage() {
   const [sort, setSort] = useState<SortKey>("nome");
   const [salaFilterUI, setSalaFilterUI] = useState<string>("all");
   const [catFilter, setCatFilter] = useState<string>("all");
-  const [tab, setTab] = useState<"estoque" | "catalogo">("estoque");
-  const [novoProdOpen, setNovoProdOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
 
   const [editing, setEditing] = useState<Row | null>(null);
   const [editValue, setEditValue] = useState(0);
@@ -106,6 +101,10 @@ export default function EstoquePage() {
 
   // Saída – motivo + observação
   const [saidaMotivo, setSaidaMotivo] = useState<string>("Consumo interno");
+
+  // Cadastro/Importação de produtos (o catálogo é preenchido automaticamente)
+  const [novoProdOpen, setNovoProdOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Última entrada por (produto, sala)
   const [ultimas, setUltimas] = useState<Map<string, UltimaEntrada>>(new Map());
@@ -211,7 +210,6 @@ export default function EstoquePage() {
 
   const filtered = useMemo(() => {
     const base = rows
-      // Não-Master: só vê linhas ativas com estoque > 0. Master vê tudo.
       .filter((r) => isMaster || (r.ativo && r.quantidade > 0))
       .filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter)
       .filter((r) => catFilter === "all" || (r.produto as any)?.categoria_id === catFilter)
@@ -317,10 +315,11 @@ export default function EstoquePage() {
       return;
     }
 
-    // Saída
+    // Saída (baixa relativa e atômica; registra tipo=saida)
     if (!movQtd || movQtd <= 0) return toast.error("Quantidade inválida");
+    if (movQtd > movRow.quantidade) return toast.error("Estoque insuficiente para esta saída");
     setMovSaving(true);
-    const { error } = await (supabase as any).rpc("registrar_saida_estoque", {
+    const { error } = await supabase.rpc("registrar_saida_estoque", {
       _produto: movRow.produto_id,
       _sala: movRow.sala_id,
       _quantidade: movQtd,
@@ -478,33 +477,13 @@ export default function EstoquePage() {
                 : "Modo global · todas as salas")
             : "Quantidades por produto na sua sala."
         }
-        actions={
-          isMaster && tab === "estoque" ? (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setImportOpen(true)}>
-                <FileSpreadsheet className="size-4" /> Importar
-              </Button>
-              <Button onClick={() => setNovoProdOpen(true)}>
-                <Plus className="size-4" /> Novo produto na sala
-              </Button>
-            </div>
-          ) : undefined
-        }
+        actions={isMaster ? (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="size-4" /> Importar</Button>
+            <Button onClick={() => setNovoProdOpen(true)}><Plus className="size-4" /> Novo produto na sala</Button>
+          </div>
+        ) : undefined}
       />
-
-      <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="space-y-4">
-        {isMaster && (
-          <TabsList>
-            <TabsTrigger value="estoque" className="gap-2"><Boxes className="size-4" /> Estoque por sala</TabsTrigger>
-            <TabsTrigger value="catalogo" className="gap-2"><Package className="size-4" /> Catálogo</TabsTrigger>
-          </TabsList>
-        )}
-        {isMaster && (
-          <TabsContent value="catalogo" className="space-y-4">
-            <CatalogoTab />
-          </TabsContent>
-        )}
-        <TabsContent value="estoque" className="space-y-4">
 
       {/* Abas de categoria */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -951,7 +930,7 @@ export default function EstoquePage() {
         <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="size-5 text-primary" /> Editar produto</DialogTitle>
-            <DialogDescription>Atualize os dados do produto. Esta edição afeta apenas o produto desta sala. Para renomear em todas as salas, edite pelo Catálogo.</DialogDescription>
+            <DialogDescription>Atualize os dados do produto. Esta edição afeta apenas o produto desta sala.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2"><Label>Nome *</Label><Input value={editProdForm.nome} onChange={(e) => setEditProdForm({ ...editProdForm, nome: e.target.value })} /></div>
@@ -1196,8 +1175,7 @@ export default function EstoquePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-        </TabsContent>
-      </Tabs>
+
       {isMaster && (
         <>
           <NovoProdutoNaSalaDialog
