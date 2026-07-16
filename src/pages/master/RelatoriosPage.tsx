@@ -72,7 +72,7 @@ function monthKey(iso: string) {
 }
 
 export default function RelatoriosPage() {
-  const { scopeSalaId, isSuperMode } = useMasterScope();
+  const { scopeSalaId, isSuperMaster } = useMasterScope();
   const { profile } = useAuth();
   const { logoUrl } = useCompanyLogo();
   const isGlobal = scopeSalaId === null;
@@ -225,7 +225,7 @@ export default function RelatoriosPage() {
 
   // Consolidado por região (apenas super master)
   useEffect(() => {
-    if (!isSuperMode) { setConsolidadoRegioes([]); return; }
+    if (!isSuperMaster) { setConsolidadoRegioes([]); return; }
     (async () => {
       const desde = periodo === "all" ? null : isoDaysAgo(parseInt(periodo, 10));
       const ate = null;
@@ -250,7 +250,7 @@ export default function RelatoriosPage() {
       });
       setConsolidadoRegioes(Array.from(map.values()).sort((a, b) => a.regiao_nome.localeCompare(b.regiao_nome)));
     })();
-  }, [isSuperMode, periodo]);
+  }, [isSuperMaster, periodo]);
 
   // ===== Derivados =====
 
@@ -489,7 +489,7 @@ export default function RelatoriosPage() {
       </Card>
 
       {/* Consolidado por região (apenas super master) */}
-      {isSuperMode && (
+      {isSuperMaster && (
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Globe2 className="size-4 text-primary" />
