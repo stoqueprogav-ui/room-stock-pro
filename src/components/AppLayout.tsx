@@ -29,9 +29,10 @@ type NavItem = {
   children?: NavItem[];
 };
 
-function navForRole(role: string | null, isGlobalScope: boolean): NavItem[] {
+function navForRole(role: string | null, isGlobalScope: boolean, isSuperMaster: boolean): NavItem[] {
   if (role === "master") {
     const items: NavItem[] = [
+      ...(isSuperMaster ? [{ to: "/app/regioes", label: "Regiões", icon: MapPin } as NavItem] : []),
       { to: "/app", label: "Visão geral", icon: LayoutDashboard },
     ];
     if (isGlobalScope) {
@@ -104,7 +105,7 @@ export default function AppLayout() {
 }
 
 function AppLayoutInner() {
-  const { user, role, profile, loading, signOut } = useAuth();
+  const { user, role, profile, loading, signOut, isSuperMaster } = useAuth();
   const { activeSalaId, activeSalaName, loading: salaLoading, selectionRequired, salas, chooseSala } = useActiveSala();
   const { scopeReady, scopeSalaId } = useMasterScope();
   const navigate = useNavigate();
@@ -113,7 +114,7 @@ function AppLayoutInner() {
   const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0, chat: 0 });
   const [salaNome, setSalaNome] = useState<string | null>(null);
 
-  const items = useMemo(() => navForRole(role, scopeSalaId === null), [role, scopeSalaId]);
+  const items = useMemo(() => navForRole(role, scopeSalaId === null, isSuperMaster), [role, scopeSalaId, isSuperMaster]);
 
   // Carrega nome da sala em foco (master) ou da sala do usuário (admin/analista)
   useEffect(() => {
