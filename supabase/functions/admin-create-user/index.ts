@@ -73,13 +73,17 @@ Deno.serve(async (req) => {
       return jsonResp({ ok: false, error: friendly, step: "auth.create", details: msg }, 400);
     }
 
-    // Atribuição de cargo feita aqui, com service_role (a trigger não faz mais isso).
-    const { error: roleErr } = await admin
-      .from("user_roles")
-      .insert({ user_id: created.user.id, role });
+    // Atribuição de cargo via RPC set_user_role, executada com o JWT do Master
+    // (o trigger de user_roles valida auth.uid() = Master, então service_role não passa).
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { error: roleErr } = await userClient.rpc("set_user_role", {
+      _user: created.user.id,
+      _role: role,
+    });
     if (roleErr) {
       console.error("admin-create-user role insert error", roleErr);
-      // rollback: remove o usuário recém-criado para não deixar conta órfã sem cargo
       await admin.auth.admin.deleteUser(created.user.id);
       return jsonResp({ ok: false, error: "Falha ao atribuir cargo: " + roleErr.message, step: "role" }, 400);
     }
