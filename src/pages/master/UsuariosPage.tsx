@@ -22,8 +22,8 @@ type UserRow = { id: string; nome: string; email: string; sala_id: string | null
 type Regiao = { id: string; nome: string };
 
 export default function UsuariosPage() {
-  const { profile, isSuperMaster } = useAuth();
-  const { scopeSalaId } = useMasterScope();
+  const { profile } = useAuth();
+  const { scopeSalaId, isSuperMode } = useMasterScope();
   const isGlobal = scopeSalaId === null;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
@@ -204,8 +204,8 @@ export default function UsuariosPage() {
                   <Select value={u.role} onValueChange={(v) => updateRole(u, v as AppRole)} disabled={u.id === profile?.id}>
                     <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {isSuperMaster && <SelectItem value="super_master">Super Master</SelectItem>}
-                      {isSuperMaster && <SelectItem value="master">Master</SelectItem>}
+                      {isSuperMode && <SelectItem value="super_master">Super Master</SelectItem>}
+                      {isSuperMode && <SelectItem value="master">Master</SelectItem>}
                       <SelectItem value="admin">Administrador</SelectItem>
                       <SelectItem value="analista">Analista</SelectItem>
                     </SelectContent>
@@ -285,8 +285,8 @@ export default function UsuariosPage() {
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {isGlobal && isSuperMaster && <SelectItem value="super_master">Super Master</SelectItem>}
-                    {isGlobal && isSuperMaster && <SelectItem value="master">Master</SelectItem>}
+                    {isGlobal && isSuperMode && <SelectItem value="super_master">Super Master</SelectItem>}
+                    {isGlobal && isSuperMode && <SelectItem value="master">Master</SelectItem>}
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="analista">Analista</SelectItem>
                   </SelectContent>
