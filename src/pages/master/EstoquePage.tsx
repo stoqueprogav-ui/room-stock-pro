@@ -319,7 +319,7 @@ export default function EstoquePage() {
     if (!movQtd || movQtd <= 0) return toast.error("Quantidade inválida");
     if (movQtd > movRow.quantidade) return toast.error("Estoque insuficiente para esta saída");
     setMovSaving(true);
-    const { error } = await supabase.rpc("registrar_saida_estoque", {
+    const { error } = await (supabase as any).rpc("registrar_saida_estoque", {
       _produto: movRow.produto_id,
       _sala: movRow.sala_id,
       _quantidade: movQtd,
