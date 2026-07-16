@@ -2032,6 +2032,10 @@ export type Database = {
         Args: { _produto: string; _sala: string }
         Returns: undefined
       }
+      admin_set_master_regioes: {
+        Args: { _regioes: string[]; _user: string }
+        Returns: undefined
+      }
       admin_set_user_salas: {
         Args: { _salas: string[]; _user: string }
         Returns: undefined
