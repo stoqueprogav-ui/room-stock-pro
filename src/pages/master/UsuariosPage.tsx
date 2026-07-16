@@ -69,11 +69,15 @@ export default function UsuariosPage() {
   };
   useEffect(() => { load(); }, []);
 
-  // Lista visível conforme escopo: em sala específica, mostra masters/super_master + usuários daquela sala
+  // Lista visível conforme escopo:
+  // - Super Master: apenas masters (a tela é "Masters")
+  // - Master global: todos
+  // - Master em sala: masters/super_master + usuários daquela sala
   const visibleUsers = useMemo(() => {
+    if (isSuperMode) return users.filter((u) => u.role === "master");
     if (isGlobal) return users;
     return users.filter((u) => u.role === "master" || u.role === "super_master" || u.sala_ids?.includes(scopeSalaId ?? ""));
-  }, [users, isGlobal, scopeSalaId]);
+  }, [users, isGlobal, scopeSalaId, isSuperMode]);
 
 
   const salaAtualNome = useMemo(
@@ -82,8 +86,13 @@ export default function UsuariosPage() {
   );
 
   const openNovo = () => {
-    // Em sala específica, pré-vincula automaticamente
-    setForm({ nome: "", email: "", password: "", role: "analista", salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []), regioes: [] });
+    // Em Super Master, cria masters. Em sala específica, pré-vincula automaticamente.
+    setForm({
+      nome: "", email: "", password: "",
+      role: isSuperMode ? "master" : "analista",
+      salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []),
+      regioes: [],
+    });
     setOpen(true);
   };
 
