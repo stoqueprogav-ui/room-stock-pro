@@ -536,8 +536,6 @@ export default function RelatoriosPage() {
         <KpiCard icon={DollarSign} label="Valor total em estoque" value={BRL(valorTotalEstoque)} accent="text-primary" />
         <KpiCard icon={TrendingUp} label="Consumo do mês (R$)" value={BRL(consumoMesAtual)} accent="text-warning" />
         <KpiCard icon={Package} label="Valor consumido (período)" value={BRL(totalValor)} accent="text-accent" />
-        <KpiCard icon={TrendingUp} label="Consumo do mês (R$)" value={BRL(consumoMesAtual)} accent="text-warning" />
-        <KpiCard icon={Package} label="Valor consumido (período)" value={BRL(totalValor)} accent="text-accent" />
         <KpiCard icon={Crown} label="Sala líder em consumo" value={topSala?.sala ?? "—"} sub={topSala ? BRL(topSala.valor) : ""} accent="text-success" />
         <KpiCard icon={Crown} label="Produto mais consumido" value={topProduto?.produto ?? "—"} sub={topProduto ? `${NUM(topProduto.qtd)} un.` : ""} accent="text-primary" />
         <KpiCard icon={Layers} label="Categoria líder" value={topCategoria?.cat ?? "—"} sub={topCategoria ? BRL(topCategoria.valor) : ""} accent="text-accent" />
