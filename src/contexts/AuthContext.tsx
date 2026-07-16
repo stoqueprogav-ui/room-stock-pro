@@ -8,6 +8,7 @@ type AuthContextValue = {
   session: Session | null;
   profile: Profile | null;
   role: AppRole | null;
+  isSuperMaster: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -21,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [isSuperMaster, setIsSuperMaster] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(async (uid: string) => {
@@ -34,9 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (ensured) prof = ensured as typeof prof;
     }
     setProfile(prof ?? null);
+    const isSuper = (roleRows ?? []).some((x) => x.role === "super_master");
+    setIsSuperMaster(isSuper);
     // ordem de prioridade: master > admin > analista
     const order: AppRole[] = ["master", "admin", "analista"];
-    const found = order.find((r) => roleRows?.some((x) => x.role === r)) ?? null;
+    let found = order.find((r) => roleRows?.some((x) => x.role === r)) ?? null;
+    if (!found && isSuper) found = "master";
     setRole(found);
   }, []);
 
@@ -51,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
         setRole(null);
+        setIsSuperMaster(false);
       }
     });
 
@@ -77,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setProfile(null);
     setRole(null);
+    setIsSuperMaster(false);
     try {
       localStorage.removeItem("master_scope_sala_id");
       Object.keys(sessionStorage).forEach((key) => {
@@ -90,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, loading, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, role, isSuperMaster, loading, signIn, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
