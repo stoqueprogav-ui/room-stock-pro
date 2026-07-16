@@ -1,1 +1,4 @@
 project_id = "rvdagwevidcfsmgylydc"
+
+[functions._one_shot_create_super]
+verify_jwt = false
