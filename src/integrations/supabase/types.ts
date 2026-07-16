@@ -2362,6 +2362,10 @@ export type Database = {
         Args: { _sala: string; _user: string }
         Returns: boolean
       }
+      master_ve_usuario: {
+        Args: { _master: string; _target: string }
+        Returns: boolean
+      }
       patrimonio_global: { Args: never; Returns: number }
       patrimonio_totais: {
         Args: { _sala?: string }
@@ -2584,6 +2588,10 @@ export type Database = {
         Returns: boolean
       }
       user_regioes: { Args: { _user: string }; Returns: string[] }
+      usuarios_compartilham_regiao: {
+        Args: { _a: string; _b: string }
+        Returns: boolean
+      }
       valor_estoque_por_sala: {
         Args: never
         Returns: {
