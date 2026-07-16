@@ -110,9 +110,8 @@ export default function UsuariosPage() {
   };
 
   const updateRole = async (u: UserRow, newRole: AppRole) => {
-    await supabase.from("user_roles").delete().eq("user_id", u.id);
-    const { error } = await supabase.from("user_roles").insert({ user_id: u.id, role: newRole });
-    if (error) return toast.error(error.message);
+    const { error } = await (supabase as any).rpc("set_user_role", { _user: u.id, _role: newRole });
+    if (error) { toast.error(error.message); return; }
     toast.success("Perfil atualizado"); load();
   };
 
