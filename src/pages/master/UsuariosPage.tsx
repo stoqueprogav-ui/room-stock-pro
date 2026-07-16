@@ -69,11 +69,15 @@ export default function UsuariosPage() {
   };
   useEffect(() => { load(); }, []);
 
-  // Lista visível conforme escopo: em sala específica, mostra masters/super_master + usuários daquela sala
+  // Lista visível conforme escopo:
+  // - Super Master: apenas masters (a tela é "Masters")
+  // - Master global: todos
+  // - Master em sala: masters/super_master + usuários daquela sala
   const visibleUsers = useMemo(() => {
+    if (isSuperMode) return users.filter((u) => u.role === "master");
     if (isGlobal) return users;
     return users.filter((u) => u.role === "master" || u.role === "super_master" || u.sala_ids?.includes(scopeSalaId ?? ""));
-  }, [users, isGlobal, scopeSalaId]);
+  }, [users, isGlobal, scopeSalaId, isSuperMode]);
 
 
   const salaAtualNome = useMemo(
@@ -82,8 +86,13 @@ export default function UsuariosPage() {
   );
 
   const openNovo = () => {
-    // Em sala específica, pré-vincula automaticamente
-    setForm({ nome: "", email: "", password: "", role: "analista", salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []), regioes: [] });
+    // Em Super Master, cria masters. Em sala específica, pré-vincula automaticamente.
+    setForm({
+      nome: "", email: "", password: "",
+      role: isSuperMode ? "master" : "analista",
+      salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []),
+      regioes: [],
+    });
     setOpen(true);
   };
 
@@ -165,23 +174,27 @@ export default function UsuariosPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Usuários"
+        title={isSuperMode ? "Masters" : "Usuários"}
         description={
-          isGlobal
-            ? "Gestão global de contas, perfis e vínculo com salas."
-            : `Usuários da sala ${salaAtualNome ?? "—"} (e administradores Master).`
+          isSuperMode
+            ? "Gestão dos masters do sistema. Cada master é vinculado a uma ou mais regiões."
+            : isGlobal
+              ? "Gestão global de contas, perfis e vínculo com salas."
+              : `Usuários da sala ${salaAtualNome ?? "—"} (e administradores Master).`
         }
         actions={
           <Button onClick={openNovo}>
-            <Plus className="size-4" /> Novo usuário
+            <Plus className="size-4" /> {isSuperMode ? "Novo master" : "Novo usuário"}
           </Button>
         }
       />
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        {isGlobal
-          ? <><Globe2 className="size-3.5 text-primary" /> Modo global — você vê todos os usuários do sistema.</>
-          : <><Building2 className="size-3.5 text-primary" /> Sala em foco — apenas usuários vinculados a esta sala.</>}
-      </div>
+      {!isSuperMode && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {isGlobal
+            ? <><Globe2 className="size-3.5 text-primary" /> Modo global — você vê todos os usuários do sistema.</>
+            : <><Building2 className="size-3.5 text-primary" /> Sala em foco — apenas usuários vinculados a esta sala.</>}
+        </div>
+      )}
       {isGlobal && <CompanyLogoUploader />}
       <div className="panel overflow-x-auto">
         <Table>
@@ -204,10 +217,9 @@ export default function UsuariosPage() {
                   <Select value={u.role} onValueChange={(v) => updateRole(u, v as AppRole)} disabled={u.id === profile?.id}>
                     <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {isSuperMode && <SelectItem value="super_master">Super Master</SelectItem>}
                       {isSuperMode && <SelectItem value="master">Master</SelectItem>}
-                      <SelectItem value="admin">Administrador</SelectItem>
-                      <SelectItem value="analista">Analista</SelectItem>
+                      {!isSuperMode && <SelectItem value="admin">Administrador</SelectItem>}
+                      {!isSuperMode && <SelectItem value="analista">Analista</SelectItem>}
                     </SelectContent>
                   </Select>
                 </TableCell>
@@ -270,7 +282,7 @@ export default function UsuariosPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Novo usuário</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{isSuperMode ? "Novo master" : "Novo usuário"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {!isGlobal && (
               <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
@@ -285,10 +297,9 @@ export default function UsuariosPage() {
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {isGlobal && isSuperMode && <SelectItem value="super_master">Super Master</SelectItem>}
-                    {isGlobal && isSuperMode && <SelectItem value="master">Master</SelectItem>}
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="analista">Analista</SelectItem>
+                    {isSuperMode && <SelectItem value="master">Master</SelectItem>}
+                    {!isSuperMode && <SelectItem value="admin">Administrador</SelectItem>}
+                    {!isSuperMode && <SelectItem value="analista">Analista</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>

@@ -31,8 +31,16 @@ type NavItem = {
 
 function navForRole(role: string | null, isGlobalScope: boolean, isSuperMode: boolean): NavItem[] {
   if (role === "master") {
+    // Modo Super Master: menu enxuto, apenas administração global.
+    if (isSuperMode) {
+      return [
+        { to: "/app/regioes", label: "Regiões", icon: MapPin },
+        { to: "/app/usuarios", label: "Masters", icon: Users },
+        { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
+      ];
+    }
+    // Modo Master de região: menu operacional completo (sem "Regiões").
     const items: NavItem[] = [
-      ...(isSuperMode ? [{ to: "/app/regioes", label: "Regiões", icon: MapPin } as NavItem] : []),
       { to: "/app", label: "Visão geral", icon: LayoutDashboard },
     ];
     if (isGlobalScope) {
@@ -51,7 +59,7 @@ function navForRole(role: string | null, isGlobalScope: boolean, isSuperMode: bo
       },
       { to: "/app/consumo-interno", label: "Consumo Interno", icon: Trash2 },
       { to: "/app/inventario", label: "Inventário", icon: ClipboardCheck },
-      
+
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       {
         label: "Relatórios", icon: BarChart3,
