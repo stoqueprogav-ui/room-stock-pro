@@ -319,14 +319,13 @@ export default function EstoquePage() {
 
     // Saída
     if (!movQtd || movQtd <= 0) return toast.error("Quantidade inválida");
-    const novoSaldo = movRow.quantidade - movQtd;
-    if (novoSaldo < 0) return toast.error("Estoque insuficiente para esta saída");
     setMovSaving(true);
-    const { error } = await supabase.rpc("ajustar_estoque", {
+    const { error } = await (supabase as any).rpc("registrar_saida_estoque", {
       _produto: movRow.produto_id,
       _sala: movRow.sala_id,
-      _quantidade: novoSaldo,
-      _observacao: `Saída · ${saidaMotivo}${movObs ? ` — ${movObs}` : ""}`,
+      _quantidade: movQtd,
+      _motivo: saidaMotivo,
+      _observacao: movObs || null,
     });
     setMovSaving(false);
     if (error) return toast.error(error.message);
@@ -952,7 +951,7 @@ export default function EstoquePage() {
         <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="size-5 text-primary" /> Editar produto</DialogTitle>
-            <DialogDescription>Atualize os dados do produto. Estas alterações se aplicam a todas as salas.</DialogDescription>
+            <DialogDescription>Atualize os dados do produto. Esta edição afeta apenas o produto desta sala. Para renomear em todas as salas, edite pelo Catálogo.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2"><Label>Nome *</Label><Input value={editProdForm.nome} onChange={(e) => setEditProdForm({ ...editProdForm, nome: e.target.value })} /></div>

@@ -82,7 +82,7 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     }
     const { error } = await supabase.rpc("decidir_emprestimo", { _emp: id, _aprovar: ap, _motivo: motivo } as any);
     if (error) return toast.error(error.message);
-    toast.success(ap ? "Empréstimo aprovado: estoque transferido e dívida registrada" : "Empréstimo rejeitado");
+    toast.success(ap ? "Empréstimo aprovado: baixa efetuada na sala de origem e dívida registrada" : "Empréstimo rejeitado");
     load();
   };
 

@@ -89,7 +89,7 @@ export default function RelatoriosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [consumo, setConsumo] = useState<ConsumoRow[]>([]);
   
-  const [movMensalRaw, setMovMensalRaw] = useState<{ created_at: string; quantidade: number; tipo: string; produto_id: string; sala_id: string }[]>([]);
+  const [evolucaoMensal, setEvolucaoMensal] = useState<{ mes: string; qtd: number; valor: number }[]>([]);
   const [empSalas, setEmpSalas] = useState<EmpSalaRow[]>([]);
   const [empStatus, setEmpStatus] = useState<{ status: string; count: number }[]>([]);
   const [estoqueValor, setEstoqueValor] = useState<EstoqueValorRow[]>([]);
@@ -151,26 +151,31 @@ export default function RelatoriosPage() {
     })();
   }, [periodo, salaFilter, categoriaFilter, produtoFilter, scopeSalaId, isGlobal]);
 
-  // Evolução mensal — últimos 12 meses (apenas filtros sala/categoria/produto, sem período)
+  // Evolução mensal — RPC consumo_mensal (mesmos filtros do relatorio_consumo)
   useEffect(() => {
     (async () => {
       const efetivaSala = isGlobal ? (salaFilter === "all" ? null : salaFilter) : scopeSalaId!;
-      const desde = isoDaysAgo(365);
+      const desde = periodo === "all" ? null : isoDaysAgo(parseInt(periodo, 10));
+      const { data } = await (supabase as any).rpc("consumo_mensal", {
+        _from: desde,
+        _to: null,
+        _sala: efetivaSala,
+        _categoria: categoriaFilter === "all" ? null : categoriaFilter,
+        _produto: produtoFilter === "all" ? null : produtoFilter,
+      });
+      const rows = ((data as any[]) ?? [])
+        .map((r) => ({
+          mes: String(r.mes ?? "").slice(0, 7),
+          qtd: Number(r.quantidade ?? 0),
+          valor: Number(r.valor ?? 0),
+        }))
+        .filter((r) => r.mes)
+        .sort((a, b) => a.mes.localeCompare(b.mes));
+      setEvolucaoMensal(rows);
 
-      let q = supabase
-        .from("movimentacoes")
-        .select("created_at, quantidade, tipo, produto_id, sala_id")
-        .gte("created_at", desde)
-        .lt("quantidade", 0)
-        .in("tipo", ["consumo_interno", "solicitacao", "emprestimo_saida", "ajuste"])
-        .limit(50000);
-      if (efetivaSala) q = q.eq("sala_id", efetivaSala);
-      if (produtoFilter !== "all") q = q.eq("produto_id", produtoFilter);
-      const { data } = await q;
-      setMovMensalRaw((data as any) ?? []);
-
-      // emprestimos mensal
-      let qe = supabase.from("emprestimos").select("created_at").gte("created_at", desde).limit(50000);
+      // emprestimos mensal — últimos 12 meses
+      const desde12 = isoDaysAgo(365);
+      let qe = supabase.from("emprestimos").select("created_at").gte("created_at", desde12).limit(50000);
       if (efetivaSala) qe = qe.or(`sala_origem_id.eq.${efetivaSala},sala_destino_id.eq.${efetivaSala}`);
       const { data: edata } = await qe;
       const mapE = new Map<string, number>();
@@ -180,7 +185,7 @@ export default function RelatoriosPage() {
       });
       setEmpMensal(Array.from(mapE.entries()).sort().map(([mes, count]) => ({ mes, count })));
     })();
-  }, [salaFilter, produtoFilter, scopeSalaId, isGlobal]);
+  }, [periodo, salaFilter, categoriaFilter, produtoFilter, scopeSalaId, isGlobal]);
 
   // Empréstimos status counts
   useEffect(() => {
@@ -202,9 +207,11 @@ export default function RelatoriosPage() {
   // Requisições por sala
   useEffect(() => {
     (async () => {
+      const efetivaSala = isGlobal ? (salaFilter === "all" ? null : salaFilter) : scopeSalaId!;
       const desde = periodo === "all" ? null : isoDaysAgo(parseInt(periodo, 10));
       let q = supabase.from("solicitacoes").select("sala_id").limit(50000);
       if (desde) q = q.gte("created_at", desde);
+      if (efetivaSala) q = q.eq("sala_id", efetivaSala);
       const { data } = await q;
       const map = new Map<string, number>();
       ((data as any[]) ?? []).forEach((r) => map.set(r.sala_id, (map.get(r.sala_id) ?? 0) + 1));
@@ -213,7 +220,7 @@ export default function RelatoriosPage() {
         .sort((a, b) => b.total - a.total);
       setReqPorSala(arr);
     })();
-  }, [periodo, salas]);
+  }, [periodo, salas, salaFilter, scopeSalaId, isGlobal]);
 
   // ===== Derivados =====
 
@@ -267,20 +274,6 @@ export default function RelatoriosPage() {
     });
   }, [consumoPorProduto]);
 
-  // Evolução mensal
-  const evolucaoMensal = useMemo(() => {
-    const map = new Map<string, { qtd: number; valor: number }>();
-    movMensalRaw.forEach((m) => {
-      const k = monthKey(m.created_at);
-      const qty = Math.abs(m.quantidade);
-      const prod = produtos.find((p) => p.id === m.produto_id);
-      const val = qty * Number(prod?.custo_unitario ?? 0);
-      const cur = map.get(k) ?? { qtd: 0, valor: 0 };
-      cur.qtd += qty; cur.valor += val;
-      map.set(k, cur);
-    });
-    return Array.from(map.entries()).sort().map(([mes, v]) => ({ mes, ...v }));
-  }, [movMensalRaw, produtos]);
 
   // Top líderes (para indicadores executivos)
   const topProduto = consumoPorProduto[0];
@@ -291,7 +284,7 @@ export default function RelatoriosPage() {
     return evolucaoMensal.find((m) => m.mes === k)?.valor ?? 0;
   }, [evolucaoMensal]);
   const valorCompras = estoqueValor.reduce((s, x) => s + Number(x.valor_total), 0);
-  const valorTotalEstoque = valorCompras + Number(valorPatrimonial ?? 0);
+  const valorTotalEstoque = Number(patTotais?.valor_total_estoque ?? 0);
   const salaMaiorEstoque = [...estoqueValor].sort((a, b) => b.valor_total - a.valor_total)[0];
 
 
@@ -953,114 +946,6 @@ function RankCard({ title, rows, valueLabel, money }: { title: string; rows: { s
   );
 }
 
-// ================== PATRIMÔNIO (Avaliação Patrimonial) ==================
-type PatTotais = {
-  valor_confirmado: number; valor_estimado: number; valor_patrimonial: number;
-  valor_compras: number; valor_total_estoque: number;
-  quantidade_avaliada: number; quantidade_estoque: number;
-  produtos_confirmados: number; produtos_estimados: number; produtos_sem_avaliacao: number;
-  cobertura_pct: number;
-};
-type SemAval = {
-  produto_id: string; produto_nome: string; categoria_nome: string | null;
-  sala_id: string; sala_nome: string; quantidade: number;
-  custo_unitario_ref: number; valor_total_atual: number;
-};
-
-function PatrimonioPanel({ scopeSalaId }: { scopeSalaId: string | null }) {
-  const [tot, setTot] = useState<PatTotais | null>(null);
-  const [pend, setPend] = useState<SemAval[]>([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const [{ data: t }, { data: p }] = await Promise.all([
-          (supabase as any).rpc("patrimonio_totais", { _sala: scopeSalaId ?? null }),
-          (supabase as any).rpc("produtos_sem_avaliacao", { _sala: scopeSalaId ?? null }),
-        ]);
-        setTot((t?.[0] as PatTotais) ?? null);
-        setPend((p as SemAval[]) ?? []);
-      } finally { setLoading(false); }
-    })();
-  }, [scopeSalaId]);
-
-  const pctConf = tot && tot.valor_patrimonial > 0 ? (tot.valor_confirmado / tot.valor_patrimonial) * 100 : 0;
-  const pctEst = tot && tot.valor_patrimonial > 0 ? (tot.valor_estimado / tot.valor_patrimonial) * 100 : 0;
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Valor confirmado</div>
-          <div className="text-xl font-semibold mt-1">{BRL(tot?.valor_confirmado ?? 0)}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">{pctConf.toFixed(1)}% do patrimônio</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Valor estimado</div>
-          <div className="text-xl font-semibold mt-1">{BRL(tot?.valor_estimado ?? 0)}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">{pctEst.toFixed(1)}% do patrimônio</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Valor total do estoque</div>
-          <div className="text-xl font-semibold mt-1">{BRL(tot?.valor_total_estoque ?? 0)}</div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Estimado {BRL(tot?.valor_patrimonial ?? 0)} + Confirmado {BRL(tot?.valor_compras ?? 0)}
-          </div>
-
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Cobertura patrimonial</div>
-          <div className="text-xl font-semibold mt-1">{(tot?.cobertura_pct ?? 0).toFixed(1)}%</div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            {tot?.produtos_confirmados ?? 0} conf · {tot?.produtos_estimados ?? 0} est · {tot?.produtos_sem_avaliacao ?? 0} sem aval
-          </div>
-        </Card>
-      </div>
-
-      <Card className="p-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm font-medium">Top produtos sem avaliação (com estoque)</div>
-          <a href="/app/avaliacao-patrimonial" className="text-xs text-primary hover:underline">
-            Abrir tela de regularização →
-          </a>
-        </div>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produto</TableHead>
-                <TableHead>Sala</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead className="text-right w-[100px]">Qtd</TableHead>
-                <TableHead className="text-right w-[130px]">Custo ref.</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Carregando…</TableCell></TableRow>
-              ) : pend.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                  Todo o estoque possui avaliação patrimonial. 🎉
-                </TableCell></TableRow>
-              ) : pend.slice(0, 25).map((r) => (
-                <TableRow key={`${r.sala_id}:${r.produto_id}`}>
-                  <TableCell className="font-medium">{r.produto_nome}</TableCell>
-                  <TableCell>{r.sala_nome}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.categoria_nome ?? "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{r.quantidade}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {r.custo_unitario_ref > 0 ? BRL(r.custo_unitario_ref) : "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
-    </div>
-  );
-}
 
 // ================== COMPOSIÇÃO DO VALOR DO ESTOQUE ==================
 function ComposicaoEstoquePanel({
