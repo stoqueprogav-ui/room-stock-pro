@@ -223,6 +223,35 @@ export default function RelatoriosPage() {
     })();
   }, [periodo, salas, salaFilter, scopeSalaId, isGlobal]);
 
+  // Consolidado por região (apenas super master)
+  useEffect(() => {
+    if (!isSuperMaster) { setConsolidadoRegioes([]); return; }
+    (async () => {
+      const desde = periodo === "all" ? null : isoDaysAgo(parseInt(periodo, 10));
+      const ate = null;
+      const [{ data: cReg }, { data: vReg }] = await Promise.all([
+        (supabase as any).rpc("consumo_por_regiao", { _from: desde, _to: ate }),
+        (supabase as any).rpc("valor_estoque_por_regiao"),
+      ]);
+      const map = new Map<string, { regiao_id: string; regiao_nome: string; qtd: number; valorConsumo: number; valorEstoque: number }>();
+      ((cReg as any[]) ?? []).forEach((r) => {
+        map.set(r.regiao_id, {
+          regiao_id: r.regiao_id,
+          regiao_nome: r.regiao_nome,
+          qtd: Number(r.quantidade ?? 0),
+          valorConsumo: Number(r.valor ?? 0),
+          valorEstoque: 0,
+        });
+      });
+      ((vReg as any[]) ?? []).forEach((r) => {
+        const cur = map.get(r.regiao_id) ?? { regiao_id: r.regiao_id, regiao_nome: r.regiao_nome, qtd: 0, valorConsumo: 0, valorEstoque: 0 };
+        cur.valorEstoque = Number(r.valor_total ?? 0);
+        map.set(r.regiao_id, cur);
+      });
+      setConsolidadoRegioes(Array.from(map.values()).sort((a, b) => a.regiao_nome.localeCompare(b.regiao_nome)));
+    })();
+  }, [isSuperMaster, periodo]);
+
   // ===== Derivados =====
 
   // Por produto (agregado entre salas)
@@ -459,9 +488,54 @@ export default function RelatoriosPage() {
         </div>
       </Card>
 
+      {/* Consolidado por região (apenas super master) */}
+      {isSuperMaster && (
+        <Card className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Globe2 className="size-4 text-primary" />
+            <h3 className="font-semibold">Visão consolidada por região</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Região</TableHead>
+                  <TableHead className="text-right">Consumo (qtd)</TableHead>
+                  <TableHead className="text-right">Consumo (R$)</TableHead>
+                  <TableHead className="text-right">Valor em estoque (R$)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {consolidadoRegioes.length === 0 && (
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem dados no período.</TableCell></TableRow>
+                )}
+                {consolidadoRegioes.map((r) => (
+                  <TableRow key={r.regiao_id}>
+                    <TableCell>{r.regiao_nome}</TableCell>
+                    <TableCell className="text-right">{NUM(r.qtd)}</TableCell>
+                    <TableCell className="text-right">{BRL(r.valorConsumo)}</TableCell>
+                    <TableCell className="text-right">{BRL(r.valorEstoque)}</TableCell>
+                  </TableRow>
+                ))}
+                {consolidadoRegioes.length > 0 && (
+                  <TableRow className="font-semibold border-t-2">
+                    <TableCell>Total</TableCell>
+                    <TableCell className="text-right">{NUM(consolidadoRegioes.reduce((s, r) => s + r.qtd, 0))}</TableCell>
+                    <TableCell className="text-right">{BRL(consolidadoRegioes.reduce((s, r) => s + r.valorConsumo, 0))}</TableCell>
+                    <TableCell className="text-right">{BRL(consolidadoRegioes.reduce((s, r) => s + r.valorEstoque, 0))}</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
       {/* Indicadores executivos */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard icon={DollarSign} label="Valor total em estoque" value={BRL(valorTotalEstoque)} accent="text-primary" />
+        <KpiCard icon={TrendingUp} label="Consumo do mês (R$)" value={BRL(consumoMesAtual)} accent="text-warning" />
+        <KpiCard icon={Package} label="Valor consumido (período)" value={BRL(totalValor)} accent="text-accent" />
         <KpiCard icon={TrendingUp} label="Consumo do mês (R$)" value={BRL(consumoMesAtual)} accent="text-warning" />
         <KpiCard icon={Package} label="Valor consumido (período)" value={BRL(totalValor)} accent="text-accent" />
         <KpiCard icon={Crown} label="Sala líder em consumo" value={topSala?.sala ?? "—"} sub={topSala ? BRL(topSala.valor) : ""} accent="text-success" />
