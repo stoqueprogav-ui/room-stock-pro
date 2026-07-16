@@ -297,10 +297,9 @@ export default function UsuariosPage() {
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {isGlobal && isSuperMode && <SelectItem value="super_master">Super Master</SelectItem>}
-                    {isGlobal && isSuperMode && <SelectItem value="master">Master</SelectItem>}
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="analista">Analista</SelectItem>
+                    {isSuperMode && <SelectItem value="master">Master</SelectItem>}
+                    {!isSuperMode && <SelectItem value="admin">Administrador</SelectItem>}
+                    {!isSuperMode && <SelectItem value="analista">Analista</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
