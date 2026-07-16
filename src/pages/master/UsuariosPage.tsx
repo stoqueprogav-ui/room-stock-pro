@@ -174,23 +174,27 @@ export default function UsuariosPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Usuários"
+        title={isSuperMode ? "Masters" : "Usuários"}
         description={
-          isGlobal
-            ? "Gestão global de contas, perfis e vínculo com salas."
-            : `Usuários da sala ${salaAtualNome ?? "—"} (e administradores Master).`
+          isSuperMode
+            ? "Gestão dos masters do sistema. Cada master é vinculado a uma ou mais regiões."
+            : isGlobal
+              ? "Gestão global de contas, perfis e vínculo com salas."
+              : `Usuários da sala ${salaAtualNome ?? "—"} (e administradores Master).`
         }
         actions={
           <Button onClick={openNovo}>
-            <Plus className="size-4" /> Novo usuário
+            <Plus className="size-4" /> {isSuperMode ? "Novo master" : "Novo usuário"}
           </Button>
         }
       />
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        {isGlobal
-          ? <><Globe2 className="size-3.5 text-primary" /> Modo global — você vê todos os usuários do sistema.</>
-          : <><Building2 className="size-3.5 text-primary" /> Sala em foco — apenas usuários vinculados a esta sala.</>}
-      </div>
+      {!isSuperMode && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {isGlobal
+            ? <><Globe2 className="size-3.5 text-primary" /> Modo global — você vê todos os usuários do sistema.</>
+            : <><Building2 className="size-3.5 text-primary" /> Sala em foco — apenas usuários vinculados a esta sala.</>}
+        </div>
+      )}
       {isGlobal && <CompanyLogoUploader />}
       <div className="panel overflow-x-auto">
         <Table>
