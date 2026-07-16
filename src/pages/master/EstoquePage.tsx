@@ -11,12 +11,16 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt, Scale as ScaleIcon } from "lucide-react";
+import { AlertTriangle, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt, Scale as ScaleIcon, Plus, FileSpreadsheet, Boxes, Package } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveSala } from "@/contexts/ActiveSalaContext";
 import { useMasterScope } from "@/contexts/MasterScopeContext";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import CatalogoTab from "@/components/CatalogoTab";
+import NovoProdutoNaSalaDialog from "@/components/NovoProdutoNaSalaDialog";
+import ImportarProdutosDialog from "@/components/ImportarProdutosDialog";
 
 type Row = { produto_id: string; sala_id: string; quantidade: number; quantidade_reservada: number; custo_medio: number; valor_total: number; ativo: boolean; produto: Produto; sala: Sala };
 type UltimaEntrada = { data: string; valor_unitario: number; fornecedor: string | null };
@@ -49,6 +53,9 @@ export default function EstoquePage() {
   const [sort, setSort] = useState<SortKey>("nome");
   const [salaFilterUI, setSalaFilterUI] = useState<string>("all");
   const [catFilter, setCatFilter] = useState<string>("all");
+  const [tab, setTab] = useState<"estoque" | "catalogo">("estoque");
+  const [novoProdOpen, setNovoProdOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const [editing, setEditing] = useState<Row | null>(null);
   const [editValue, setEditValue] = useState(0);
@@ -204,7 +211,8 @@ export default function EstoquePage() {
 
   const filtered = useMemo(() => {
     const base = rows
-      .filter((r) => isMaster || r.ativo)
+      // Não-Master: só vê linhas ativas com estoque > 0. Master vê tudo.
+      .filter((r) => isMaster || (r.ativo && r.quantidade > 0))
       .filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter)
       .filter((r) => catFilter === "all" || (r.produto as any)?.categoria_id === catFilter)
       .filter((r) => !busca || r.produto.nome.toLowerCase().includes(busca.toLowerCase()))
@@ -222,7 +230,7 @@ export default function EstoquePage() {
 
   const counts = useMemo(() => {
     const inScope = rows
-      .filter((r) => isMaster || r.ativo)
+      .filter((r) => isMaster || (r.ativo && r.quantidade > 0))
       .filter((r) => effectiveSalaFilter === "all" || r.sala_id === effectiveSalaFilter);
     let critico = 0, baixo = 0, ok = 0;
     inScope.forEach((r) => {
