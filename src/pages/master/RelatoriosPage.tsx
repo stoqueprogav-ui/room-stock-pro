@@ -21,8 +21,21 @@ import {
 } from "lucide-react";
 import { exportToExcel, exportReportPdf, printReport, exportExecutiveExcel, exportExecutivePdf, type ExportColumn } from "@/lib/exporters";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon, FileText, ArrowLeft } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import MovimentacaoFinanceiraTab from "./tabs/MovimentacaoFinanceiraTab";
 import AvaliacaoPatrimonialPage from "./AvaliacaoPatrimonialPage";
+
+// ===== Cabeçalho do Laudo de Seguro (editáveis) =====
+const EMPRESA_NOME = "Estoque Pro";
+const EMPRESA_CNPJ = "";
+
 
 type Sala = { id: string; nome: string };
 type Categoria = { id: string; nome: string };
