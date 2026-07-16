@@ -951,7 +951,7 @@ export default function EstoquePage() {
         <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="size-5 text-primary" /> Editar produto</DialogTitle>
-            <DialogDescription>Atualize os dados do produto. Estas alterações se aplicam a todas as salas.</DialogDescription>
+            <DialogDescription>Atualize os dados do produto. Esta edição afeta apenas o produto desta sala. Para renomear em todas as salas, edite pelo Catálogo.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2"><Label>Nome *</Label><Input value={editProdForm.nome} onChange={(e) => setEditProdForm({ ...editProdForm, nome: e.target.value })} /></div>
