@@ -8,6 +8,7 @@ import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import RequireRole from "@/components/RequireRole";
 import SalasPage from "./pages/master/SalasPage";
 import ProdutosPage from "./pages/master/ProdutosPage";
 import EstoquePage from "./pages/master/EstoquePage";
@@ -54,22 +55,22 @@ const App = () => (
             <Route path="/app" element={<AppLayout />}>
               <Route index element={<Index />} />
               <Route path="escolher-sala" element={<EscolherSala />} />
-              {/* Master */}
-              <Route path="salas" element={<SalasPage />} />
-              <Route path="produtos" element={<ProdutosPage />} />
+              {/* Master (rotas trancadas por cargo — 2ª camada; a 1ª é sempre RLS/RPC) */}
+              <Route path="salas" element={<RequireRole role="master"><SalasPage /></RequireRole>} />
+              <Route path="produtos" element={<Navigate to="/app/estoque" replace />} />
               <Route path="estoque" element={<EstoquePage />} />
-              <Route path="requisicoes" element={<RequisicoesPage />} />
+              <Route path="requisicoes" element={<RequireRole role="master"><RequisicoesPage /></RequireRole>} />
               {/* Compatibilidade com link antigo */}
               <Route path="solicitacoes" element={<Navigate to="/app/requisicoes" replace />} />
-              <Route path="usuarios" element={<UsuariosPage />} />
-              <Route path="categorias" element={<CategoriasPage />} />
-              <Route path="relatorios" element={<RelatoriosPage />} />
-              <Route path="configuracoes" element={<ConfiguracoesPage />} />
+              <Route path="usuarios" element={<RequireRole role="master"><UsuariosPage /></RequireRole>} />
+              <Route path="categorias" element={<RequireRole role="master"><CategoriasPage /></RequireRole>} />
+              <Route path="relatorios" element={<RequireRole role="master"><RelatoriosPage /></RequireRole>} />
+              <Route path="configuracoes" element={<RequireRole role="master"><ConfiguracoesPage /></RequireRole>} />
               <Route path="auditoria" element={<Navigate to="/app/movimentacoes" replace />} />
-              <Route path="consumo-interno" element={<ConsumoInternoPage />} />
-              <Route path="inventario" element={<InventarioPage />} />
-              <Route path="dashboard-gerencial" element={<DashboardGerencial />} />
-              <Route path="entradas" element={<EntradasEstoquePage />} />
+              <Route path="consumo-interno" element={<RequireRole role="master"><ConsumoInternoPage /></RequireRole>} />
+              <Route path="inventario" element={<RequireRole role="master"><InventarioPage /></RequireRole>} />
+              <Route path="dashboard-gerencial" element={<RequireRole role="master"><DashboardGerencial /></RequireRole>} />
+              <Route path="entradas" element={<RequireRole role="master"><EntradasEstoquePage /></RequireRole>} />
               <Route path="avaliacao-patrimonial" element={<Navigate to="/app/relatorios" replace />} />
               {/* Compartilhado */}
               <Route path="emprestimos" element={<EmprestimosPage />} />
