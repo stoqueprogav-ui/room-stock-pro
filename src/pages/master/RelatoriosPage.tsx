@@ -507,7 +507,369 @@ export default function RelatoriosPage() {
 
 
 
+  // ===== Super Master: derivados do drill-down =====
+  const drillTotais = useMemo(() => {
+    const qtd = drillConsumo.reduce((s, c) => s + Number(c.quantidade), 0);
+    const valor = drillConsumo.reduce((s, c) => s + Number(c.valor), 0);
+    return { qtd, valor };
+  }, [drillConsumo]);
+  const drillTopProdutos = useMemo(() => {
+    const map = new Map<string, { produto: string; categoria: string; qtd: number; valor: number }>();
+    drillConsumo.forEach((c) => {
+      const k = c.produto_id;
+      const cur = map.get(k) ?? { produto: c.produto_nome, categoria: c.categoria_nome ?? "—", qtd: 0, valor: 0 };
+      cur.qtd += Number(c.quantidade); cur.valor += Number(c.valor);
+      map.set(k, cur);
+    });
+    return Array.from(map.values()).sort((a, b) => b.valor - a.valor).slice(0, 20);
+  }, [drillConsumo]);
+
+  // ===== Super Master: gerar Laudo de Seguro (PDF) =====
+  const gerarLaudoSeguro = async () => {
+    setLaudoLoading(true);
+    try {
+      const _regiao = laudoRegiao === "all" ? null : laudoRegiao;
+      const _data = laudoDataMode === "retro" && laudoData ? laudoData.toISOString() : null;
+      const { data, error } = await (supabase as any).rpc("inventario_seguro", { _regiao, _data });
+      if (error) throw error;
+      const rows: Array<{
+        regiao_id: string; regiao_nome: string; sala_id: string; sala_nome: string;
+        produto_nome: string; categoria_nome: string | null;
+        quantidade: number; custo_unitario: number; valor_total: number;
+      }> = ((data as any[]) ?? []).map((r) => ({
+        regiao_id: r.regiao_id, regiao_nome: r.regiao_nome,
+        sala_id: r.sala_id, sala_nome: r.sala_nome,
+        produto_nome: r.produto_nome, categoria_nome: r.categoria_nome,
+        quantidade: Number(r.quantidade ?? 0),
+        custo_unitario: Number(r.custo_unitario ?? 0),
+        valor_total: Number(r.valor_total ?? 0),
+      }));
+
+      const doc = new jsPDF({ orientation: "portrait" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const agoraLabel = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+      const dataLaudoISO = _data ? new Date(_data) : new Date();
+      const fname = `laudo-seguro-${format(dataLaudoISO, "yyyy-MM-dd")}.pdf`;
+
+      const drawHeader = () => {
+        doc.setFontSize(12); doc.setTextColor(20);
+        doc.text(EMPRESA_NOME, 14, 14);
+        if (EMPRESA_CNPJ) { doc.setFontSize(9); doc.setTextColor(90); doc.text(`CNPJ: ${EMPRESA_CNPJ}`, 14, 19); }
+        doc.setFontSize(14); doc.setTextColor(20);
+        doc.text("Laudo de Inventário para Fins de Seguro", pageW / 2, 26, { align: "center" });
+        doc.setDrawColor(180); doc.line(14, 30, pageW - 14, 30);
+        doc.setFontSize(8); doc.setTextColor(80);
+        const linha1 = `Emitido por: ${profile?.nome ?? "—"} · Emissão: ${agoraLabel} · Base de valor: Custo Médio Ponderado (CMP)`;
+        doc.text(linha1, 14, 35);
+        if (_data) doc.text(`Inventário referente à data: ${format(new Date(_data), "dd/MM/yyyy")}`, 14, 39);
+      };
+
+      drawHeader();
+      let y = _data ? 44 : 40;
+
+      // agrupa por região > sala
+      const grupos = new Map<string, { regiao_nome: string; salas: Map<string, { sala_nome: string; itens: typeof rows }> }>();
+      rows.forEach((r) => {
+        let g = grupos.get(r.regiao_id);
+        if (!g) { g = { regiao_nome: r.regiao_nome, salas: new Map() }; grupos.set(r.regiao_id, g); }
+        let s = g.salas.get(r.sala_id);
+        if (!s) { s = { sala_nome: r.sala_nome, itens: [] }; g.salas.set(r.sala_id, s); }
+        s.itens.push(r);
+      });
+
+      let totalGeral = 0;
+      const gruposArr = Array.from(grupos.values()).sort((a, b) => a.regiao_nome.localeCompare(b.regiao_nome));
+      if (gruposArr.length === 0) {
+        doc.setFontSize(10); doc.setTextColor(120);
+        doc.text("Sem itens de inventário para os filtros selecionados.", 14, y + 8);
+      }
+
+      for (const g of gruposArr) {
+        doc.setFontSize(11); doc.setTextColor(20);
+        doc.text(`Região: ${g.regiao_nome}`, 14, y); y += 3;
+        let subtotalRegiao = 0;
+        const salasArr = Array.from(g.salas.values()).sort((a, b) => a.sala_nome.localeCompare(b.sala_nome));
+        for (const s of salasArr) {
+          const body = s.itens.map((it) => [
+            it.produto_nome,
+            it.categoria_nome ?? "—",
+            NUM(it.quantidade),
+            BRL(it.custo_unitario),
+            BRL(it.valor_total),
+          ]);
+          const subtotalSala = s.itens.reduce((sum, it) => sum + it.valor_total, 0);
+          subtotalRegiao += subtotalSala;
+          autoTable(doc, {
+            startY: y + 2,
+            head: [[`Sala: ${s.sala_nome}`, "", "", "", ""], ["Produto", "Categoria", "Qtd", "Custo unit.", "Valor total"]],
+            body,
+            foot: [[{ content: `Subtotal ${s.sala_nome}`, colSpan: 4, styles: { halign: "right", fontStyle: "bold" } }, { content: BRL(subtotalSala), styles: { fontStyle: "bold" } }]],
+            styles: { fontSize: 8, textColor: 30 },
+            headStyles: { fillColor: [235, 235, 240], textColor: 20 },
+            footStyles: { fillColor: [250, 250, 250], textColor: 20 },
+            margin: { left: 14, right: 14, bottom: 16 },
+            columnStyles: { 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } },
+            didDrawPage: () => { drawHeader(); },
+          });
+          y = (doc as any).lastAutoTable.finalY + 3;
+        }
+        // subtotal região
+        doc.setFontSize(10); doc.setTextColor(20);
+        doc.text(`Subtotal da região ${g.regiao_nome}: ${BRL(subtotalRegiao)}`, pageW - 14, y + 3, { align: "right" });
+        y += 8;
+        totalGeral += subtotalRegiao;
+        if (y > pageH - 30) { doc.addPage(); drawHeader(); y = 40; }
+      }
+
+      if (gruposArr.length > 0) {
+        doc.setDrawColor(150); doc.line(14, y, pageW - 14, y); y += 6;
+        doc.setFontSize(12); doc.setTextColor(20);
+        doc.text(`TOTAL GERAL: ${BRL(totalGeral)}`, pageW - 14, y, { align: "right" });
+      }
+
+      // rodapé com nº de páginas
+      const total = doc.getNumberOfPages();
+      for (let i = 1; i <= total; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8); doc.setTextColor(110);
+        doc.text(`${EMPRESA_NOME} · Laudo de Seguro`, 14, pageH - 6);
+        doc.text(`Página ${i} de ${total}`, pageW - 14, pageH - 6, { align: "right" });
+      }
+      doc.save(fname);
+    } catch (e: any) {
+      alert("Erro ao gerar laudo: " + (e?.message ?? e));
+    } finally {
+      setLaudoLoading(false);
+      setLaudoOpen(false);
+    }
+  };
+
+  // ===================== SUPER MASTER: Central Analítica Consolidada =====================
+  if (isSuperMaster) {
+    const totRes = resumoRegioes.reduce((acc, r) => ({
+      salas: acc.salas + r.salas,
+      consumo_qtd: acc.consumo_qtd + r.consumo_qtd,
+      consumo_valor: acc.consumo_valor + r.consumo_valor,
+      valor_estoque: acc.valor_estoque + r.valor_estoque,
+      requisicoes: acc.requisicoes + r.requisicoes,
+      emprestimos: acc.emprestimos + r.emprestimos,
+    }), { salas: 0, consumo_qtd: 0, consumo_valor: 0, valor_estoque: 0, requisicoes: 0, emprestimos: 0 });
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Central Analítica"
+          description="Visão consolidada de todas as regiões."
+        />
+
+        {/* Filtro de período + laudo */}
+        <Card className="p-4">
+          <div className="flex flex-wrap items-end gap-3 justify-between">
+            <div className="space-y-1.5 min-w-[220px]">
+              <Label className="text-xs">Período</Label>
+              <Select value={periodo} onValueChange={setPeriodo}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                  <SelectItem value="90">Últimos 90 dias</SelectItem>
+                  <SelectItem value="180">Últimos 180 dias</SelectItem>
+                  <SelectItem value="365">Último ano</SelectItem>
+                  <SelectItem value="all">Tudo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={() => setLaudoOpen(true)}>
+              <FileText className="size-4 mr-1.5" /> Gerar laudo de seguro (PDF)
+            </Button>
+          </div>
+        </Card>
+
+        {/* Painel consolidado por região */}
+        {!drillRegiao && (
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Globe2 className="size-4 text-primary" />
+              <h3 className="font-semibold">Visão consolidada por região</h3>
+              <span className="text-xs text-muted-foreground ml-2">Clique numa região para ver o detalhe</span>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Região</TableHead>
+                    <TableHead className="text-right">Nº de salas</TableHead>
+                    <TableHead className="text-right">Consumo (qtd)</TableHead>
+                    <TableHead className="text-right">Consumo (R$)</TableHead>
+                    <TableHead className="text-right">Valor em estoque (R$)</TableHead>
+                    <TableHead className="text-right">Requisições</TableHead>
+                    <TableHead className="text-right">Empréstimos</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {resumoRegioes.length === 0 && (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Sem dados no período.</TableCell></TableRow>
+                  )}
+                  {resumoRegioes.map((r) => (
+                    <TableRow
+                      key={r.regiao_id}
+                      className="cursor-pointer hover:bg-muted/60"
+                      onClick={() => setDrillRegiao({ id: r.regiao_id, nome: r.regiao_nome })}
+                    >
+                      <TableCell className="font-medium">{r.regiao_nome}</TableCell>
+                      <TableCell className="text-right">{NUM(r.salas)}</TableCell>
+                      <TableCell className="text-right">{NUM(r.consumo_qtd)}</TableCell>
+                      <TableCell className="text-right">{BRL(r.consumo_valor)}</TableCell>
+                      <TableCell className="text-right">{BRL(r.valor_estoque)}</TableCell>
+                      <TableCell className="text-right">{NUM(r.requisicoes)}</TableCell>
+                      <TableCell className="text-right">{NUM(r.emprestimos)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {resumoRegioes.length > 0 && (
+                    <TableRow className="font-semibold border-t-2">
+                      <TableCell>Total</TableCell>
+                      <TableCell className="text-right">{NUM(totRes.salas)}</TableCell>
+                      <TableCell className="text-right">{NUM(totRes.consumo_qtd)}</TableCell>
+                      <TableCell className="text-right">{BRL(totRes.consumo_valor)}</TableCell>
+                      <TableCell className="text-right">{BRL(totRes.valor_estoque)}</TableCell>
+                      <TableCell className="text-right">{NUM(totRes.requisicoes)}</TableCell>
+                      <TableCell className="text-right">{NUM(totRes.emprestimos)}</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        )}
+
+        {/* Drill-down da região */}
+        {drillRegiao && (
+          <Card className="p-4 space-y-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setDrillRegiao(null)}>
+                  <ArrowLeft className="size-4 mr-1" /> Voltar
+                </Button>
+                <h3 className="font-semibold">Região: {drillRegiao.nome}</h3>
+              </div>
+              <div className="flex gap-4 text-sm">
+                <div><span className="text-muted-foreground">Consumo (qtd): </span><span className="font-semibold">{NUM(drillTotais.qtd)}</span></div>
+                <div><span className="text-muted-foreground">Consumo (R$): </span><span className="font-semibold">{BRL(drillTotais.valor)}</span></div>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-4">
+              <ChartCard title="Evolução mensal de consumo (R$)">
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={drillMensal}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: any) => BRL(Number(v))} />
+                    <Line type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartCard>
+              <ChartCard title="Top 10 produtos da região (R$)">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={drillTopProdutos.slice(0, 10)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="produto" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={60} interval={0} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v: any) => BRL(Number(v))} />
+                    <Bar dataKey="valor" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead className="text-right">Qtd</TableHead>
+                    <TableHead className="text-right">Valor (R$)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {drillTopProdutos.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem consumo no período.</TableCell></TableRow>
+                  )}
+                  {drillTopProdutos.map((p, i) => (
+                    <TableRow key={i}>
+                      <TableCell>{p.produto}</TableCell>
+                      <TableCell>{p.categoria}</TableCell>
+                      <TableCell className="text-right">{NUM(p.qtd)}</TableCell>
+                      <TableCell className="text-right">{BRL(p.valor)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        )}
+
+        {/* Dialog: Laudo de Seguro */}
+        <Dialog open={laudoOpen} onOpenChange={setLaudoOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Gerar laudo de seguro (PDF)</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Região</Label>
+                <Select value={laudoRegiao} onValueChange={setLaudoRegiao}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as regiões</SelectItem>
+                    {regioesList.map((r) => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Data do laudo</Label>
+                <Select value={laudoDataMode} onValueChange={(v) => setLaudoDataMode(v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="atual">Atual (agora)</SelectItem>
+                    <SelectItem value="retro">Data passada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {laudoDataMode === "retro" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Selecione a data</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !laudoData && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 size-4" />
+                        {laudoData ? format(laudoData, "dd/MM/yyyy") : "Escolher data"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={laudoData} onSelect={setLaudoData} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLaudoOpen(false)} disabled={laudoLoading}>Cancelar</Button>
+              <Button onClick={gerarLaudoSeguro} disabled={laudoLoading || (laudoDataMode === "retro" && !laudoData)}>
+                {laudoLoading ? "Gerando…" : "Gerar PDF"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
   return (
+
     <div className="space-y-6">
       <PageHeader
         title="Central Analítica"
