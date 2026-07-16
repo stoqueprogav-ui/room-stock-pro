@@ -73,7 +73,7 @@ function monthKey(iso: string) {
 
 export default function RelatoriosPage() {
   const { scopeSalaId } = useMasterScope();
-  const { profile } = useAuth();
+  const { profile, isSuperMaster } = useAuth();
   const { logoUrl } = useCompanyLogo();
   const isGlobal = scopeSalaId === null;
 
@@ -99,6 +99,7 @@ export default function RelatoriosPage() {
   const [valorizacao, setValorizacao] = useState<ValorizacaoStats | null>(null);
   const [reqPorSala, setReqPorSala] = useState<{ sala_id: string; sala_nome: string; total: number }[]>([]);
   const [empMensal, setEmpMensal] = useState<{ mes: string; count: number }[]>([]);
+  const [consolidadoRegioes, setConsolidadoRegioes] = useState<{ regiao_id: string; regiao_nome: string; qtd: number; valorConsumo: number; valorEstoque: number }[]>([]);
 
 
   useEffect(() => {
