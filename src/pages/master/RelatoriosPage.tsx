@@ -151,26 +151,31 @@ export default function RelatoriosPage() {
     })();
   }, [periodo, salaFilter, categoriaFilter, produtoFilter, scopeSalaId, isGlobal]);
 
-  // Evolução mensal — últimos 12 meses (apenas filtros sala/categoria/produto, sem período)
+  // Evolução mensal — RPC consumo_mensal (mesmos filtros do relatorio_consumo)
   useEffect(() => {
     (async () => {
       const efetivaSala = isGlobal ? (salaFilter === "all" ? null : salaFilter) : scopeSalaId!;
-      const desde = isoDaysAgo(365);
+      const desde = periodo === "all" ? null : isoDaysAgo(parseInt(periodo, 10));
+      const { data } = await (supabase as any).rpc("consumo_mensal", {
+        _from: desde,
+        _to: null,
+        _sala: efetivaSala,
+        _categoria: categoriaFilter === "all" ? null : categoriaFilter,
+        _produto: produtoFilter === "all" ? null : produtoFilter,
+      });
+      const rows = ((data as any[]) ?? [])
+        .map((r) => ({
+          mes: String(r.mes ?? "").slice(0, 7),
+          qtd: Number(r.quantidade ?? 0),
+          valor: Number(r.valor ?? 0),
+        }))
+        .filter((r) => r.mes)
+        .sort((a, b) => a.mes.localeCompare(b.mes));
+      setEvolucaoMensal(rows);
 
-      let q = supabase
-        .from("movimentacoes")
-        .select("created_at, quantidade, tipo, produto_id, sala_id")
-        .gte("created_at", desde)
-        .lt("quantidade", 0)
-        .in("tipo", ["consumo_interno", "solicitacao", "emprestimo_saida", "ajuste"])
-        .limit(50000);
-      if (efetivaSala) q = q.eq("sala_id", efetivaSala);
-      if (produtoFilter !== "all") q = q.eq("produto_id", produtoFilter);
-      const { data } = await q;
-      setMovMensalRaw((data as any) ?? []);
-
-      // emprestimos mensal
-      let qe = supabase.from("emprestimos").select("created_at").gte("created_at", desde).limit(50000);
+      // emprestimos mensal — últimos 12 meses
+      const desde12 = isoDaysAgo(365);
+      let qe = supabase.from("emprestimos").select("created_at").gte("created_at", desde12).limit(50000);
       if (efetivaSala) qe = qe.or(`sala_origem_id.eq.${efetivaSala},sala_destino_id.eq.${efetivaSala}`);
       const { data: edata } = await qe;
       const mapE = new Map<string, number>();
@@ -180,7 +185,7 @@ export default function RelatoriosPage() {
       });
       setEmpMensal(Array.from(mapE.entries()).sort().map(([mes, count]) => ({ mes, count })));
     })();
-  }, [salaFilter, produtoFilter, scopeSalaId, isGlobal]);
+  }, [periodo, salaFilter, categoriaFilter, produtoFilter, scopeSalaId, isGlobal]);
 
   // Empréstimos status counts
   useEffect(() => {
