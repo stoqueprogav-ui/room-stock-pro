@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Globe2, Plus, ArrowRight, Loader2, ShieldCheck, MapPin } from "lucide-react";
+import { Building2, Globe2, Plus, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Sala } from "@/lib/types";
 
@@ -16,8 +16,13 @@ type RegiaoLite = { id: string; nome: string };
 
 export default function EscolherSala() {
   const { profile, isSuperMaster } = useAuth();
-  const { isSuperMode, actingRegiaoId, enterSuperMode, enterRegiaoMode, setScope } = useMasterScope();
+  const { actingRegiaoId, setScope } = useMasterScope();
   const navigate = useNavigate();
+
+  // Super Master (papel) não escolhe sala — vai direto para o painel de gestão.
+  useEffect(() => {
+    if (isSuperMaster) navigate("/app", { replace: true });
+  }, [isSuperMaster, navigate]);
 
   const [salas, setSalas] = useState<Sala[] | null>(null);
   const [minhasRegioes, setMinhasRegioes] = useState<RegiaoLite[]>([]);
@@ -34,9 +39,6 @@ export default function EscolherSala() {
     setMinhasRegioes(((mr as any[]) ?? []).map((r) => r.regioes).filter(Boolean));
   };
   useEffect(() => { load(); }, []);
-
-  // Passo de modo aparece só para super master que ainda não escolheu
-  const mostrarModo = isSuperMaster && !isSuperMode && !actingRegiaoId;
 
   const salasDoEscopo = useMemo(
     () => (salas ?? []).filter((s) => !actingRegiaoId || (s as any).regiao_id === actingRegiaoId),
