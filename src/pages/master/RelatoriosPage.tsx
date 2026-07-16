@@ -272,20 +272,6 @@ export default function RelatoriosPage() {
     });
   }, [consumoPorProduto]);
 
-  // Evolução mensal
-  const evolucaoMensal = useMemo(() => {
-    const map = new Map<string, { qtd: number; valor: number }>();
-    movMensalRaw.forEach((m) => {
-      const k = monthKey(m.created_at);
-      const qty = Math.abs(m.quantidade);
-      const prod = produtos.find((p) => p.id === m.produto_id);
-      const val = qty * Number(prod?.custo_unitario ?? 0);
-      const cur = map.get(k) ?? { qtd: 0, valor: 0 };
-      cur.qtd += qty; cur.valor += val;
-      map.set(k, cur);
-    });
-    return Array.from(map.entries()).sort().map(([mes, v]) => ({ mes, ...v }));
-  }, [movMensalRaw, produtos]);
 
   // Top líderes (para indicadores executivos)
   const topProduto = consumoPorProduto[0];
