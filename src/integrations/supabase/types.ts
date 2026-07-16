@@ -2115,6 +2115,7 @@ export type Database = {
           _categoria?: string
           _from?: string
           _produto?: string
+          _regiao?: string
           _sala?: string
           _to?: string
         }
@@ -2261,6 +2262,21 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      inventario_seguro: {
+        Args: { _data?: string; _regiao?: string }
+        Returns: {
+          categoria_nome: string
+          custo_unitario: number
+          produto_id: string
+          produto_nome: string
+          quantidade: number
+          regiao_id: string
+          regiao_nome: string
+          sala_id: string
+          sala_nome: string
+          valor_total: number
+        }[]
       }
       is_super_master: { Args: { _user: string }; Returns: boolean }
       list_my_conversations: {
@@ -2465,6 +2481,7 @@ export type Database = {
           _categoria?: string
           _from?: string
           _produto?: string
+          _regiao?: string
           _sala?: string
           _to?: string
         }
@@ -2568,6 +2585,19 @@ export type Database = {
           ultima_atualizacao: string
           valor_total: number
           valor_unitario: number
+        }[]
+      }
+      resumo_regioes: {
+        Args: { _from?: string; _to?: string }
+        Returns: {
+          consumo_qtd: number
+          consumo_valor: number
+          emprestimos: number
+          regiao_id: string
+          regiao_nome: string
+          requisicoes: number
+          salas: number
+          valor_estoque: number
         }[]
       }
       sala_regiao: { Args: { _sala: string }; Returns: string }
