@@ -98,7 +98,7 @@ function navForRole(role: string | null, isGlobalScope: boolean, isSuperMaster: 
   return base;
 }
 
-const ROLE_LABEL: Record<string, string> = { master: "Master", admin: "Administrador", analista: "Analista" };
+const ROLE_LABEL: Record<string, string> = { master: "Master", admin: "Administrador", analista: "Analista", super_master: "Super Master" };
 
 export default function AppLayout() {
   return (
@@ -232,7 +232,7 @@ function AppLayoutInner() {
           </div>
           <div>
             <div className="font-display font-bold text-sidebar-accent-foreground">Estoque Pro</div>
-            <div className="text-xs text-sidebar-foreground/70">{ROLE_LABEL[role]}</div>
+            <div className="text-xs text-sidebar-foreground/70">{isSuperMaster ? "Super Master" : ROLE_LABEL[role]}</div>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
@@ -245,10 +245,13 @@ function AppLayoutInner() {
             <div className="text-sm font-medium text-sidebar-accent-foreground truncate">{profile?.nome}</div>
             <div className="text-xs text-sidebar-foreground/70 truncate">{profile?.email}</div>
             <div className="flex items-center gap-1.5 text-[11px] font-medium rounded-md bg-primary/15 text-primary px-2 py-1 border border-primary/20">
-              {role === "master" && scopeSalaId === null
-                ? <><Globe2 className="size-3" /> {ROLE_LABEL[role]} · Visão Global</>
-                : <><MapPin className="size-3" /> {ROLE_LABEL[role]} · {salaNome ?? "Sem sala"}</>}
+              {isSuperMaster
+                ? <><Globe2 className="size-3" /> Super Master · Consolidado</>
+                : role === "master" && scopeSalaId === null
+                  ? <><Globe2 className="size-3" /> {ROLE_LABEL[role]} · Visão Global</>
+                  : <><MapPin className="size-3" /> {ROLE_LABEL[role]} · {salaNome ?? "Sem sala"}</>}
             </div>
+
           </div>
           <Button variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground" onClick={handleSignOut}>
             <LogOut className="size-4" /> Sair
@@ -267,26 +270,31 @@ function AppLayoutInner() {
           <div className="hidden md:flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Usuário: <span className="text-foreground font-medium">{profile?.nome ?? "—"}</span></span>
             <span className="text-muted-foreground/40">·</span>
-            <span className="text-muted-foreground">Perfil: <span className="text-foreground font-medium">{ROLE_LABEL[role]}</span></span>
-            <span className="text-muted-foreground/40">·</span>
-            {role === "master" && scopeSalaId === null ? (
-              <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
-                <Globe2 className="size-3" /> Visão Global
-              </Badge>
-            ) : (
-              <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
-                <MapPin className="size-3" /> Sala Atual: {salaNome ?? "—"}
-              </Badge>
+            <span className="text-muted-foreground">Perfil: <span className="text-foreground font-medium">{isSuperMaster ? "Super Master" : ROLE_LABEL[role]}</span></span>
+            {!isSuperMaster && (
+              <>
+                <span className="text-muted-foreground/40">·</span>
+                {role === "master" && scopeSalaId === null ? (
+                  <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
+                    <Globe2 className="size-3" /> Visão Global
+                  </Badge>
+                ) : (
+                  <Badge className="bg-primary/15 text-primary border-primary/30 gap-1">
+                    <MapPin className="size-3" /> Sala Atual: {salaNome ?? "—"}
+                  </Badge>
+                )}
+              </>
             )}
           </div>
           <div className="flex items-center gap-3 ml-auto">
-            {role === "master" ? <MasterScopeSwitcher /> : <ActiveSalaSwitcher />}
+            {!isSuperMaster && (role === "master" ? <MasterScopeSwitcher /> : <ActiveSalaSwitcher />)}
             <NotificationsBell />
-            <Badge variant="secondary" className="hidden sm:inline-flex">{ROLE_LABEL[role]}</Badge>
+            <Badge variant="secondary" className="hidden sm:inline-flex">{isSuperMaster ? "Super Master" : ROLE_LABEL[role]}</Badge>
             <Button variant="ghost" size="sm" onClick={handleSignOut} className="md:hidden">
               <LogOut className="size-4" />
             </Button>
           </div>
+
         </header>
         <div className="flex-1 overflow-y-auto p-4 md:p-8 animate-fade-in">
           <Outlet />
