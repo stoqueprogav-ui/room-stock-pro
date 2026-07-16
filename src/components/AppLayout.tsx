@@ -98,7 +98,7 @@ function navForRole(role: string | null, isGlobalScope: boolean, isSuperMaster: 
   return base;
 }
 
-const ROLE_LABEL: Record<string, string> = { master: "Master", admin: "Administrador", analista: "Analista" };
+const ROLE_LABEL: Record<string, string> = { master: "Master", admin: "Administrador", analista: "Analista", super_master: "Super Master" };
 
 export default function AppLayout() {
   return (
