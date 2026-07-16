@@ -2124,6 +2124,15 @@ export type Database = {
           valor: number
         }[]
       }
+      consumo_por_regiao: {
+        Args: { _from?: string; _to?: string }
+        Returns: {
+          quantidade: number
+          regiao_id: string
+          regiao_nome: string
+          valor: number
+        }[]
+      }
       criar_avaliacao_patrimonial: {
         Args: {
           _observacao?: string
@@ -2595,6 +2604,15 @@ export type Database = {
       usuarios_compartilham_regiao: {
         Args: { _a: string; _b: string }
         Returns: boolean
+      }
+      valor_estoque_por_regiao: {
+        Args: never
+        Returns: {
+          itens: number
+          regiao_id: string
+          regiao_nome: string
+          valor_total: number
+        }[]
       }
       valor_estoque_por_sala: {
         Args: never
