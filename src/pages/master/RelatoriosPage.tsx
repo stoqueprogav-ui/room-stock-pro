@@ -287,6 +287,53 @@ export default function RelatoriosPage() {
     })();
   }, [isSuperMaster, periodo]);
 
+  // ==== Super Master: resumo por região + lista de regiões ====
+  useEffect(() => {
+    if (!isSuperMaster) return;
+    (async () => {
+      const desde = periodo === "all" ? null : isoDaysAgo(parseInt(periodo, 10));
+      const [{ data: rr }, { data: rl }] = await Promise.all([
+        (supabase as any).rpc("resumo_regioes", { _from: desde, _to: null }),
+        supabase.from("regioes").select("id, nome").order("nome"),
+      ]);
+      setResumoRegioes(((rr as any[]) ?? []).map((r) => ({
+        regiao_id: r.regiao_id,
+        regiao_nome: r.regiao_nome,
+        salas: Number(r.salas ?? 0),
+        consumo_qtd: Number(r.consumo_qtd ?? 0),
+        consumo_valor: Number(r.consumo_valor ?? 0),
+        valor_estoque: Number(r.valor_estoque ?? 0),
+        requisicoes: Number(r.requisicoes ?? 0),
+        emprestimos: Number(r.emprestimos ?? 0),
+      })));
+      setRegioesList(((rl as any[]) ?? []) as { id: string; nome: string }[]);
+    })();
+  }, [isSuperMaster, periodo]);
+
+  // Drill-down: carrega consumo detalhado + evolução mensal da região
+  useEffect(() => {
+    if (!isSuperMaster || !drillRegiao) { setDrillConsumo([]); setDrillMensal([]); return; }
+    (async () => {
+      const desde = periodo === "all" ? null : isoDaysAgo(parseInt(periodo, 10));
+      const [{ data: cc }, { data: mm }] = await Promise.all([
+        (supabase as any).rpc("relatorio_consumo", {
+          _from: desde, _to: null, _sala: null, _categoria: null, _produto: null, _regiao: drillRegiao.id,
+        }),
+        (supabase as any).rpc("consumo_mensal", {
+          _from: desde, _to: null, _sala: null, _categoria: null, _produto: null, _regiao: drillRegiao.id,
+        }),
+      ]);
+      setDrillConsumo((cc as ConsumoRow[]) ?? []);
+      setDrillMensal(((mm as any[]) ?? []).map((r) => ({
+        mes: String(r.mes ?? "").slice(0, 7),
+        qtd: Number(r.quantidade ?? 0),
+        valor: Number(r.valor ?? 0),
+      })).filter((r) => r.mes).sort((a, b) => a.mes.localeCompare(b.mes)));
+    })();
+  }, [isSuperMaster, drillRegiao, periodo]);
+
+
+
   // ===== Derivados =====
 
   // Por produto (agregado entre salas)
