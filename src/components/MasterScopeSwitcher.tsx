@@ -56,7 +56,7 @@ export default function MasterScopeSwitcher() {
             </CommandGroup>
             <CommandSeparator />
             <CommandGroup heading="Salas">
-              {salas.map((s) => (
+              {visibleSalas.map((s) => (
                 <CommandItem
                   key={s.id}
                   onSelect={() => { setScope(s.id); setOpen(false); }}
@@ -71,11 +71,11 @@ export default function MasterScopeSwitcher() {
             <CommandSeparator />
             <CommandGroup>
               <CommandItem
-                onSelect={() => { setOpen(false); navigate("/app/escolher-sala"); }}
+                onSelect={() => { setOpen(false); clearScope(); navigate("/app/escolher-sala"); }}
                 className="gap-2"
               >
                 <Plus className="size-4" />
-                <span>Tela de seleção / criar sala</span>
+                <span>Trocar sala / modo</span>
               </CommandItem>
             </CommandGroup>
           </CommandList>
