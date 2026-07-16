@@ -37,35 +37,23 @@ export function MasterScopeProvider({ children }: { children: ReactNode }) {
       setIsSuperMode(false); setActingRegiaoId(null);
       return;
     }
-    const mode = localStorage.getItem(K_MODE);
-    const regiao = localStorage.getItem(K_REGIAO);
-    const sala = localStorage.getItem(K_SALA);
 
-    if (mode === "super") {
+    // Super Master: papel dedicado. Entra direto em modo super, sem escolher sala.
+    if (isSuperMaster) {
       setIsSuperMode(true);
       setActingRegiaoId(null);
       setScopeSalaId(null);
       setScopeReady(true);
-    } else if (mode === "regiao" && regiao) {
-      setIsSuperMode(false);
-      setActingRegiaoId(regiao);
-      if (sala === "__all__") { setScopeSalaId(null); setScopeReady(true); }
-      else if (sala) { setScopeSalaId(sala); setScopeReady(true); }
-      else { setScopeReady(false); }
-    } else if (sala && !isSuperMaster) {
-      // master comum (sem modo): compat. com o comportamento anterior
-      setIsSuperMode(false);
-      setActingRegiaoId(null);
-      if (sala === "__all__") setScopeSalaId(null);
-      else setScopeSalaId(sala);
-      setScopeReady(true);
-    } else {
-      // super master sem modo escolhido -> força o seletor de modo
-      setIsSuperMode(false);
-      setActingRegiaoId(null);
-      setScopeSalaId(null);
-      setScopeReady(false);
+      return;
     }
+
+    // Master de região: comportamento tradicional (escolher sala).
+    const sala = localStorage.getItem(K_SALA);
+    setIsSuperMode(false);
+    setActingRegiaoId(null);
+    if (sala === "__all__") { setScopeSalaId(null); setScopeReady(true); }
+    else if (sala) { setScopeSalaId(sala); setScopeReady(true); }
+    else { setScopeSalaId(null); setScopeReady(false); }
   }, [role, user, isSuperMaster]);
 
   const setScope = useCallback((salaId: string | null) => {

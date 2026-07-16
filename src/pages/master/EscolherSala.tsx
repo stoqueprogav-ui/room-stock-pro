@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Building2, Globe2, Plus, ArrowRight, Loader2, ShieldCheck, MapPin } from "lucide-react";
+import { Building2, Globe2, Plus, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Sala } from "@/lib/types";
 
@@ -16,8 +16,13 @@ type RegiaoLite = { id: string; nome: string };
 
 export default function EscolherSala() {
   const { profile, isSuperMaster } = useAuth();
-  const { isSuperMode, actingRegiaoId, enterSuperMode, enterRegiaoMode, setScope } = useMasterScope();
+  const { actingRegiaoId, setScope } = useMasterScope();
   const navigate = useNavigate();
+
+  // Super Master (papel) não escolhe sala — vai direto para o painel de gestão.
+  useEffect(() => {
+    if (isSuperMaster) navigate("/app", { replace: true });
+  }, [isSuperMaster, navigate]);
 
   const [salas, setSalas] = useState<Sala[] | null>(null);
   const [minhasRegioes, setMinhasRegioes] = useState<RegiaoLite[]>([]);
@@ -34,9 +39,6 @@ export default function EscolherSala() {
     setMinhasRegioes(((mr as any[]) ?? []).map((r) => r.regioes).filter(Boolean));
   };
   useEffect(() => { load(); }, []);
-
-  // Passo de modo aparece só para super master que ainda não escolheu
-  const mostrarModo = isSuperMaster && !isSuperMode && !actingRegiaoId;
 
   const salasDoEscopo = useMemo(
     () => (salas ?? []).filter((s) => !actingRegiaoId || (s as any).regiao_id === actingRegiaoId),
@@ -84,49 +86,8 @@ export default function EscolherSala() {
     </header>
   );
 
-  // ----------------- PASSO 1: escolher o modo (só super master) -----------------
-  if (mostrarModo) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        {Header}
-        <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-10 animate-fade-in">
-          <div className="text-center space-y-2 mb-8">
-            <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight">Como deseja entrar?</h1>
-            <p className="text-muted-foreground">Entre como Super Master para gerenciar regiões e masters, ou entre em uma região para operá-la.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card
-              onClick={() => { enterSuperMode(); navigate("/app", { replace: true }); }}
-              className="stat-card cursor-pointer group border-2 border-primary/40 hover:border-primary transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="size-10 rounded-md bg-primary/10 grid place-items-center text-primary mb-3"><ShieldCheck className="size-5" /></div>
-                  <div className="font-display text-lg font-semibold">Super Master</div>
-                  <div className="text-sm text-muted-foreground mt-1">Gerenciar regiões, masters e visão consolidada</div>
-                </div>
-                <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-              </div>
-            </Card>
+  // Passo "escolher modo" foi removido — cada login tem um papel fixo.
 
-            {minhasRegioes.map((r) => (
-              <Card key={r.id} onClick={() => enterRegiaoMode(r.id)}
-                className="stat-card cursor-pointer group hover:border-primary/60 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="size-10 rounded-md bg-muted grid place-items-center text-accent mb-3"><MapPin className="size-5" /></div>
-                    <div className="font-display text-lg font-semibold">Master de {r.nome}</div>
-                    <div className="text-sm text-muted-foreground mt-1">Operar apenas esta região</div>
-                  </div>
-                  <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                </div>
-              </Card>
-            ))}
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   // ----------------- PASSO 2: escolher a sala -----------------
   return (

@@ -22,8 +22,8 @@ type UserRow = { id: string; nome: string; email: string; sala_id: string | null
 type Regiao = { id: string; nome: string };
 
 export default function UsuariosPage() {
-  const { profile } = useAuth();
-  const { scopeSalaId, isSuperMode } = useMasterScope();
+  const { profile, isSuperMaster } = useAuth();
+  const { scopeSalaId } = useMasterScope();
   const isGlobal = scopeSalaId === null;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
@@ -69,15 +69,15 @@ export default function UsuariosPage() {
   };
   useEffect(() => { load(); }, []);
 
-  // Lista visível conforme escopo:
-  // - Super Master: apenas masters (a tela é "Masters")
-  // - Master global: todos
-  // - Master em sala: masters/super_master + usuários daquela sala
+  // Lista visível conforme papel:
+  // - Super Master: apenas masters e super_masters (a tela é "Masters")
+  // - Master de região: apenas admin/analista (como antes das regiões), respeitando escopo de sala
   const visibleUsers = useMemo(() => {
-    if (isSuperMode) return users.filter((u) => u.role === "master" || u.role === "super_master");
-    if (isGlobal) return users;
-    return users.filter((u) => u.role === "master" || u.role === "super_master" || u.sala_ids?.includes(scopeSalaId ?? ""));
-  }, [users, isGlobal, scopeSalaId, isSuperMode]);
+    if (isSuperMaster) return users.filter((u) => u.role === "master" || u.role === "super_master");
+    const opers = users.filter((u) => u.role === "admin" || u.role === "analista");
+    if (isGlobal) return opers;
+    return opers.filter((u) => u.sala_ids?.includes(scopeSalaId ?? ""));
+  }, [users, isGlobal, scopeSalaId, isSuperMaster]);
 
 
   const salaAtualNome = useMemo(
@@ -86,10 +86,10 @@ export default function UsuariosPage() {
   );
 
   const openNovo = () => {
-    // Em Super Master, cria masters. Em sala específica, pré-vincula automaticamente.
+    // Super Master cria masters; master de região cria admin/analista.
     setForm({
       nome: "", email: "", password: "",
-      role: isSuperMode ? "master" : "analista",
+      role: isSuperMaster ? "master" : "analista",
       salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []),
       regioes: [],
     });
@@ -174,9 +174,9 @@ export default function UsuariosPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title={isSuperMode ? "Masters" : "Usuários"}
+        title={isSuperMaster ? "Masters" : "Usuários"}
         description={
-          isSuperMode
+          isSuperMaster
             ? "Gestão dos masters do sistema. Cada master é vinculado a uma ou mais regiões."
             : isGlobal
               ? "Gestão global de contas, perfis e vínculo com salas."
@@ -184,11 +184,11 @@ export default function UsuariosPage() {
         }
         actions={
           <Button onClick={openNovo}>
-            <Plus className="size-4" /> {isSuperMode ? "Novo master" : "Novo usuário"}
+            <Plus className="size-4" /> {isSuperMaster ? "Novo master" : "Novo usuário"}
           </Button>
         }
       />
-      {!isSuperMode && (
+      {!isSuperMaster && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {isGlobal
             ? <><Globe2 className="size-3.5 text-primary" /> Modo global — você vê todos os usuários do sistema.</>
@@ -214,7 +214,7 @@ export default function UsuariosPage() {
                 <TableCell className="font-medium flex items-center gap-2">{u.nome} {u.id === profile?.id && <span className="text-xs text-muted-foreground">(você)</span>}</TableCell>
                 <TableCell className="text-muted-foreground">{u.email}</TableCell>
                 <TableCell>
-                  {isSuperMode ? (
+                  {isSuperMaster ? (
                     u.role === "super_master" ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 text-accent-foreground border border-accent/30 px-2 py-0.5 text-xs font-medium">
                         <Globe2 className="size-3.5" /> Super Master
@@ -293,7 +293,7 @@ export default function UsuariosPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{isSuperMode ? "Novo master" : "Novo usuário"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{isSuperMaster ? "Novo master" : "Novo usuário"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {!isGlobal && (
               <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
@@ -308,9 +308,9 @@ export default function UsuariosPage() {
                 <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as AppRole })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {isSuperMode && <SelectItem value="master">Master</SelectItem>}
-                    {!isSuperMode && <SelectItem value="admin">Administrador</SelectItem>}
-                    {!isSuperMode && <SelectItem value="analista">Analista</SelectItem>}
+                    {isSuperMaster && <SelectItem value="master">Master</SelectItem>}
+                    {!isSuperMaster && <SelectItem value="admin">Administrador</SelectItem>}
+                    {!isSuperMaster && <SelectItem value="analista">Analista</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>

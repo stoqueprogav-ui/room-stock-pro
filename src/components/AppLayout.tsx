@@ -29,17 +29,17 @@ type NavItem = {
   children?: NavItem[];
 };
 
-function navForRole(role: string | null, isGlobalScope: boolean, isSuperMode: boolean): NavItem[] {
+function navForRole(role: string | null, isGlobalScope: boolean, isSuperMaster: boolean): NavItem[] {
   if (role === "master") {
-    // Modo Super Master: menu enxuto, apenas administração global.
-    if (isSuperMode) {
+    // Super Master (papel): menu de gestão global — apenas 3 itens.
+    if (isSuperMaster) {
       return [
         { to: "/app/regioes", label: "Regiões", icon: MapPin },
         { to: "/app/usuarios", label: "Masters", icon: Users },
         { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
       ];
     }
-    // Modo Master de região: menu operacional completo (sem "Regiões").
+    // Master de região: menu operacional completo (sem "Regiões").
     const items: NavItem[] = [
       { to: "/app", label: "Visão geral", icon: LayoutDashboard },
     ];
@@ -113,16 +113,16 @@ export default function AppLayout() {
 }
 
 function AppLayoutInner() {
-  const { user, role, profile, loading, signOut } = useAuth();
+  const { user, role, profile, loading, signOut, isSuperMaster } = useAuth();
   const { activeSalaId, activeSalaName, loading: salaLoading, selectionRequired, salas, chooseSala } = useActiveSala();
-  const { scopeReady, scopeSalaId, isSuperMode, actingRegiaoId } = useMasterScope();
+  const { scopeReady, scopeSalaId, actingRegiaoId } = useMasterScope();
   const navigate = useNavigate();
   const location = useLocation();
   const { logoUrl } = useCompanyLogo();
   const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0, chat: 0 });
   const [salaNome, setSalaNome] = useState<string | null>(null);
 
-  const items = useMemo(() => navForRole(role, scopeSalaId === null, isSuperMode), [role, scopeSalaId, isSuperMode]);
+  const items = useMemo(() => navForRole(role, scopeSalaId === null, isSuperMaster), [role, scopeSalaId, isSuperMaster]);
 
   // Carrega nome da sala em foco (master) ou da sala do usuário (admin/analista)
   useEffect(() => {
@@ -201,15 +201,20 @@ function AppLayoutInner() {
     return <Navigate to="/app/trocar-senha" replace />;
   }
 
-  // Master: gate de seleção de sala antes de entrar no painel.
+  // Super Master (papel): a visão geral operacional não se aplica — vai para Regiões.
+  if (isSuperMaster && location.pathname === "/app") {
+    return <Navigate to="/app/regioes" replace />;
+  }
+
+  // Master de região: gate de seleção de sala antes de entrar no painel.
   const isPickRoute = location.pathname === "/app/escolher-sala";
-  if (role === "master" && !scopeReady && !isPickRoute) {
+  if (role === "master" && !isSuperMaster && !scopeReady && !isPickRoute) {
     return <Navigate to="/app/escolher-sala" replace />;
   }
   if (isPickRoute) return <Outlet />;
 
   // Em modo sala específica, página de Salas é só global → redireciona
-  if (role === "master" && scopeSalaId !== null && location.pathname.startsWith("/app/salas")) {
+  if (role === "master" && !isSuperMaster && scopeSalaId !== null && location.pathname.startsWith("/app/salas")) {
     return <Navigate to="/app" replace />;
   }
 

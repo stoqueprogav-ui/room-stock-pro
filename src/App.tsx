@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import RequireRole from "@/components/RequireRole";
 import RequireOperationalMode from "@/components/RequireOperationalMode";
+import RequireSuperMaster from "@/components/RequireSuperMaster";
 import SalasPage from "./pages/master/SalasPage";
 import ProdutosPage from "./pages/master/ProdutosPage";
 import EstoquePage from "./pages/master/EstoquePage";
@@ -59,7 +60,7 @@ const App = () => (
               <Route path="escolher-sala" element={<EscolherSala />} />
               {/* Master (rotas trancadas por cargo — 2ª camada; a 1ª é sempre RLS/RPC) */}
               <Route path="salas" element={<RequireRole role="master"><RequireOperationalMode><SalasPage /></RequireOperationalMode></RequireRole>} />
-              <Route path="regioes" element={<RegioesPage />} />
+              <Route path="regioes" element={<RequireSuperMaster><RegioesPage /></RequireSuperMaster>} />
               <Route path="produtos" element={<Navigate to="/app/estoque" replace />} />
               <Route path="estoque" element={<RequireOperationalMode><EstoquePage /></RequireOperationalMode>} />
               <Route path="requisicoes" element={<RequireRole role="master"><RequireOperationalMode><RequisicoesPage /></RequireOperationalMode></RequireRole>} />
