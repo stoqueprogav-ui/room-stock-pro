@@ -282,7 +282,7 @@ export default function RelatoriosPage() {
     return evolucaoMensal.find((m) => m.mes === k)?.valor ?? 0;
   }, [evolucaoMensal]);
   const valorCompras = estoqueValor.reduce((s, x) => s + Number(x.valor_total), 0);
-  const valorTotalEstoque = valorCompras + Number(valorPatrimonial ?? 0);
+  const valorTotalEstoque = Number(patTotais?.valor_total_estoque ?? 0);
   const salaMaiorEstoque = [...estoqueValor].sort((a, b) => b.valor_total - a.valor_total)[0];
 
 
