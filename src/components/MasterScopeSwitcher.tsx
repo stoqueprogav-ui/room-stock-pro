@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { Sala } from "@/lib/types";
 
 export default function MasterScopeSwitcher() {
-  const { scopeSalaId, setScope } = useMasterScope();
+  const { scopeSalaId, setScope, clearScope, isSuperMode, actingRegiaoId } = useMasterScope();
   const navigate = useNavigate();
   const [salas, setSalas] = useState<Sala[]>([]);
   const [open, setOpen] = useState(false);
@@ -21,7 +21,11 @@ export default function MasterScopeSwitcher() {
     });
   }, [scopeSalaId]);
 
-  const atual = scopeSalaId === null ? null : salas.find((s) => s.id === scopeSalaId);
+  const visibleSalas = isSuperMode || !actingRegiaoId
+    ? salas
+    : salas.filter((s) => s.regiao_id === actingRegiaoId);
+
+  const atual = scopeSalaId === null ? null : visibleSalas.find((s) => s.id === scopeSalaId);
   const label = scopeSalaId === null ? "Todas as salas" : (atual?.nome ?? "Selecionar sala");
 
   return (
