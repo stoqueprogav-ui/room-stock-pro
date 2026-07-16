@@ -232,7 +232,7 @@ function AppLayoutInner() {
           </div>
           <div>
             <div className="font-display font-bold text-sidebar-accent-foreground">Estoque Pro</div>
-            <div className="text-xs text-sidebar-foreground/70">{ROLE_LABEL[role]}</div>
+            <div className="text-xs text-sidebar-foreground/70">{isSuperMaster ? "Super Master" : ROLE_LABEL[role]}</div>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
