@@ -204,8 +204,8 @@ export default function UsuariosPage() {
                   <Select value={u.role} onValueChange={(v) => updateRole(u, v as AppRole)} disabled={u.id === profile?.id}>
                     <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {isSuperMaster && <SelectItem value="super_master">Super Master</SelectItem>}
-                      {isSuperMaster && <SelectItem value="master">Master</SelectItem>}
+                      {isSuperMode && <SelectItem value="super_master">Super Master</SelectItem>}
+                      {isSuperMode && <SelectItem value="master">Master</SelectItem>}
                       <SelectItem value="admin">Administrador</SelectItem>
                       <SelectItem value="analista">Analista</SelectItem>
                     </SelectContent>
