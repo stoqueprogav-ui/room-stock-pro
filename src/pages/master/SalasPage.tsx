@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
@@ -16,27 +17,39 @@ import type { Sala } from "@/lib/types";
 export default function SalasPage() {
   const { perSalaCount } = useNotifications();
   const [salas, setSalas] = useState<Sala[]>([]);
+  const [regioes, setRegioes] = useState<{ id: string; nome: string }[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Sala | null>(null);
   const [nome, setNome] = useState("");
+  const [regiaoId, setRegiaoId] = useState<string>("");
 
   const load = async () => {
     const { data } = await supabase.from("salas").select("*").order("nome");
     setSalas((data as Sala[]) ?? []);
   };
-  useEffect(() => { load(); }, []);
+  const loadRegioes = async () => {
+    const { data } = await supabase.from("regioes").select("id, nome").eq("ativo", true).order("nome");
+    setRegioes(((data as any[]) ?? []).map((r) => ({ id: r.id, nome: r.nome })));
+  };
+  useEffect(() => { load(); loadRegioes(); }, []);
 
-  const openNew = () => { setEditing(null); setNome(""); setOpen(true); };
-  const openEdit = (s: Sala) => { setEditing(s); setNome(s.nome); setOpen(true); };
+  const openNew = () => { setEditing(null); setNome(""); setRegiaoId(""); setOpen(true); };
+  const openEdit = (s: Sala) => {
+    setEditing(s);
+    setNome(s.nome);
+    setRegiaoId((s as any).regiao_id ?? "");
+    setOpen(true);
+  };
 
   const save = async () => {
     if (!nome.trim()) return;
+    if (!regiaoId) return toast.error("Selecione uma região");
     if (editing) {
-      const { error } = await supabase.from("salas").update({ nome: nome.trim() }).eq("id", editing.id);
+      const { error } = await supabase.from("salas").update({ nome: nome.trim(), regiao_id: regiaoId }).eq("id", editing.id);
       if (error) return toast.error(error.message);
       toast.success("Sala atualizada");
     } else {
-      const { error } = await supabase.from("salas").insert({ nome: nome.trim() });
+      const { error } = await supabase.from("salas").insert({ nome: nome.trim(), regiao_id: regiaoId });
       if (error) return toast.error(error.message);
       toast.success("Sala criada (estoque inicial 0 para todos os produtos)");
     }
@@ -129,8 +142,21 @@ export default function SalasPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? "Editar sala" : "Nova sala"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <Label>Nome</Label>
-            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Filial Centro" />
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Filial Centro" />
+            </div>
+            <div className="space-y-2">
+              <Label>Região</Label>
+              <Select value={regiaoId} onValueChange={setRegiaoId}>
+                <SelectTrigger><SelectValue placeholder="Selecione a região" /></SelectTrigger>
+                <SelectContent>
+                  {regioes.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
