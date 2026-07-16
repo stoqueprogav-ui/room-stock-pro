@@ -34,11 +34,17 @@ Deno.serve(async (req) => {
       console.error("admin-create-user invalid token", userErr);
       return jsonResp({ ok: false, error: "Sessão inválida — faça login novamente", step: "auth" }, 401);
     }
+    const callerId = userData.user.id;
 
-    const { data: roleRow } = await admin
-      .from("user_roles").select("role")
-      .eq("user_id", userData.user.id).eq("role", "master").maybeSingle();
-    if (!roleRow) return jsonResp({ ok: false, error: "Apenas Master pode criar usuários", step: "perm" }, 403);
+    // Papéis do solicitante
+    const { data: callerRoles } = await admin
+      .from("user_roles").select("role").eq("user_id", callerId);
+    const roles = (callerRoles ?? []).map((r) => r.role);
+    const isSuper = roles.includes("super_master");
+    const isMaster = roles.includes("master");
+    if (!isSuper && !isMaster) {
+      return jsonResp({ ok: false, error: "Apenas Master pode criar usuários", step: "perm" }, 403);
+    }
 
     let body: any = {};
     try { body = await req.json(); } catch { return jsonResp({ ok: false, error: "payload inválido", step: "input" }, 400); }
@@ -51,18 +57,39 @@ Deno.serve(async (req) => {
 
     if (!email || !password || !nome) return jsonResp({ ok: false, error: "Preencha nome, email e senha", step: "input" }, 400);
     if (password.length < 6) return jsonResp({ ok: false, error: "Senha deve ter ao menos 6 caracteres", step: "input" }, 400);
-    if (!["master", "admin", "analista"].includes(role)) return jsonResp({ ok: false, error: "Perfil inválido", step: "input" }, 400);
-    if (role !== "master" && !sala_id) return jsonResp({ ok: false, error: "Admin/Analista exige sala", step: "input" }, 400);
+    if (!["super_master", "master", "admin", "analista"].includes(role)) {
+      return jsonResp({ ok: false, error: "Perfil inválido", step: "input" }, 400);
+    }
 
-    // admin.createUser NÃO altera a sessão do master (não usa signUp).
-    // A trigger handle_new_user cria só o profile — NÃO o cargo.
+    // Guard de cargo: master/super_master só o Super Master concede.
+    if ((role === "master" || role === "super_master") && !isSuper) {
+      return jsonResp({ ok: false, error: "Apenas o Super Master pode criar Master/Super Master", step: "perm" }, 403);
+    }
+
+    // admin/analista exigem sala; e a sala precisa estar numa região do solicitante (a menos que Super).
+    if (role !== "master" && role !== "super_master") {
+      if (!sala_id) return jsonResp({ ok: false, error: "Admin/Analista exige sala", step: "input" }, 400);
+      if (!isSuper) {
+        const { data: sala } = await admin.from("salas").select("regiao_id").eq("id", sala_id).maybeSingle();
+        const regiao = sala?.regiao_id ?? null;
+        if (!regiao) return jsonResp({ ok: false, error: "Sala sem região definida", step: "input" }, 400);
+        const { data: vinculo } = await admin
+          .from("master_regioes").select("regiao_id")
+          .eq("user_id", callerId).eq("regiao_id", regiao).maybeSingle();
+        if (!vinculo) {
+          return jsonResp({ ok: false, error: "Você não administra a região desta sala", step: "perm" }, 403);
+        }
+      }
+    }
+
+    // admin.createUser NÃO altera a sessão do solicitante. A trigger cria só o profile.
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: {
         nome,
-        sala_id: role === "master" ? "" : sala_id,
+        sala_id: (role === "master" || role === "super_master") ? "" : sala_id,
         must_change_password: "true",
       },
     });
@@ -73,15 +100,9 @@ Deno.serve(async (req) => {
       return jsonResp({ ok: false, error: friendly, step: "auth.create", details: msg }, 400);
     }
 
-    // Atribuição de cargo via RPC set_user_role, executada com o JWT do Master
-    // (o trigger de user_roles valida auth.uid() = Master, então service_role não passa).
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-    const { error: roleErr } = await userClient.rpc("set_user_role", {
-      _user: created.user.id,
-      _role: role,
-    });
+    // Cargo atribuído aqui (service_role). A trigger de banco não faz isso.
+    const { error: roleErr } = await admin
+      .from("user_roles").insert({ user_id: created.user.id, role });
     if (roleErr) {
       console.error("admin-create-user role insert error", roleErr);
       await admin.auth.admin.deleteUser(created.user.id);
