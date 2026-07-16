@@ -22,8 +22,8 @@ type UserRow = { id: string; nome: string; email: string; sala_id: string | null
 type Regiao = { id: string; nome: string };
 
 export default function UsuariosPage() {
-  const { profile } = useAuth();
-  const { scopeSalaId, isSuperMode } = useMasterScope();
+  const { profile, isSuperMaster } = useAuth();
+  const { scopeSalaId } = useMasterScope();
   const isGlobal = scopeSalaId === null;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
@@ -69,15 +69,15 @@ export default function UsuariosPage() {
   };
   useEffect(() => { load(); }, []);
 
-  // Lista visível conforme escopo:
-  // - Super Master: apenas masters (a tela é "Masters")
-  // - Master global: todos
-  // - Master em sala: masters/super_master + usuários daquela sala
+  // Lista visível conforme papel:
+  // - Super Master: apenas masters e super_masters (a tela é "Masters")
+  // - Master de região: apenas admin/analista (como antes das regiões), respeitando escopo de sala
   const visibleUsers = useMemo(() => {
-    if (isSuperMode) return users.filter((u) => u.role === "master" || u.role === "super_master");
-    if (isGlobal) return users;
-    return users.filter((u) => u.role === "master" || u.role === "super_master" || u.sala_ids?.includes(scopeSalaId ?? ""));
-  }, [users, isGlobal, scopeSalaId, isSuperMode]);
+    if (isSuperMaster) return users.filter((u) => u.role === "master" || u.role === "super_master");
+    const opers = users.filter((u) => u.role === "admin" || u.role === "analista");
+    if (isGlobal) return opers;
+    return opers.filter((u) => u.sala_ids?.includes(scopeSalaId ?? ""));
+  }, [users, isGlobal, scopeSalaId, isSuperMaster]);
 
 
   const salaAtualNome = useMemo(
@@ -86,10 +86,10 @@ export default function UsuariosPage() {
   );
 
   const openNovo = () => {
-    // Em Super Master, cria masters. Em sala específica, pré-vincula automaticamente.
+    // Super Master cria masters; master de região cria admin/analista.
     setForm({
       nome: "", email: "", password: "",
-      role: isSuperMode ? "master" : "analista",
+      role: isSuperMaster ? "master" : "analista",
       salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []),
       regioes: [],
     });
