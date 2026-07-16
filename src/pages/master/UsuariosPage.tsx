@@ -18,16 +18,18 @@ import CompanyLogoUploader from "@/components/CompanyLogoUploader";
 import { Checkbox } from "@/components/ui/checkbox";
 import UserSalasDialog from "@/components/UserSalasDialog";
 
-type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null; salas_count?: number; sala_ids?: string[] };
+type UserRow = { id: string; nome: string; email: string; sala_id: string | null; role: AppRole; must_change_password?: boolean; sala?: { nome: string } | null; salas_count?: number; sala_ids?: string[]; regiao_ids?: string[] };
+type Regiao = { id: string; nome: string };
 
 export default function UsuariosPage() {
-  const { profile } = useAuth();
+  const { profile, isSuperMaster } = useAuth();
   const { scopeSalaId } = useMasterScope();
   const isGlobal = scopeSalaId === null;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
+  const [regioes, setRegioes] = useState<Regiao[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, salas: [] as string[] });
+  const [form, setForm] = useState({ nome: "", email: "", password: "", role: "analista" as AppRole, salas: [] as string[], regioes: [] as string[] });
   const [saving, setSaving] = useState(false);
   const [createdInfo, setCreatedInfo] = useState<{ nome: string; email: string; password: string } | null>(null);
   const [resetOpen, setResetOpen] = useState<UserRow | null>(null);
@@ -36,35 +38,43 @@ export default function UsuariosPage() {
   const [salasDialog, setSalasDialog] = useState<UserRow | null>(null);
 
   const load = async () => {
-    const [{ data: profs }, { data: roles }, { data: ss }, { data: us }] = await Promise.all([
+    const [{ data: profs }, { data: roles }, { data: ss }, { data: us }, { data: regs }, { data: mregs }] = await Promise.all([
       supabase.from("profiles").select("id, nome, email, sala_id, must_change_password, sala:salas(nome)"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("salas").select("*").order("nome"),
       supabase.from("user_salas").select("user_id, sala_id"),
+      supabase.from("regioes").select("id, nome").eq("ativo", true).order("nome"),
+      supabase.from("master_regioes").select("user_id, regiao_id"),
     ]);
-    const order: AppRole[] = ["master", "admin", "analista"];
+    const order: AppRole[] = ["super_master", "master", "admin", "analista"];
     const counts = new Map<string, number>();
     const salasByUser = new Map<string, string[]>();
     (us ?? []).forEach((r: any) => {
       counts.set(r.user_id, (counts.get(r.user_id) ?? 0) + 1);
       salasByUser.set(r.user_id, [...(salasByUser.get(r.user_id) ?? []), r.sala_id]);
     });
+    const regByUser = new Map<string, string[]>();
+    (mregs ?? []).forEach((r: any) => {
+      regByUser.set(r.user_id, [...(regByUser.get(r.user_id) ?? []), r.regiao_id]);
+    });
     const list: UserRow[] = (profs ?? []).map((p: any) => {
       const userRoles = (roles ?? []).filter((r: any) => r.user_id === p.id).map((r: any) => r.role);
       const role = (order.find((o) => userRoles.includes(o)) ?? "analista") as AppRole;
-      return { ...p, role, salas_count: counts.get(p.id) ?? 0, sala_ids: salasByUser.get(p.id) ?? [] };
+      return { ...p, role, salas_count: counts.get(p.id) ?? 0, sala_ids: salasByUser.get(p.id) ?? [], regiao_ids: regByUser.get(p.id) ?? [] };
     });
     list.sort((a, b) => a.nome.localeCompare(b.nome));
     setUsers(list);
     setSalas((ss as Sala[]) ?? []);
+    setRegioes(((regs as any[]) ?? []).map((r) => ({ id: r.id, nome: r.nome })));
   };
   useEffect(() => { load(); }, []);
 
-  // Lista visível conforme escopo: em sala específica, mostra masters + usuários daquela sala
+  // Lista visível conforme escopo: em sala específica, mostra masters/super_master + usuários daquela sala
   const visibleUsers = useMemo(() => {
     if (isGlobal) return users;
-    return users.filter((u) => u.role === "master" || u.sala_ids?.includes(scopeSalaId ?? ""));
+    return users.filter((u) => u.role === "master" || u.role === "super_master" || u.sala_ids?.includes(scopeSalaId ?? ""));
   }, [users, isGlobal, scopeSalaId]);
+
 
   const salaAtualNome = useMemo(
     () => (scopeSalaId ? salas.find((s) => s.id === scopeSalaId)?.nome : null),
@@ -73,19 +83,25 @@ export default function UsuariosPage() {
 
   const openNovo = () => {
     // Em sala específica, pré-vincula automaticamente
-    setForm({ nome: "", email: "", password: "", role: "analista", salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []) });
+    setForm({ nome: "", email: "", password: "", role: "analista", salas: isGlobal ? [] : (scopeSalaId ? [scopeSalaId] : []), regioes: [] });
     setOpen(true);
   };
 
   const toggleFormSala = (id: string) => {
     setForm((f) => ({ ...f, salas: f.salas.includes(id) ? f.salas.filter((x) => x !== id) : [...f.salas, id] }));
   };
+  const toggleFormRegiao = (id: string) => {
+    setForm((f) => ({ ...f, regioes: f.regioes.includes(id) ? f.regioes.filter((x) => x !== id) : [...f.regioes, id] }));
+  };
+
+  const isMasterRole = form.role === "master" || form.role === "super_master";
 
   const criar = async () => {
     if (!form.email || !form.password || !form.nome) return toast.error("Preencha nome, email e senha");
-    if (form.role !== "master" && form.salas.length === 0) return toast.error("Selecione ao menos uma sala");
+    if (!isMasterRole && form.salas.length === 0) return toast.error("Selecione ao menos uma sala");
+    if (form.role === "master" && form.regioes.length === 0) return toast.error("Selecione ao menos uma região para o master");
     setSaving(true);
-    const primary = form.role === "master" ? null : form.salas[0];
+    const primary = isMasterRole ? null : form.salas[0];
     const { data, error } = await supabase.functions.invoke("admin-create-user", {
       body: {
         nome: form.nome,
@@ -98,16 +114,20 @@ export default function UsuariosPage() {
     const payload = (data ?? {}) as { ok?: boolean; error?: string; step?: string; user_id?: string };
     if (error) { setSaving(false); return toast.error(`Erro de rede: ${error.message}`); }
     if (!payload.ok) { setSaving(false); return toast.error(payload.error ?? "Falha ao criar usuário"); }
-    // Atribui todas as salas autorizadas
-    if (form.role !== "master" && payload.user_id) {
-      await supabase.rpc("admin_set_user_salas", { _user: payload.user_id, _salas: form.salas });
+    if (payload.user_id) {
+      if (isMasterRole) {
+        await supabase.rpc("admin_set_master_regioes" as any, { _user: payload.user_id, _regioes: form.regioes });
+      } else {
+        await supabase.rpc("admin_set_user_salas", { _user: payload.user_id, _salas: form.salas });
+      }
     }
     setSaving(false);
     setCreatedInfo({ nome: form.nome, email: form.email.trim(), password: form.password });
     setOpen(false);
-    setForm({ nome: "", email: "", password: "", role: "analista", salas: [] });
+    setForm({ nome: "", email: "", password: "", role: "analista", salas: [], regioes: [] });
     setTimeout(load, 400);
   };
+
 
   const updateRole = async (u: UserRow, newRole: AppRole) => {
     const { error } = await (supabase as any).rpc("set_user_role", { _user: u.id, _role: newRole });
