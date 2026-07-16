@@ -1,4 +1,4 @@
-export type AppRole = "master" | "admin" | "analista";
+export type AppRole = "super_master" | "master" | "admin" | "analista";
 
 export type Sala = {
   id: string;
