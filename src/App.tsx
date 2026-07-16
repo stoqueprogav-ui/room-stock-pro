@@ -34,6 +34,7 @@ import ConsumoInternoPage from "./pages/master/ConsumoInternoPage";
 import InventarioPage from "./pages/master/InventarioPage";
 import DashboardGerencial from "./pages/master/DashboardGerencial";
 import EntradasEstoquePage from "./pages/master/EntradasEstoquePage";
+import RegioesPage from "./pages/master/RegioesPage";
 
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="escolher-sala" element={<EscolherSala />} />
               {/* Master (rotas trancadas por cargo — 2ª camada; a 1ª é sempre RLS/RPC) */}
               <Route path="salas" element={<RequireRole role="master"><SalasPage /></RequireRole>} />
+              <Route path="regioes" element={<RegioesPage />} />
               <Route path="produtos" element={<Navigate to="/app/estoque" replace />} />
               <Route path="estoque" element={<EstoquePage />} />
               <Route path="requisicoes" element={<RequireRole role="master"><RequisicoesPage /></RequireRole>} />
