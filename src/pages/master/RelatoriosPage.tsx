@@ -250,7 +250,7 @@ export default function RelatoriosPage() {
       });
       setConsolidadoRegioes(Array.from(map.values()).sort((a, b) => a.regiao_nome.localeCompare(b.regiao_nome)));
     })();
-  }, [isSuperMaster, periodo]);
+  }, [isSuperMode, periodo]);
 
   // ===== Derivados =====
 
