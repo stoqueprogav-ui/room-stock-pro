@@ -796,6 +796,32 @@ export type Database = {
           },
         ]
       }
+      master_regioes: {
+        Row: {
+          created_at: string
+          regiao_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          regiao_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          regiao_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_regioes_regiao_id_fkey"
+            columns: ["regiao_id"]
+            isOneToOne: false
+            referencedRelation: "regioes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           attachment_name: string | null
@@ -1186,23 +1212,55 @@ export type Database = {
           },
         ]
       }
-      salas: {
+      regioes: {
         Row: {
+          ativo: boolean
           created_at: string
           id: string
           nome: string
         }
         Insert: {
+          ativo?: boolean
           created_at?: string
           id?: string
           nome: string
         }
         Update: {
+          ativo?: boolean
           created_at?: string
           id?: string
           nome?: string
         }
         Relationships: []
+      }
+      salas: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          regiao_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          regiao_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          regiao_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salas_regiao_id_fkey"
+            columns: ["regiao_id"]
+            isOneToOne: false
+            referencedRelation: "regioes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       solicitacao_itens: {
         Row: {
@@ -2191,6 +2249,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_master: { Args: { _user: string }; Returns: boolean }
       list_my_conversations: {
         Args: never
         Returns: {
@@ -2490,6 +2549,7 @@ export type Database = {
           valor_unitario: number
         }[]
       }
+      sala_regiao: { Args: { _sala: string }; Returns: string }
       seed_categorias_padrao: { Args: never; Returns: undefined }
       send_message: {
         Args: {
@@ -2511,10 +2571,15 @@ export type Database = {
         Returns: undefined
       }
       unaccent: { Args: { "": string }; Returns: string }
+      user_has_regiao_access: {
+        Args: { _regiao: string; _user: string }
+        Returns: boolean
+      }
       user_has_sala_access: {
         Args: { _sala: string; _user: string }
         Returns: boolean
       }
+      user_regioes: { Args: { _user: string }; Returns: string[] }
       valor_estoque_por_sala: {
         Args: never
         Returns: {
