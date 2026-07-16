@@ -58,28 +58,28 @@ const App = () => (
               <Route index element={<Index />} />
               <Route path="escolher-sala" element={<EscolherSala />} />
               {/* Master (rotas trancadas por cargo — 2ª camada; a 1ª é sempre RLS/RPC) */}
-              <Route path="salas" element={<RequireRole role="master"><SalasPage /></RequireRole>} />
+              <Route path="salas" element={<RequireRole role="master"><RequireOperationalMode><SalasPage /></RequireOperationalMode></RequireRole>} />
               <Route path="regioes" element={<RegioesPage />} />
               <Route path="produtos" element={<Navigate to="/app/estoque" replace />} />
-              <Route path="estoque" element={<EstoquePage />} />
-              <Route path="requisicoes" element={<RequireRole role="master"><RequisicoesPage /></RequireRole>} />
+              <Route path="estoque" element={<RequireOperationalMode><EstoquePage /></RequireOperationalMode>} />
+              <Route path="requisicoes" element={<RequireRole role="master"><RequireOperationalMode><RequisicoesPage /></RequireOperationalMode></RequireRole>} />
               {/* Compatibilidade com link antigo */}
               <Route path="solicitacoes" element={<Navigate to="/app/requisicoes" replace />} />
               <Route path="usuarios" element={<RequireRole role="master"><UsuariosPage /></RequireRole>} />
-              <Route path="categorias" element={<RequireRole role="master"><CategoriasPage /></RequireRole>} />
+              <Route path="categorias" element={<RequireRole role="master"><RequireOperationalMode><CategoriasPage /></RequireOperationalMode></RequireRole>} />
               <Route path="relatorios" element={<RequireRole role="master"><RelatoriosPage /></RequireRole>} />
               <Route path="configuracoes" element={<RequireRole role="master"><ConfiguracoesPage /></RequireRole>} />
               <Route path="auditoria" element={<Navigate to="/app/movimentacoes" replace />} />
-              <Route path="consumo-interno" element={<RequireRole role="master"><ConsumoInternoPage /></RequireRole>} />
-              <Route path="inventario" element={<RequireRole role="master"><InventarioPage /></RequireRole>} />
-              <Route path="dashboard-gerencial" element={<RequireRole role="master"><DashboardGerencial /></RequireRole>} />
-              <Route path="entradas" element={<RequireRole role="master"><EntradasEstoquePage /></RequireRole>} />
+              <Route path="consumo-interno" element={<RequireRole role="master"><RequireOperationalMode><ConsumoInternoPage /></RequireOperationalMode></RequireRole>} />
+              <Route path="inventario" element={<RequireRole role="master"><RequireOperationalMode><InventarioPage /></RequireOperationalMode></RequireRole>} />
+              <Route path="dashboard-gerencial" element={<RequireRole role="master"><RequireOperationalMode><DashboardGerencial /></RequireOperationalMode></RequireRole>} />
+              <Route path="entradas" element={<RequireRole role="master"><RequireOperationalMode><EntradasEstoquePage /></RequireOperationalMode></RequireRole>} />
               <Route path="avaliacao-patrimonial" element={<Navigate to="/app/relatorios" replace />} />
               {/* Compartilhado */}
-              <Route path="emprestimos" element={<EmprestimosPage />} />
-              <Route path="aprovar-emprestimos" element={<EmprestimosPage approveOnly />} />
-              <Route path="dividas" element={<DividasPage />} />
-              <Route path="movimentacoes" element={<MovimentacoesRouter />} />
+              <Route path="emprestimos" element={<RequireOperationalMode><EmprestimosPage /></RequireOperationalMode>} />
+              <Route path="aprovar-emprestimos" element={<RequireOperationalMode><EmprestimosPage approveOnly /></RequireOperationalMode>} />
+              <Route path="dividas" element={<RequireOperationalMode><DividasPage /></RequireOperationalMode>} />
+              <Route path="movimentacoes" element={<RequireOperationalMode><MovimentacoesRouter /></RequireOperationalMode>} />
               {/* Sala (admin/analista) */}
               <Route path="meu-estoque" element={<EstoquePage />} />
               <Route path="nova-requisicao" element={<NovaRequisicao />} />
