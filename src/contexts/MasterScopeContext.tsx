@@ -1,23 +1,23 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
-const STORAGE_KEY = "master_scope_sala_id";
-const MODE_KEY = "master_mode"; // "super" | "region"
-const REGIAO_KEY = "master_acting_regiao_id";
-
-type MasterMode = "super" | "region" | null;
+const K_MODE = "master_scope_mode";     // 'super' | 'regiao'
+const K_REGIAO = "master_scope_regiao"; // regiao_id (modo regiao)
+const K_SALA = "master_scope_sala";     // sala_id | '__all__'
 
 type MasterScopeValue = {
-  /** sala_id em foco para o Master, ou null = visão global (todas as salas) */
+  /** sala em foco (null = todas as salas do escopo atual) */
   scopeSalaId: string | null;
-  /** true se uma sala foi escolhida (ou modo global). false = ainda não escolheu. */
+  /** true quando já há um escopo escolhido e pronto para entrar */
   scopeReady: boolean;
-  /** Modo escolhido no login: super master atua como super, ou master de região */
+  /** entrou como Super Master (gestão de regiões/masters, visão global) */
   isSuperMode: boolean;
-  /** Região em foco quando o master atua como master de região */
+  /** região atual quando entrou como Master de região (null caso contrário) */
   actingRegiaoId: string | null;
+
   setScope: (salaId: string | null) => void;
-  setMode: (mode: MasterMode, regiaoId?: string | null) => void;
+  enterSuperMode: () => void;
+  enterRegiaoMode: (regiaoId: string) => void;
   clearScope: () => void;
 };
 
@@ -27,38 +27,43 @@ export function MasterScopeProvider({ children }: { children: ReactNode }) {
   const { role, user, isSuperMaster } = useAuth();
   const [scopeSalaId, setScopeSalaId] = useState<string | null>(null);
   const [scopeReady, setScopeReady] = useState(false);
-  const [isSuperMode, setIsSuperMode] = useState<boolean>(false);
+  const [isSuperMode, setIsSuperMode] = useState(false);
   const [actingRegiaoId, setActingRegiaoId] = useState<string | null>(null);
 
-  // Carrega escolha salva ao logar
+  // Carrega a escolha salva ao logar (apenas quem opera como master)
   useEffect(() => {
     if (role !== "master" || !user) {
-      setScopeSalaId(null);
-      setScopeReady(false);
-      setIsSuperMode(false);
-      setActingRegiaoId(null);
+      setScopeSalaId(null); setScopeReady(false);
+      setIsSuperMode(false); setActingRegiaoId(null);
       return;
     }
-    const savedMode = localStorage.getItem(MODE_KEY);
-    const savedRegiao = localStorage.getItem(REGIAO_KEY);
-    if (savedMode === "super" && isSuperMaster) {
+    const mode = localStorage.getItem(K_MODE);
+    const regiao = localStorage.getItem(K_REGIAO);
+    const sala = localStorage.getItem(K_SALA);
+
+    if (mode === "super") {
       setIsSuperMode(true);
       setActingRegiaoId(null);
-    } else if (savedMode === "region" && savedRegiao) {
-      setIsSuperMode(false);
-      setActingRegiaoId(savedRegiao);
-    } else {
-      setIsSuperMode(false);
-      setActingRegiaoId(null);
-    }
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "__all__") {
       setScopeSalaId(null);
       setScopeReady(true);
-    } else if (saved) {
-      setScopeSalaId(saved);
+    } else if (mode === "regiao" && regiao) {
+      setIsSuperMode(false);
+      setActingRegiaoId(regiao);
+      if (sala === "__all__") { setScopeSalaId(null); setScopeReady(true); }
+      else if (sala) { setScopeSalaId(sala); setScopeReady(true); }
+      else { setScopeReady(false); }
+    } else if (sala && !isSuperMaster) {
+      // master comum (sem modo): compat. com o comportamento anterior
+      setIsSuperMode(false);
+      setActingRegiaoId(null);
+      if (sala === "__all__") setScopeSalaId(null);
+      else setScopeSalaId(sala);
       setScopeReady(true);
     } else {
+      // super master sem modo escolhido -> força o seletor de modo
+      setIsSuperMode(false);
+      setActingRegiaoId(null);
+      setScopeSalaId(null);
       setScopeReady(false);
     }
   }, [role, user, isSuperMaster]);
@@ -66,27 +71,27 @@ export function MasterScopeProvider({ children }: { children: ReactNode }) {
   const setScope = useCallback((salaId: string | null) => {
     setScopeSalaId(salaId);
     setScopeReady(true);
-    localStorage.setItem(STORAGE_KEY, salaId ?? "__all__");
+    localStorage.setItem(K_SALA, salaId ?? "__all__");
   }, []);
 
-  const setMode = useCallback((mode: MasterMode, regiaoId?: string | null) => {
-    if (mode === "super") {
-      setIsSuperMode(true);
-      setActingRegiaoId(null);
-      localStorage.setItem(MODE_KEY, "super");
-      localStorage.removeItem(REGIAO_KEY);
-    } else if (mode === "region") {
-      setIsSuperMode(false);
-      setActingRegiaoId(regiaoId ?? null);
-      localStorage.setItem(MODE_KEY, "region");
-      if (regiaoId) localStorage.setItem(REGIAO_KEY, regiaoId);
-      else localStorage.removeItem(REGIAO_KEY);
-    } else {
-      setIsSuperMode(false);
-      setActingRegiaoId(null);
-      localStorage.removeItem(MODE_KEY);
-      localStorage.removeItem(REGIAO_KEY);
-    }
+  const enterSuperMode = useCallback(() => {
+    setIsSuperMode(true);
+    setActingRegiaoId(null);
+    setScopeSalaId(null);
+    setScopeReady(true);
+    localStorage.setItem(K_MODE, "super");
+    localStorage.removeItem(K_REGIAO);
+    localStorage.setItem(K_SALA, "__all__");
+  }, []);
+
+  const enterRegiaoMode = useCallback((regiaoId: string) => {
+    setIsSuperMode(false);
+    setActingRegiaoId(regiaoId);
+    setScopeSalaId(null);
+    setScopeReady(false); // ainda precisa escolher a sala
+    localStorage.setItem(K_MODE, "regiao");
+    localStorage.setItem(K_REGIAO, regiaoId);
+    localStorage.removeItem(K_SALA);
   }, []);
 
   const clearScope = useCallback(() => {
@@ -94,13 +99,14 @@ export function MasterScopeProvider({ children }: { children: ReactNode }) {
     setScopeReady(false);
     setIsSuperMode(false);
     setActingRegiaoId(null);
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(MODE_KEY);
-    localStorage.removeItem(REGIAO_KEY);
+    localStorage.removeItem(K_MODE);
+    localStorage.removeItem(K_REGIAO);
+    localStorage.removeItem(K_SALA);
   }, []);
 
   return (
-    <MasterScopeContext.Provider value={{ scopeSalaId, scopeReady, isSuperMode, actingRegiaoId, setScope, setMode, clearScope }}>
+    <MasterScopeContext.Provider
+      value={{ scopeSalaId, scopeReady, isSuperMode, actingRegiaoId, setScope, enterSuperMode, enterRegiaoMode, clearScope }}>
       {children}
     </MasterScopeContext.Provider>
   );
