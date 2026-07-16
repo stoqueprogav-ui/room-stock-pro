@@ -2527,7 +2527,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "master" | "admin" | "analista"
+      app_role: "master" | "admin" | "analista" | "super_master"
       conversation_type: "direct" | "sala" | "master"
       emprestimo_status: "pendente" | "aprovado" | "rejeitado" | "arquivado"
       motivo_consumo:
@@ -2676,7 +2676,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["master", "admin", "analista"],
+      app_role: ["master", "admin", "analista", "super_master"],
       conversation_type: ["direct", "sala", "master"],
       emprestimo_status: ["pendente", "aprovado", "rejeitado", "arquivado"],
       motivo_consumo: [
