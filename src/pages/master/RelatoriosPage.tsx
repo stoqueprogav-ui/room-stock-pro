@@ -114,6 +114,28 @@ export default function RelatoriosPage() {
   const [empMensal, setEmpMensal] = useState<{ mes: string; count: number }[]>([]);
   const [consolidadoRegioes, setConsolidadoRegioes] = useState<{ regiao_id: string; regiao_nome: string; qtd: number; valorConsumo: number; valorEstoque: number }[]>([]);
 
+  // ==== Super Master: consolidado por região (RPC resumo_regioes) ====
+  type ResumoRegiao = {
+    regiao_id: string; regiao_nome: string;
+    salas: number; consumo_qtd: number; consumo_valor: number;
+    valor_estoque: number; requisicoes: number; emprestimos: number;
+  };
+  const [resumoRegioes, setResumoRegioes] = useState<ResumoRegiao[]>([]);
+  const [regioesList, setRegioesList] = useState<{ id: string; nome: string }[]>([]);
+
+  // Drill-down por região
+  const [drillRegiao, setDrillRegiao] = useState<{ id: string; nome: string } | null>(null);
+  const [drillConsumo, setDrillConsumo] = useState<ConsumoRow[]>([]);
+  const [drillMensal, setDrillMensal] = useState<{ mes: string; qtd: number; valor: number }[]>([]);
+
+  // Laudo de seguro
+  const [laudoOpen, setLaudoOpen] = useState(false);
+  const [laudoRegiao, setLaudoRegiao] = useState<string>("all");
+  const [laudoDataMode, setLaudoDataMode] = useState<"atual" | "retro">("atual");
+  const [laudoData, setLaudoData] = useState<Date | undefined>(undefined);
+  const [laudoLoading, setLaudoLoading] = useState(false);
+
+
 
   useEffect(() => {
     setSalaFilter(scopeSalaId ?? "all");
