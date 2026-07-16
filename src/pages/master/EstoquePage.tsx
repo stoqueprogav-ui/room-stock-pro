@@ -493,16 +493,19 @@ export default function EstoquePage() {
         }
       />
 
-      {isMaster ? (
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="space-y-4">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="space-y-4">
+        {isMaster && (
           <TabsList>
             <TabsTrigger value="estoque" className="gap-2"><Boxes className="size-4" /> Estoque por sala</TabsTrigger>
             <TabsTrigger value="catalogo" className="gap-2"><Package className="size-4" /> Catálogo</TabsTrigger>
           </TabsList>
+        )}
+        {isMaster && (
           <TabsContent value="catalogo" className="space-y-4">
             <CatalogoTab />
           </TabsContent>
-          <TabsContent value="estoque" className="space-y-4">
+        )}
+        <TabsContent value="estoque" className="space-y-4">
 
       {/* Abas de categoria */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -1194,11 +1197,8 @@ export default function EstoquePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {isMaster && (
-        <>
-          </TabsContent>
-        </Tabs>
-      )}
+        </TabsContent>
+      </Tabs>
       {isMaster && (
         <>
           <NovoProdutoNaSalaDialog
