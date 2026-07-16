@@ -4,6 +4,7 @@ export type Sala = {
   id: string;
   nome: string;
   created_at: string;
+  regiao_id?: string | null;
 };
 
 export type Profile = {
