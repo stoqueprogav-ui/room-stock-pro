@@ -22,8 +22,8 @@ type UserRow = { id: string; nome: string; email: string; sala_id: string | null
 type Regiao = { id: string; nome: string };
 
 export default function UsuariosPage() {
-  const { profile, isSuperMaster } = useAuth();
-  const { scopeSalaId } = useMasterScope();
+  const { profile } = useAuth();
+  const { scopeSalaId, isSuperMode } = useMasterScope();
   const isGlobal = scopeSalaId === null;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
