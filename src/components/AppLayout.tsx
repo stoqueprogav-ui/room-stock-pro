@@ -105,16 +105,16 @@ export default function AppLayout() {
 }
 
 function AppLayoutInner() {
-  const { user, role, profile, loading, signOut, isSuperMaster } = useAuth();
+  const { user, role, profile, loading, signOut } = useAuth();
   const { activeSalaId, activeSalaName, loading: salaLoading, selectionRequired, salas, chooseSala } = useActiveSala();
-  const { scopeReady, scopeSalaId } = useMasterScope();
+  const { scopeReady, scopeSalaId, isSuperMode, actingRegiaoId } = useMasterScope();
   const navigate = useNavigate();
   const location = useLocation();
   const { logoUrl } = useCompanyLogo();
   const [pendCounts, setPendCounts] = useState({ requisicoes: 0, emprestimosAprovar: 0, chat: 0 });
   const [salaNome, setSalaNome] = useState<string | null>(null);
 
-  const items = useMemo(() => navForRole(role, scopeSalaId === null, isSuperMaster), [role, scopeSalaId, isSuperMaster]);
+  const items = useMemo(() => navForRole(role, scopeSalaId === null, isSuperMode), [role, scopeSalaId, isSuperMode]);
 
   // Carrega nome da sala em foco (master) ou da sala do usuário (admin/analista)
   useEffect(() => {
