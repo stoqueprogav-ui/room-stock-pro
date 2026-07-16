@@ -282,7 +282,7 @@ export default function UsuariosPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Novo usuário</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{isSuperMode ? "Novo master" : "Novo usuário"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {!isGlobal && (
               <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
