@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import RequireRole from "@/components/RequireRole";
+import RequireOperationalMode from "@/components/RequireOperationalMode";
 import SalasPage from "./pages/master/SalasPage";
 import ProdutosPage from "./pages/master/ProdutosPage";
 import EstoquePage from "./pages/master/EstoquePage";
