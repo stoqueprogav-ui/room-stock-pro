@@ -74,7 +74,7 @@ export default function UsuariosPage() {
   // - Master global: todos
   // - Master em sala: masters/super_master + usuários daquela sala
   const visibleUsers = useMemo(() => {
-    if (isSuperMode) return users.filter((u) => u.role === "master");
+    if (isSuperMode) return users.filter((u) => u.role === "master" || u.role === "super_master");
     if (isGlobal) return users;
     return users.filter((u) => u.role === "master" || u.role === "super_master" || u.sala_ids?.includes(scopeSalaId ?? ""));
   }, [users, isGlobal, scopeSalaId, isSuperMode]);
@@ -214,14 +214,25 @@ export default function UsuariosPage() {
                 <TableCell className="font-medium flex items-center gap-2">{u.nome} {u.id === profile?.id && <span className="text-xs text-muted-foreground">(você)</span>}</TableCell>
                 <TableCell className="text-muted-foreground">{u.email}</TableCell>
                 <TableCell>
-                  <Select value={u.role} onValueChange={(v) => updateRole(u, v as AppRole)} disabled={u.id === profile?.id}>
-                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {isSuperMode && <SelectItem value="master">Master</SelectItem>}
-                      {!isSuperMode && <SelectItem value="admin">Administrador</SelectItem>}
-                      {!isSuperMode && <SelectItem value="analista">Analista</SelectItem>}
-                    </SelectContent>
-                  </Select>
+                  {isSuperMode ? (
+                    u.role === "super_master" ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 text-accent-foreground border border-accent/30 px-2 py-0.5 text-xs font-medium">
+                        <Globe2 className="size-3.5" /> Super Master
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-xs font-medium">
+                        Master
+                      </span>
+                    )
+                  ) : (
+                    <Select value={u.role} onValueChange={(v) => updateRole(u, v as AppRole)} disabled={u.id === profile?.id}>
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="analista">Analista</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </TableCell>
                 <TableCell>
                   {u.role === "super_master" ? (
