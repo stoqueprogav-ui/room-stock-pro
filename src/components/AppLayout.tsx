@@ -29,10 +29,10 @@ type NavItem = {
   children?: NavItem[];
 };
 
-function navForRole(role: string | null, isGlobalScope: boolean, isSuperMaster: boolean): NavItem[] {
+function navForRole(role: string | null, isGlobalScope: boolean, isSuperMode: boolean): NavItem[] {
   if (role === "master") {
     const items: NavItem[] = [
-      ...(isSuperMaster ? [{ to: "/app/regioes", label: "Regiões", icon: MapPin } as NavItem] : []),
+      ...(isSuperMode ? [{ to: "/app/regioes", label: "Regiões", icon: MapPin } as NavItem] : []),
       { to: "/app", label: "Visão geral", icon: LayoutDashboard },
     ];
     if (isGlobalScope) {
