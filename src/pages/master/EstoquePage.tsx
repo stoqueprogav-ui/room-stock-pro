@@ -479,8 +479,30 @@ export default function EstoquePage() {
                 : "Modo global · todas as salas")
             : "Quantidades por produto na sua sala."
         }
-        actions={undefined}
+        actions={
+          isMaster && tab === "estoque" ? (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <FileSpreadsheet className="size-4" /> Importar
+              </Button>
+              <Button onClick={() => setNovoProdOpen(true)}>
+                <Plus className="size-4" /> Novo produto na sala
+              </Button>
+            </div>
+          ) : undefined
+        }
       />
+
+      {isMaster ? (
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="estoque" className="gap-2"><Boxes className="size-4" /> Estoque por sala</TabsTrigger>
+            <TabsTrigger value="catalogo" className="gap-2"><Package className="size-4" /> Catálogo</TabsTrigger>
+          </TabsList>
+          <TabsContent value="catalogo" className="space-y-4">
+            <CatalogoTab />
+          </TabsContent>
+          <TabsContent value="estoque" className="space-y-4">
 
       {/* Abas de categoria */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -1172,6 +1194,31 @@ export default function EstoquePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {isMaster && (
+        <>
+          </TabsContent>
+        </Tabs>
+      )}
+      {isMaster && (
+        <>
+          <NovoProdutoNaSalaDialog
+            open={novoProdOpen}
+            onOpenChange={setNovoProdOpen}
+            salas={salas}
+            categorias={categorias}
+            salaPadrao={masterScope.scopeSalaId ?? null}
+            onDone={load}
+          />
+          <ImportarProdutosDialog
+            open={importOpen}
+            onOpenChange={setImportOpen}
+            salas={salas}
+            categorias={categorias}
+            produtos={rows.map((r) => r.produto)}
+            onDone={load}
+          />
+        </>
+      )}
     </div>
   );
 }
