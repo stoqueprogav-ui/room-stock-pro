@@ -489,7 +489,7 @@ export default function RelatoriosPage() {
       </Card>
 
       {/* Consolidado por região (apenas super master) */}
-      {isSuperMaster && (
+      {isSuperMode && (
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Globe2 className="size-4 text-primary" />
