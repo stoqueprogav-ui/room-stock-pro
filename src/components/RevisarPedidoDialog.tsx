@@ -1,13 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, X, ArrowRight, Tag, AlertTriangle } from "lucide-react";
+import { Loader2, Check, X, ArrowRight, Tag, AlertTriangle, Recycle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/format";
+import { toast } from "sonner";
 
 type Item = { quantidade: number; produto: { id: string; nome: string; unidade: string; categoria: { nome: string } | null } };
 type LoteAviso = { produto_nome: string; quantidade: number; dias_para_vencer: number | null; validade: string | null; sala_nome: string };
+type TrocaSug = {
+  lote_id: string;
+  sala_id: string;
+  sala_nome: string;
+  validade: string | null;
+  dias: number | null;
+  quantidade: number;
+  produto_id: string;
+  produto_nome: string;
+  qtd_pedida: number;
+};
 
 type RequisicaoFull = {
   kind: "requisicao";
