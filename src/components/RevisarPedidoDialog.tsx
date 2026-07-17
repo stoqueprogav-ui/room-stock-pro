@@ -1,13 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, X, ArrowRight, Tag, AlertTriangle } from "lucide-react";
+import { Loader2, Check, X, ArrowRight, Tag, AlertTriangle, Recycle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/format";
+import { toast } from "sonner";
 
 type Item = { quantidade: number; produto: { id: string; nome: string; unidade: string; categoria: { nome: string } | null } };
 type LoteAviso = { produto_nome: string; quantidade: number; dias_para_vencer: number | null; validade: string | null; sala_nome: string };
+type TrocaSug = {
+  lote_id: string;
+  sala_id: string;
+  sala_nome: string;
+  validade: string | null;
+  dias: number | null;
+  quantidade: number;
+  produto_id: string;
+  produto_nome: string;
+  qtd_pedida: number;
+};
 
 type RequisicaoFull = {
   kind: "requisicao";
@@ -45,9 +57,11 @@ export default function RevisarPedidoDialog({
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState<"aprovar" | "rejeitar" | null>(null);
   const [avisos, setAvisos] = useState<LoteAviso[]>([]);
+  const [trocas, setTrocas] = useState<TrocaSug[]>([]);
+  const [trocando, setTrocando] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || !id) { setData(null); setAvisos([]); return; }
+    if (!open || !id) { setData(null); setAvisos([]); setTrocas([]); return; }
     setLoading(true);
     (async () => {
       if (kind === "requisicao") {
@@ -92,6 +106,59 @@ export default function RevisarPedidoDialog({
       })));
     })();
   }, [data]);
+
+  // Sugestões de troca (rodízio): apenas requisições
+  const loadTrocas = useCallback(async () => {
+    if (!data || data.kind !== "requisicao") { setTrocas([]); return; }
+    const salaAtende = data.sala.id;
+    const results = await Promise.all(
+      data.itens.map(async (it) => {
+        const { data: rows } = await supabase.rpc("sugerir_troca_validade", {
+          _sala_atende: salaAtende,
+          _produto: it.produto.id,
+          _qtd: it.quantidade,
+        });
+        return (rows ?? []).map((r: any) => ({
+          lote_id: r.lote_id,
+          sala_id: r.sala_id,
+          sala_nome: r.sala_nome,
+          validade: r.validade,
+          dias: r.dias,
+          quantidade: r.quantidade,
+          produto_id: it.produto.id,
+          produto_nome: it.produto.nome,
+          qtd_pedida: it.quantidade,
+        })) as TrocaSug[];
+      })
+    );
+    const flat = results.flat().sort((a, b) => {
+      const da = a.dias ?? 9999, db = b.dias ?? 9999;
+      return da - db;
+    }).slice(0, 3);
+    setTrocas(flat);
+  }, [data]);
+
+  useEffect(() => { loadTrocas(); }, [loadTrocas]);
+
+  const fazerTroca = async (s: TrocaSug) => {
+    const qtd = Math.min(s.quantidade, s.qtd_pedida);
+    if (qtd <= 0 || !data || data.kind !== "requisicao") return;
+    setTrocando(s.lote_id);
+    try {
+      const { error } = await supabase.rpc("trocar_lotes", {
+        _lote_curto: s.lote_id,
+        _sala_atende: data.sala.id,
+        _qtd: qtd,
+      });
+      if (error) throw error;
+      toast.success(`Troca realizada: ${qtd} un. de ${s.produto_nome}.`);
+      await loadTrocas();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao trocar lotes");
+    } finally {
+      setTrocando(null);
+    }
+  };
 
   const handle = async (aprovar: boolean) => {
     if (!id) return;
@@ -161,6 +228,43 @@ export default function RevisarPedidoDialog({
                   })}
                 </ul>
                 <div className="text-xs mt-1 text-yellow-800/80 dark:text-yellow-300/80">A baixa segue FEFO — priorize a saída desses lotes fisicamente.</div>
+              </div>
+            )}
+
+            {trocas.length > 0 && (
+              <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-400">
+                  <Recycle className="size-4" /> Sugestões de rodízio (troca de lotes)
+                </div>
+                <ul className="space-y-2">
+                  {trocas.map((s) => {
+                    const qtd = Math.min(s.quantidade, s.qtd_pedida);
+                    const d = s.dias;
+                    const diasTxt = d === null ? "sem data" : d < 0 ? `vencido há ${Math.abs(d)} dia(s)` : d === 0 ? "vence hoje" : `vence em ${d} dia(s)`;
+                    const valTxt = s.validade ? new Date(s.validade + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+                    return (
+                      <li key={s.lote_id} className="flex items-start justify-between gap-3">
+                        <div className="text-emerald-900/90 dark:text-emerald-200/90">
+                          ♻️ A sala <span className="font-medium">{s.sala_nome}</span> tem <span className="font-mono">{s.quantidade}</span> un. de{" "}
+                          <span className="font-medium">{s.produto_nome}</span> {diasTxt} ({valTxt}). Trocar por <span className="font-mono">{qtd}</span> un. de validade longa desta sala?
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => fazerTroca(s)}
+                          disabled={trocando === s.lote_id || qtd <= 0}
+                          className="shrink-0"
+                        >
+                          {trocando === s.lote_id ? <Loader2 className="size-4 animate-spin" /> : <Recycle className="size-4" />}
+                          Fazer troca
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="text-xs text-emerald-800/80 dark:text-emerald-300/80">
+                  A troca é opcional e não altera a aprovação. Após trocar, a baixa FEFO usará o lote curto que veio pela troca.
+                </div>
               </div>
             )}
 
