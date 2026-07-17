@@ -129,6 +129,7 @@ export default function EntradasEstoquePage() {
       sala_id: scopeSalaId ?? "",
       quantidade: 0,
       valor_unitario: 0,
+      validade: "",
       fornecedor: "",
       numero_nf: "",
       data_entrada: new Date().toISOString().slice(0, 16),
@@ -136,6 +137,7 @@ export default function EntradasEstoquePage() {
     });
     setOpen(true);
   };
+
 
   const salvar = async () => {
     if (!form.produto_id) return toast.error("Selecione o produto");
