@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState, useCallback } from "react";
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes, LayoutDashboard, Building2, Users, Package, Inbox, ArrowLeftRight,
-  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle, MapPin, Settings, Globe2, Trash2, ClipboardCheck, LineChart, Scale as ScaleIcon,
+  Wallet, BarChart3, History, LogOut, Send, ShieldCheck, ClipboardList, Loader2, UserCircle, Tag, ChevronDown, MessageCircle, MapPin, Settings, Globe2, Trash2, ClipboardCheck, LineChart, Scale as ScaleIcon, CalendarClock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ActiveSalaProvider, useActiveSala } from "@/contexts/ActiveSalaContext";
