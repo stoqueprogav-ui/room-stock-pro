@@ -73,11 +73,6 @@ export default function NovoProdutoNaSalaDialog({
     setPickedFromCatalogo(false);
   };
 
-  const reset = () => {
-    setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, custo_unitario: 0, categoria_id: "" });
-    setSalaUnica(salaPadrao ?? "");
-    setQtdInicial(0);
-  };
 
   const salvar = async () => {
     if (!form.nome.trim()) return toast.error("Nome obrigatório");
