@@ -774,18 +774,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
+            foreignKeyName: "estoque_produto_sala_fk"
+            columns: ["produto_id", "sala_id"]
+            isOneToOne: true
             referencedRelation: "produtos"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "sala_id"]
           },
           {
-            foreignKeyName: "estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
+            foreignKeyName: "estoque_produto_sala_fk"
+            columns: ["produto_id", "sala_id"]
+            isOneToOne: true
             referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "sala_id"]
           },
           {
             foreignKeyName: "estoque_sala_id_fkey"
@@ -1769,18 +1769,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
+            foreignKeyName: "estoque_produto_sala_fk"
+            columns: ["produto_id", "sala_id"]
+            isOneToOne: true
             referencedRelation: "produtos"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "sala_id"]
           },
           {
-            foreignKeyName: "estoque_produto_id_fkey"
-            columns: ["produto_id"]
-            isOneToOne: false
+            foreignKeyName: "estoque_produto_sala_fk"
+            columns: ["produto_id", "sala_id"]
+            isOneToOne: true
             referencedRelation: "v_produtos_master"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "sala_id"]
           },
           {
             foreignKeyName: "estoque_sala_id_fkey"
