@@ -57,9 +57,11 @@ export default function RevisarPedidoDialog({
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState<"aprovar" | "rejeitar" | null>(null);
   const [avisos, setAvisos] = useState<LoteAviso[]>([]);
+  const [trocas, setTrocas] = useState<TrocaSug[]>([]);
+  const [trocando, setTrocando] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || !id) { setData(null); setAvisos([]); return; }
+    if (!open || !id) { setData(null); setAvisos([]); setTrocas([]); return; }
     setLoading(true);
     (async () => {
       if (kind === "requisicao") {
@@ -104,6 +106,59 @@ export default function RevisarPedidoDialog({
       })));
     })();
   }, [data]);
+
+  // Sugestões de troca (rodízio): apenas requisições
+  const loadTrocas = useCallback(async () => {
+    if (!data || data.kind !== "requisicao") { setTrocas([]); return; }
+    const salaAtende = data.sala.id;
+    const results = await Promise.all(
+      data.itens.map(async (it) => {
+        const { data: rows } = await supabase.rpc("sugerir_troca_validade", {
+          _sala_atende: salaAtende,
+          _produto: it.produto.id,
+          _qtd: it.quantidade,
+        });
+        return (rows ?? []).map((r: any) => ({
+          lote_id: r.lote_id,
+          sala_id: r.sala_id,
+          sala_nome: r.sala_nome,
+          validade: r.validade,
+          dias: r.dias,
+          quantidade: r.quantidade,
+          produto_id: it.produto.id,
+          produto_nome: it.produto.nome,
+          qtd_pedida: it.quantidade,
+        })) as TrocaSug[];
+      })
+    );
+    const flat = results.flat().sort((a, b) => {
+      const da = a.dias ?? 9999, db = b.dias ?? 9999;
+      return da - db;
+    }).slice(0, 3);
+    setTrocas(flat);
+  }, [data]);
+
+  useEffect(() => { loadTrocas(); }, [loadTrocas]);
+
+  const fazerTroca = async (s: TrocaSug) => {
+    const qtd = Math.min(s.quantidade, s.qtd_pedida);
+    if (qtd <= 0 || !data || data.kind !== "requisicao") return;
+    setTrocando(s.lote_id);
+    try {
+      const { error } = await supabase.rpc("trocar_lotes", {
+        _lote_curto: s.lote_id,
+        _sala_atende: data.sala.id,
+        _qtd: qtd,
+      });
+      if (error) throw error;
+      toast.success(`Troca realizada: ${qtd} un. de ${s.produto_nome}.`);
+      await loadTrocas();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao trocar lotes");
+    } finally {
+      setTrocando(null);
+    }
+  };
 
   const handle = async (aprovar: boolean) => {
     if (!id) return;
