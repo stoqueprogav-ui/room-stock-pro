@@ -80,8 +80,23 @@ export default function NovoProdutoNaSalaDialog({
     if (!salaUnica) return toast.error("Selecione a sala vinculada ao produto");
 
     setSaving(true);
+
+    // Antes de inserir, se o usuário não escolheu na lista, verifica se a chave-forte
+    // já existe no catálogo e reaproveita o nome canônico para cair no mesmo catalogo_id.
+    let nomeFinal = form.nome.trim();
+    if (!pickedFromCatalogo) {
+      const alvo = normalize(nomeFinal);
+      if (alvo.length > 0) {
+        const { data: existentes } = await supabase
+          .from("produtos_catalogo")
+          .select("id, nome");
+        const match = (existentes ?? []).find((c: any) => normalize(c.nome) === alvo);
+        if (match) nomeFinal = match.nome;
+      }
+    }
+
     const payload: any = {
-      nome: form.nome.trim(),
+      nome: nomeFinal,
       descricao: form.descricao || null,
       unidade: (form.unidade || "Unidade").trim(),
       estoque_minimo: Number(form.estoque_minimo) || 0,
