@@ -231,6 +231,43 @@ export default function RevisarPedidoDialog({
               </div>
             )}
 
+            {trocas.length > 0 && (
+              <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-400">
+                  <Recycle className="size-4" /> Sugestões de rodízio (troca de lotes)
+                </div>
+                <ul className="space-y-2">
+                  {trocas.map((s) => {
+                    const qtd = Math.min(s.quantidade, s.qtd_pedida);
+                    const d = s.dias;
+                    const diasTxt = d === null ? "sem data" : d < 0 ? `vencido há ${Math.abs(d)} dia(s)` : d === 0 ? "vence hoje" : `vence em ${d} dia(s)`;
+                    const valTxt = s.validade ? new Date(s.validade + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+                    return (
+                      <li key={s.lote_id} className="flex items-start justify-between gap-3">
+                        <div className="text-emerald-900/90 dark:text-emerald-200/90">
+                          ♻️ A sala <span className="font-medium">{s.sala_nome}</span> tem <span className="font-mono">{s.quantidade}</span> un. de{" "}
+                          <span className="font-medium">{s.produto_nome}</span> {diasTxt} ({valTxt}). Trocar por <span className="font-mono">{qtd}</span> un. de validade longa desta sala?
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => fazerTroca(s)}
+                          disabled={trocando === s.lote_id || qtd <= 0}
+                          className="shrink-0"
+                        >
+                          {trocando === s.lote_id ? <Loader2 className="size-4 animate-spin" /> : <Recycle className="size-4" />}
+                          Fazer troca
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="text-xs text-emerald-800/80 dark:text-emerald-300/80">
+                  A troca é opcional e não altera a aprovação. Após trocar, a baixa FEFO usará o lote curto que veio pela troca.
+                </div>
+              </div>
+            )}
+
 
             {data.observacao && (
               <div className="rounded border border-border bg-muted/30 p-3 text-sm">
