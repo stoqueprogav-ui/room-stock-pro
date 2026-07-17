@@ -94,10 +94,12 @@ export default function EstoquePage() {
   const [entradaForm, setEntradaForm] = useState({
     quantidade: 0,
     valor_unitario: 0,
+    validade: "",
     fornecedor: "",
     numero_nf: "",
     observacao: "",
   });
+
 
   // Saída – motivo + observação
   const [saidaMotivo, setSaidaMotivo] = useState<string>("Consumo interno");
