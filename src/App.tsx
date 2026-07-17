@@ -37,6 +37,8 @@ import InventarioPage from "./pages/master/InventarioPage";
 import DashboardGerencial from "./pages/master/DashboardGerencial";
 import EntradasEstoquePage from "./pages/master/EntradasEstoquePage";
 import RegioesPage from "./pages/master/RegioesPage";
+import ValidadesPage from "./pages/master/ValidadesPage";
+
 
 
 const queryClient = new QueryClient();
