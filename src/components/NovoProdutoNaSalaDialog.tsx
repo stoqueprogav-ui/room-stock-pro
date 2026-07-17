@@ -35,6 +35,43 @@ export default function NovoProdutoNaSalaDialog({
   const [salaUnica, setSalaUnica] = useState<string>(salaPadrao ?? "");
   const [qtdInicial, setQtdInicial] = useState<number>(0);
   const [saving, setSaving] = useState(false);
+  const [sugestoes, setSugestoes] = useState<Array<{ id: string; nome: string }>>([]);
+  const [showSugestoes, setShowSugestoes] = useState(false);
+  const [pickedFromCatalogo, setPickedFromCatalogo] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+  useEffect(() => {
+    if (pickedFromCatalogo) return;
+    const q = form.nome.trim();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (q.length < 2) { setSugestoes([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from("produtos_catalogo")
+        .select("id, nome")
+        .ilike("nome", `%${q}%`)
+        .order("nome")
+        .limit(8);
+      setSugestoes((data ?? []) as Array<{ id: string; nome: string }>);
+    }, 200);
+  }, [form.nome, pickedFromCatalogo]);
+
+  const escolherSugestao = (s: { id: string; nome: string }) => {
+    setForm((f) => ({ ...f, nome: s.nome }));
+    setPickedFromCatalogo(true);
+    setShowSugestoes(false);
+  };
+
+  const reset = () => {
+    setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, custo_unitario: 0, categoria_id: "" });
+    setSalaUnica(salaPadrao ?? "");
+    setQtdInicial(0);
+    setSugestoes([]);
+    setShowSugestoes(false);
+    setPickedFromCatalogo(false);
+  };
 
   const reset = () => {
     setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, custo_unitario: 0, categoria_id: "" });
