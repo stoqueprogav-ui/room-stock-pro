@@ -122,8 +122,38 @@ export default function NovoProdutoNaSalaDialog({
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>Nome *</Label>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-            <p className="text-xs text-muted-foreground">O item é vinculado automaticamente ao catálogo (usado pelos empréstimos). Se o nome já existir no catálogo, ele reaproveita a mesma identidade.</p>
+            <div className="relative">
+              <Input
+                value={form.nome}
+                onChange={(e) => { setForm({ ...form, nome: e.target.value }); setPickedFromCatalogo(false); setShowSugestoes(true); }}
+                onFocus={() => setShowSugestoes(true)}
+                onBlur={() => setTimeout(() => setShowSugestoes(false), 150)}
+                autoComplete="off"
+              />
+              {showSugestoes && sugestoes.length > 0 && !pickedFromCatalogo && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md max-h-56 overflow-auto">
+                  {sugestoes.map((s) => {
+                    const exato = normalize(s.nome) === normalize(form.nome);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); escolherSugestao(s); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex justify-between gap-2"
+                      >
+                        <span>{s.nome}</span>
+                        {exato && <span className="text-xs text-muted-foreground">já existe</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {pickedFromCatalogo
+                ? "Item existente do catálogo selecionado — será reaproveitado (mesma identidade em todas as salas)."
+                : "Se o item já existir, escolha na lista para reaproveitar o catálogo. Só crie novo se realmente for um item diferente."}
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Categoria *</Label>
