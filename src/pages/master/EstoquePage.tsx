@@ -94,10 +94,12 @@ export default function EstoquePage() {
   const [entradaForm, setEntradaForm] = useState({
     quantidade: 0,
     valor_unitario: 0,
+    validade: "",
     fornecedor: "",
     numero_nf: "",
     observacao: "",
   });
+
 
   // Saída – motivo + observação
   const [saidaMotivo, setSaidaMotivo] = useState<string>("Consumo interno");
@@ -284,7 +286,7 @@ export default function EstoquePage() {
     setMovQtd(0);
     setMovObs("");
     setSaidaMotivo("Consumo interno");
-    setEntradaForm({ quantidade: 0, valor_unitario: Number(row.custo_medio || 0), fornecedor: "", numero_nf: "", observacao: "" });
+    setEntradaForm({ quantidade: 0, valor_unitario: Number(row.custo_medio || 0), validade: "", fornecedor: "", numero_nf: "", observacao: "" });
     setMovOpen(true);
   };
 
@@ -306,6 +308,7 @@ export default function EstoquePage() {
         _numero_nf: entradaForm.numero_nf || null,
         _data_entrada: new Date().toISOString(),
         _observacao: entradaForm.observacao || null,
+        _validade: entradaForm.validade || null,
       });
       setMovSaving(false);
       if (error) return toast.error(error.message);
@@ -861,6 +864,18 @@ export default function EstoquePage() {
                 <span className="font-display font-bold text-lg text-success">
                   {BRL(Number(entradaForm.quantidade || 0) * Number(entradaForm.valor_unitario || 0))}
                 </span>
+              </div>
+              <div className="space-y-2">
+                <Label>Validade (opcional)</Label>
+                <Input
+                  type="date"
+                  lang="pt-BR"
+                  value={entradaForm.validade}
+                  onChange={(e) => setEntradaForm({ ...entradaForm, validade: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Deixe em branco se o produto não tem validade. Cada entrada com validade vira um lote controlado (rodízio FEFO).
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">

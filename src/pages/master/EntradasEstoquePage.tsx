@@ -62,11 +62,13 @@ export default function EntradasEstoquePage() {
     sala_id: "",
     quantidade: 0,
     valor_unitario: 0,
+    validade: "",
     fornecedor: "",
     numero_nf: "",
     data_entrada: new Date().toISOString().slice(0, 16),
     observacao: "",
   });
+
 
   const load = useCallback(async () => {
     const [{ data: e }, { data: s }, { data: p }] = await Promise.all([
@@ -127,6 +129,7 @@ export default function EntradasEstoquePage() {
       sala_id: scopeSalaId ?? "",
       quantidade: 0,
       valor_unitario: 0,
+      validade: "",
       fornecedor: "",
       numero_nf: "",
       data_entrada: new Date().toISOString().slice(0, 16),
@@ -134,6 +137,7 @@ export default function EntradasEstoquePage() {
     });
     setOpen(true);
   };
+
 
   const salvar = async () => {
     if (!form.produto_id) return toast.error("Selecione o produto");
@@ -150,6 +154,7 @@ export default function EntradasEstoquePage() {
       _numero_nf: form.numero_nf || null,
       _data_entrada: form.data_entrada ? new Date(form.data_entrada).toISOString() : null,
       _observacao: form.observacao || null,
+      _validade: form.validade || null,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -358,6 +363,14 @@ export default function EntradasEstoquePage() {
             <div className="rounded-md bg-success/10 border border-success/30 px-3 py-2 text-sm flex items-center justify-between">
               <span className="text-muted-foreground">Valor total</span>
               <span className="font-display font-bold text-lg text-success">{BRL(valorTotalCalc)}</span>
+            </div>
+            <div className="space-y-2">
+              <Label>Validade (opcional)</Label>
+              <Input type="date" lang="pt-BR" value={form.validade}
+                onChange={(e) => setForm({ ...form, validade: e.target.value })} />
+              <p className="text-xs text-muted-foreground">
+                Deixe em branco se o produto não tem validade. Cada entrada com validade vira um lote controlado (rodízio FEFO).
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
