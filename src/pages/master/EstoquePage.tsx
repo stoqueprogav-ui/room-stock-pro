@@ -286,7 +286,7 @@ export default function EstoquePage() {
     setMovQtd(0);
     setMovObs("");
     setSaidaMotivo("Consumo interno");
-    setEntradaForm({ quantidade: 0, valor_unitario: Number(row.custo_medio || 0), fornecedor: "", numero_nf: "", observacao: "" });
+    setEntradaForm({ quantidade: 0, valor_unitario: Number(row.custo_medio || 0), validade: "", fornecedor: "", numero_nf: "", observacao: "" });
     setMovOpen(true);
   };
 
