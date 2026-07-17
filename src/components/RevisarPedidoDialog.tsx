@@ -44,34 +44,54 @@ export default function RevisarPedidoDialog({
   const [data, setData] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState<"aprovar" | "rejeitar" | null>(null);
+  const [avisos, setAvisos] = useState<LoteAviso[]>([]);
 
   useEffect(() => {
-    if (!open || !id) { setData(null); return; }
+    if (!open || !id) { setData(null); setAvisos([]); return; }
     setLoading(true);
     (async () => {
       if (kind === "requisicao") {
         const { data: r } = await supabase
           .from("solicitacoes")
           .select(`id, observacao, created_at,
-                   sala:salas(nome),
+                   sala:salas(id, nome),
                    usuario:profiles!solicitacoes_usuario_id_fkey(nome, email),
-                   itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade, categoria:categorias(nome)))`)
+                   itens:solicitacao_itens(quantidade, produto:produtos(id, nome, unidade, categoria:categorias(nome)))`)
           .eq("id", id).maybeSingle();
         setData(r ? ({ kind: "requisicao", ...(r as any) }) : null);
       } else {
         const { data: e } = await supabase
           .from("emprestimos")
           .select(`id, observacao, created_at,
-                   origem:salas!emprestimos_sala_origem_id_fkey(nome),
+                   origem:salas!emprestimos_sala_origem_id_fkey(id, nome),
                    destino:salas!emprestimos_sala_destino_id_fkey(nome),
                    solicitante:profiles!emprestimos_solicitante_id_fkey(nome, email),
-                   itens:emprestimo_itens(quantidade, produto:produtos(nome, unidade, categoria:categorias(nome)))`)
+                   itens:emprestimo_itens(quantidade, produto:produtos(id, nome, unidade, categoria:categorias(nome)))`)
           .eq("id", id).maybeSingle();
         setData(e ? ({ kind: "emprestimo", ...(e as any) }) : null);
       }
       setLoading(false);
     })();
   }, [open, id, kind]);
+
+  // Aviso de validade: lotes na sala de atendimento vencendo em <= 30 dias
+  useEffect(() => {
+    if (!data) { setAvisos([]); return; }
+    const salaId = data.kind === "requisicao" ? data.sala.id : data.origem.id;
+    const produtoIds = new Set(data.itens.map((i) => i.produto.id));
+    if (!salaId || produtoIds.size === 0) { setAvisos([]); return; }
+    (async () => {
+      const { data: rows } = await supabase.rpc("lotes_por_validade", { _sala: salaId, _regiao: null, _dias: 30 });
+      const filt = (rows ?? []).filter((r: any) => produtoIds.has(r.produto_id));
+      setAvisos(filt.slice(0, 3).map((r: any) => ({
+        produto_nome: r.produto_nome,
+        quantidade: r.quantidade,
+        dias_para_vencer: r.dias_para_vencer,
+        validade: r.validade,
+        sala_nome: r.sala_nome,
+      })));
+    })();
+  }, [data]);
 
   const handle = async (aprovar: boolean) => {
     if (!id) return;
