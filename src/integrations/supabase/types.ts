@@ -796,6 +796,64 @@ export type Database = {
           },
         ]
       }
+      lotes: {
+        Row: {
+          created_at: string
+          entrada_em: string
+          id: string
+          produto_id: string
+          quantidade: number
+          referencia_id: string | null
+          referencia_tipo: string | null
+          sala_id: string
+          validade: string | null
+        }
+        Insert: {
+          created_at?: string
+          entrada_em?: string
+          id?: string
+          produto_id: string
+          quantidade: number
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          sala_id: string
+          validade?: string | null
+        }
+        Update: {
+          created_at?: string
+          entrada_em?: string
+          id?: string
+          produto_id?: string
+          quantidade?: number
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          sala_id?: string
+          validade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lotes_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "v_produtos_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_sala_id_fkey"
+            columns: ["sala_id"]
+            isOneToOne: false
+            referencedRelation: "salas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_regioes: {
         Row: {
           created_at: string
@@ -2032,6 +2090,10 @@ export type Database = {
         Args: { _produto: string; _sala: string }
         Returns: undefined
       }
+      _sync_estoque_from_lotes: {
+        Args: { _produto: string; _sala: string }
+        Returns: undefined
+      }
       admin_set_master_regioes: {
         Args: { _regioes: string[]; _user: string }
         Returns: undefined
@@ -2077,6 +2139,10 @@ export type Database = {
           ultima_avaliacao: string
           valor_total: number
         }[]
+      }
+      baixar_lotes_fefo: {
+        Args: { _produto: string; _qtd: number; _sala: string }
+        Returns: undefined
       }
       can_access_conversation: {
         Args: { _conv: string; _user: string }
@@ -2451,6 +2517,7 @@ export type Database = {
           _produto: string
           _quantidade: number
           _sala: string
+          _validade?: string
           _valor_unitario: number
         }
         Returns: string
