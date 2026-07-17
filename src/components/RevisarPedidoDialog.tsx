@@ -14,7 +14,7 @@ type RequisicaoFull = {
   id: string;
   observacao: string | null;
   created_at: string;
-  sala: { nome: string };
+  sala: { id: string; nome: string };
   usuario: { nome: string; email: string } | null;
   itens: Item[];
 };
@@ -23,7 +23,7 @@ type EmprestimoFull = {
   id: string;
   observacao: string | null;
   created_at: string;
-  origem: { nome: string };
+  origem: { id: string; nome: string };
   destino: { nome: string };
   solicitante: { nome: string; email: string } | null;
   itens: Item[];
