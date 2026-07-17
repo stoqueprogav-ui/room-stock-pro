@@ -62,11 +62,13 @@ export default function EntradasEstoquePage() {
     sala_id: "",
     quantidade: 0,
     valor_unitario: 0,
+    validade: "",
     fornecedor: "",
     numero_nf: "",
     data_entrada: new Date().toISOString().slice(0, 16),
     observacao: "",
   });
+
 
   const load = useCallback(async () => {
     const [{ data: e }, { data: s }, { data: p }] = await Promise.all([
