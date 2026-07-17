@@ -144,6 +144,27 @@ export default function RevisarPedidoDialog({
               <Field label="Total de itens">{data.itens.length}</Field>
             </div>
 
+            {avisos.length > 0 && (
+              <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm">
+                <div className="flex items-center gap-2 font-semibold text-yellow-700 dark:text-yellow-400 mb-1">
+                  <AlertTriangle className="size-4" /> Atenção: há lote(s) vencendo
+                </div>
+                <ul className="space-y-0.5 text-yellow-900/90 dark:text-yellow-200/90">
+                  {avisos.map((a, i) => {
+                    const d = a.dias_para_vencer;
+                    const txt = d === null ? "sem data" : d < 0 ? `vencido há ${Math.abs(d)} dia(s)` : d === 0 ? "vence hoje" : `vence em ${d} dia(s)`;
+                    return (
+                      <li key={i}>
+                        <span className="font-medium">{a.produto_nome}</span>: {a.quantidade} un. {txt} na sala {a.sala_nome}.
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="text-xs mt-1 text-yellow-800/80 dark:text-yellow-300/80">A baixa segue FEFO — priorize a saída desses lotes fisicamente.</div>
+              </div>
+            )}
+
+
             {data.observacao && (
               <div className="rounded border border-border bg-muted/30 p-3 text-sm">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Observação</div>
