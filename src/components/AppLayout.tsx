@@ -59,6 +59,7 @@ function navForRole(role: string | null, isGlobalScope: boolean, isSuperMaster: 
       },
       { to: "/app/consumo-interno", label: "Consumo Interno", icon: Trash2 },
       { to: "/app/inventario", label: "Inventário", icon: ClipboardCheck },
+      { to: "/app/validades", label: "Validades", icon: CalendarClock },
 
       { to: "/app/usuarios", label: "Usuários", icon: Users },
       {
