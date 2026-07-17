@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, X, ArrowRight, Tag } from "lucide-react";
+import { Loader2, Check, X, ArrowRight, Tag, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/format";
 
-type Item = { quantidade: number; produto: { nome: string; unidade: string; categoria: { nome: string } | null } };
+type Item = { quantidade: number; produto: { id: string; nome: string; unidade: string; categoria: { nome: string } | null } };
+type LoteAviso = { produto_nome: string; quantidade: number; dias_para_vencer: number | null; validade: string | null; sala_nome: string };
 
 type RequisicaoFull = {
   kind: "requisicao";
