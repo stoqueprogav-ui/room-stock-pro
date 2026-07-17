@@ -753,9 +753,12 @@ export default function RelatoriosPage() {
                 </Button>
                 <h3 className="font-semibold">Região: {drillRegiao.nome}</h3>
               </div>
-              <div className="flex gap-4 text-sm">
+              <div className="flex items-center gap-4 text-sm flex-wrap">
                 <div><span className="text-muted-foreground">Consumo (qtd): </span><span className="font-semibold">{NUM(drillTotais.qtd)}</span></div>
                 <div><span className="text-muted-foreground">Consumo (R$): </span><span className="font-semibold">{BRL(drillTotais.valor)}</span></div>
+                <Button size="sm" onClick={() => { setLaudoRegiao(drillRegiao.id); setLaudoOpen(true); }}>
+                  <FileText className="size-4 mr-1.5" /> Laudo desta região (PDF)
+                </Button>
               </div>
             </div>
 
