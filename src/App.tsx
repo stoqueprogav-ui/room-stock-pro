@@ -37,6 +37,8 @@ import InventarioPage from "./pages/master/InventarioPage";
 import DashboardGerencial from "./pages/master/DashboardGerencial";
 import EntradasEstoquePage from "./pages/master/EntradasEstoquePage";
 import RegioesPage from "./pages/master/RegioesPage";
+import ValidadesPage from "./pages/master/ValidadesPage";
+
 
 
 const queryClient = new QueryClient();
@@ -73,6 +75,7 @@ const App = () => (
               <Route path="auditoria" element={<Navigate to="/app/movimentacoes" replace />} />
               <Route path="consumo-interno" element={<RequireRole role="master"><RequireOperationalMode><ConsumoInternoPage /></RequireOperationalMode></RequireRole>} />
               <Route path="inventario" element={<RequireRole role="master"><RequireOperationalMode><InventarioPage /></RequireOperationalMode></RequireRole>} />
+              <Route path="validades" element={<RequireRole role="master"><RequireOperationalMode><ValidadesPage /></RequireOperationalMode></RequireRole>} />
               <Route path="dashboard-gerencial" element={<RequireRole role="master"><RequireOperationalMode><DashboardGerencial /></RequireOperationalMode></RequireRole>} />
               <Route path="entradas" element={<RequireRole role="master"><RequireOperationalMode><EntradasEstoquePage /></RequireOperationalMode></RequireRole>} />
               <Route path="avaliacao-patrimonial" element={<Navigate to="/app/relatorios" replace />} />

@@ -1,19 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, X, ArrowRight, Tag } from "lucide-react";
+import { Loader2, Check, X, ArrowRight, Tag, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/format";
 
-type Item = { quantidade: number; produto: { nome: string; unidade: string; categoria: { nome: string } | null } };
+type Item = { quantidade: number; produto: { id: string; nome: string; unidade: string; categoria: { nome: string } | null } };
+type LoteAviso = { produto_nome: string; quantidade: number; dias_para_vencer: number | null; validade: string | null; sala_nome: string };
 
 type RequisicaoFull = {
   kind: "requisicao";
   id: string;
   observacao: string | null;
   created_at: string;
-  sala: { nome: string };
+  sala: { id: string; nome: string };
   usuario: { nome: string; email: string } | null;
   itens: Item[];
 };
@@ -22,7 +23,7 @@ type EmprestimoFull = {
   id: string;
   observacao: string | null;
   created_at: string;
-  origem: { nome: string };
+  origem: { id: string; nome: string };
   destino: { nome: string };
   solicitante: { nome: string; email: string } | null;
   itens: Item[];
@@ -43,34 +44,54 @@ export default function RevisarPedidoDialog({
   const [data, setData] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState<"aprovar" | "rejeitar" | null>(null);
+  const [avisos, setAvisos] = useState<LoteAviso[]>([]);
 
   useEffect(() => {
-    if (!open || !id) { setData(null); return; }
+    if (!open || !id) { setData(null); setAvisos([]); return; }
     setLoading(true);
     (async () => {
       if (kind === "requisicao") {
         const { data: r } = await supabase
           .from("solicitacoes")
           .select(`id, observacao, created_at,
-                   sala:salas(nome),
+                   sala:salas(id, nome),
                    usuario:profiles!solicitacoes_usuario_id_fkey(nome, email),
-                   itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade, categoria:categorias(nome)))`)
+                   itens:solicitacao_itens(quantidade, produto:produtos(id, nome, unidade, categoria:categorias(nome)))`)
           .eq("id", id).maybeSingle();
         setData(r ? ({ kind: "requisicao", ...(r as any) }) : null);
       } else {
         const { data: e } = await supabase
           .from("emprestimos")
           .select(`id, observacao, created_at,
-                   origem:salas!emprestimos_sala_origem_id_fkey(nome),
+                   origem:salas!emprestimos_sala_origem_id_fkey(id, nome),
                    destino:salas!emprestimos_sala_destino_id_fkey(nome),
                    solicitante:profiles!emprestimos_solicitante_id_fkey(nome, email),
-                   itens:emprestimo_itens(quantidade, produto:produtos(nome, unidade, categoria:categorias(nome)))`)
+                   itens:emprestimo_itens(quantidade, produto:produtos(id, nome, unidade, categoria:categorias(nome)))`)
           .eq("id", id).maybeSingle();
         setData(e ? ({ kind: "emprestimo", ...(e as any) }) : null);
       }
       setLoading(false);
     })();
   }, [open, id, kind]);
+
+  // Aviso de validade: lotes na sala de atendimento vencendo em <= 30 dias
+  useEffect(() => {
+    if (!data) { setAvisos([]); return; }
+    const salaId = data.kind === "requisicao" ? data.sala.id : data.origem.id;
+    const produtoIds = new Set(data.itens.map((i) => i.produto.id));
+    if (!salaId || produtoIds.size === 0) { setAvisos([]); return; }
+    (async () => {
+      const { data: rows } = await supabase.rpc("lotes_por_validade", { _sala: salaId, _regiao: null, _dias: 30 });
+      const filt = (rows ?? []).filter((r: any) => produtoIds.has(r.produto_id));
+      setAvisos(filt.slice(0, 3).map((r: any) => ({
+        produto_nome: r.produto_nome,
+        quantidade: r.quantidade,
+        dias_para_vencer: r.dias_para_vencer,
+        validade: r.validade,
+        sala_nome: r.sala_nome,
+      })));
+    })();
+  }, [data]);
 
   const handle = async (aprovar: boolean) => {
     if (!id) return;
@@ -122,6 +143,27 @@ export default function RevisarPedidoDialog({
               <Field label="Criado em">{formatDateTime(data.created_at)}</Field>
               <Field label="Total de itens">{data.itens.length}</Field>
             </div>
+
+            {avisos.length > 0 && (
+              <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm">
+                <div className="flex items-center gap-2 font-semibold text-yellow-700 dark:text-yellow-400 mb-1">
+                  <AlertTriangle className="size-4" /> Atenção: há lote(s) vencendo
+                </div>
+                <ul className="space-y-0.5 text-yellow-900/90 dark:text-yellow-200/90">
+                  {avisos.map((a, i) => {
+                    const d = a.dias_para_vencer;
+                    const txt = d === null ? "sem data" : d < 0 ? `vencido há ${Math.abs(d)} dia(s)` : d === 0 ? "vence hoje" : `vence em ${d} dia(s)`;
+                    return (
+                      <li key={i}>
+                        <span className="font-medium">{a.produto_nome}</span>: {a.quantidade} un. {txt} na sala {a.sala_nome}.
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="text-xs mt-1 text-yellow-800/80 dark:text-yellow-300/80">A baixa segue FEFO — priorize a saída desses lotes fisicamente.</div>
+              </div>
+            )}
+
 
             {data.observacao && (
               <div className="rounded border border-border bg-muted/30 p-3 text-sm">
