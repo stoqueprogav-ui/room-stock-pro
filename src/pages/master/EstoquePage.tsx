@@ -865,6 +865,18 @@ export default function EstoquePage() {
                   {BRL(Number(entradaForm.quantidade || 0) * Number(entradaForm.valor_unitario || 0))}
                 </span>
               </div>
+              <div className="space-y-2">
+                <Label>Validade (opcional)</Label>
+                <Input
+                  type="date"
+                  lang="pt-BR"
+                  value={entradaForm.validade}
+                  onChange={(e) => setEntradaForm({ ...entradaForm, validade: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Deixe em branco se o produto não tem validade. Cada entrada com validade vira um lote controlado (rodízio FEFO).
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Fornecedor</Label>
