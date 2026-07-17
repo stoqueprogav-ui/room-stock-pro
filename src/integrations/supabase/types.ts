@@ -2111,6 +2111,7 @@ export type Database = {
         }
         Returns: number
       }
+      alertar_validades: { Args: never; Returns: undefined }
       arquivar_emprestimo: {
         Args: { _emp: string; _retirado_em?: string; _retirado_por?: string }
         Returns: undefined
@@ -2451,6 +2452,22 @@ export type Database = {
         }
         Returns: string
       }
+      lotes_por_validade: {
+        Args: { _dias?: number; _regiao?: string; _sala?: string }
+        Returns: {
+          categoria_nome: string
+          dias_para_vencer: number
+          faixa: string
+          lote_id: string
+          produto_id: string
+          produto_nome: string
+          quantidade: number
+          regiao_nome: string
+          sala_id: string
+          sala_nome: string
+          validade: string
+        }[]
+      }
       marcar_senha_trocada: { Args: never; Returns: undefined }
       mark_conversation_read: { Args: { _conv: string }; Returns: undefined }
       master_scope_sala: {
@@ -2665,6 +2682,14 @@ export type Database = {
           requisicoes: number
           salas: number
           valor_estoque: number
+        }[]
+      }
+      resumo_validade: {
+        Args: { _regiao?: string; _sala?: string }
+        Returns: {
+          faixa: string
+          lotes: number
+          quantidade: number
         }[]
       }
       sala_regiao: { Args: { _sala: string }; Returns: string }
