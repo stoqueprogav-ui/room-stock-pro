@@ -308,6 +308,7 @@ export default function EstoquePage() {
         _numero_nf: entradaForm.numero_nf || null,
         _data_entrada: new Date().toISOString(),
         _observacao: entradaForm.observacao || null,
+        _validade: entradaForm.validade || null,
       });
       setMovSaving(false);
       if (error) return toast.error(error.message);
