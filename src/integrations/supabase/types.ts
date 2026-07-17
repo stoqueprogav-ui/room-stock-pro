@@ -2709,8 +2709,23 @@ export type Database = {
         Args: { _role: Database["public"]["Enums"]["app_role"]; _user: string }
         Returns: undefined
       }
+      sugerir_troca_validade: {
+        Args: { _produto: string; _qtd: number; _sala_atende: string }
+        Returns: {
+          dias: number
+          lote_id: string
+          quantidade: number
+          sala_id: string
+          sala_nome: string
+          validade: string
+        }[]
+      }
       toggle_produto_sala_ativo: {
         Args: { _ativo: boolean; _produto_id: string; _sala_id: string }
+        Returns: undefined
+      }
+      trocar_lotes: {
+        Args: { _lote_curto: string; _qtd: number; _sala_atende: string }
         Returns: undefined
       }
       unaccent: { Args: { "": string }; Returns: string }
