@@ -154,6 +154,7 @@ export default function EntradasEstoquePage() {
       _numero_nf: form.numero_nf || null,
       _data_entrada: form.data_entrada ? new Date(form.data_entrada).toISOString() : null,
       _observacao: form.observacao || null,
+      _validade: form.validade || null,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
