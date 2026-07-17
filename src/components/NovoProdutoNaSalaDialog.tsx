@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,12 +35,44 @@ export default function NovoProdutoNaSalaDialog({
   const [salaUnica, setSalaUnica] = useState<string>(salaPadrao ?? "");
   const [qtdInicial, setQtdInicial] = useState<number>(0);
   const [saving, setSaving] = useState(false);
+  const [sugestoes, setSugestoes] = useState<Array<{ id: string; nome: string }>>([]);
+  const [showSugestoes, setShowSugestoes] = useState(false);
+  const [pickedFromCatalogo, setPickedFromCatalogo] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+  useEffect(() => {
+    if (pickedFromCatalogo) return;
+    const q = form.nome.trim();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (q.length < 2) { setSugestoes([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from("produtos_catalogo")
+        .select("id, nome")
+        .ilike("nome", `%${q}%`)
+        .order("nome")
+        .limit(8);
+      setSugestoes((data ?? []) as Array<{ id: string; nome: string }>);
+    }, 200);
+  }, [form.nome, pickedFromCatalogo]);
+
+  const escolherSugestao = (s: { id: string; nome: string }) => {
+    setForm((f) => ({ ...f, nome: s.nome }));
+    setPickedFromCatalogo(true);
+    setShowSugestoes(false);
+  };
 
   const reset = () => {
     setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, custo_unitario: 0, categoria_id: "" });
     setSalaUnica(salaPadrao ?? "");
     setQtdInicial(0);
+    setSugestoes([]);
+    setShowSugestoes(false);
+    setPickedFromCatalogo(false);
   };
+
 
   const salvar = async () => {
     if (!form.nome.trim()) return toast.error("Nome obrigatório");
@@ -48,8 +80,23 @@ export default function NovoProdutoNaSalaDialog({
     if (!salaUnica) return toast.error("Selecione a sala vinculada ao produto");
 
     setSaving(true);
+
+    // Antes de inserir, se o usuário não escolheu na lista, verifica se a chave-forte
+    // já existe no catálogo e reaproveita o nome canônico para cair no mesmo catalogo_id.
+    let nomeFinal = form.nome.trim();
+    if (!pickedFromCatalogo) {
+      const alvo = normalize(nomeFinal);
+      if (alvo.length > 0) {
+        const { data: existentes } = await supabase
+          .from("produtos_catalogo")
+          .select("id, nome");
+        const match = (existentes ?? []).find((c: any) => normalize(c.nome) === alvo);
+        if (match) nomeFinal = match.nome;
+      }
+    }
+
     const payload: any = {
-      nome: form.nome.trim(),
+      nome: nomeFinal,
       descricao: form.descricao || null,
       unidade: (form.unidade || "Unidade").trim(),
       estoque_minimo: Number(form.estoque_minimo) || 0,
@@ -90,8 +137,38 @@ export default function NovoProdutoNaSalaDialog({
         <div className="space-y-3">
           <div className="space-y-2">
             <Label>Nome *</Label>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-            <p className="text-xs text-muted-foreground">O item é vinculado automaticamente ao catálogo (usado pelos empréstimos). Se o nome já existir no catálogo, ele reaproveita a mesma identidade.</p>
+            <div className="relative">
+              <Input
+                value={form.nome}
+                onChange={(e) => { setForm({ ...form, nome: e.target.value }); setPickedFromCatalogo(false); setShowSugestoes(true); }}
+                onFocus={() => setShowSugestoes(true)}
+                onBlur={() => setTimeout(() => setShowSugestoes(false), 150)}
+                autoComplete="off"
+              />
+              {showSugestoes && sugestoes.length > 0 && !pickedFromCatalogo && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md max-h-56 overflow-auto">
+                  {sugestoes.map((s) => {
+                    const exato = normalize(s.nome) === normalize(form.nome);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); escolherSugestao(s); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex justify-between gap-2"
+                      >
+                        <span>{s.nome}</span>
+                        {exato && <span className="text-xs text-muted-foreground">já existe</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {pickedFromCatalogo
+                ? "Item existente do catálogo selecionado — será reaproveitado (mesma identidade em todas as salas)."
+                : "Se o item já existir, escolha na lista para reaproveitar o catálogo. Só crie novo se realmente for um item diferente."}
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Categoria *</Label>
