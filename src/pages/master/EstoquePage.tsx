@@ -440,24 +440,6 @@ export default function EstoquePage() {
     setEditProdSala(null);
     load();
   };
-    if (!editProd) return;
-    if (!editProdForm.nome.trim()) return toast.error("Nome obrigatório");
-    if (!editProdForm.categoria_id) return toast.error("Categoria obrigatória");
-    setSavingProd(true);
-    const { error } = await supabase.from("produtos").update({
-      nome: editProdForm.nome.trim(),
-      categoria_id: editProdForm.categoria_id,
-      unidade: (editProdForm.unidade || "Unidade").trim(),
-      estoque_minimo: Number(editProdForm.estoque_minimo) || 0,
-      descricao: editProdForm.descricao || null,
-    }).eq("id", editProd.id);
-    setSavingProd(false);
-    if (error) return toast.error(error.message);
-    toast.success("Produto atualizado");
-    setEditProd(null);
-    setEditProdSala(null);
-    load();
-  };
 
   const abrirAtualizarAval = () => {
     setUpdAvalForm({
