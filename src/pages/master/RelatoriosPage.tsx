@@ -1141,7 +1141,7 @@ export default function RelatoriosPage() {
           <RankCard title="Top 10 salas com maior consumo (R$)" rows={consumoPorSala.slice(0, 10).map((r) => ({ sala: r.sala, total: r.valor }))} valueLabel="Valor" money />
           <RankCard title="Top 10 salas que mais RECEBEM empréstimos (nº de operações)" rows={[...empSalas].sort((a, b) => b.recebidos_qtd - a.recebidos_qtd).slice(0, 10).map((r) => ({ sala: r.sala_nome, total: r.recebidos_qtd }))} valueLabel="empréstimos" />
           <RankCard title="Top 10 salas com mais empréstimos FEITOS (nº de operações)" rows={[...empSalas].sort((a, b) => b.emprestados_qtd - a.emprestados_qtd).slice(0, 10).map((r) => ({ sala: r.sala_nome, total: r.emprestados_qtd }))} valueLabel="empréstimos" />
-          <RankCard title="Top 10 salas com maior custo operacional (R$)" rows={consumoPorSala.slice(0, 10).map((r) => ({ sala: r.sala, total: r.valor }))} valueLabel="Valor" money />
+          
         </TabsContent>
 
         {/* ===== CONSUMO POR SALA ===== */}
