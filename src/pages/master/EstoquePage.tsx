@@ -368,12 +368,78 @@ export default function EstoquePage() {
       unidade: p.unidade ?? "Unidade",
       estoque_minimo: p.estoque_minimo ?? 0,
       descricao: p.descricao ?? "",
+      custo_unitario: Number((p as any).custo_unitario ?? 0),
     });
     setResumoAval(null);
     setHistAval([]);
-    if (sala && isMaster) loadAvalProduto(p.id, sala.id);
+    setLotes([]);
+    setEditLoteValidade({});
+    if (sala) {
+      const r = rows.find((rr) => rr.produto_id === p.id && rr.sala_id === sala.id);
+      setEditProdAtivo(r ? r.ativo : true);
+      loadLotesProduto(p.id, sala.id);
+      if (isMaster) loadAvalProduto(p.id, sala.id);
+    } else {
+      setEditProdAtivo(true);
+    }
   };
+
+  const loadLotesProduto = async (produtoId: string, salaId: string) => {
+    setLoadingLotes(true);
+    const { data } = await (supabase as any)
+      .from("lotes")
+      .select("id, quantidade, validade, created_at")
+      .eq("produto_id", produtoId)
+      .eq("sala_id", salaId)
+      .gt("quantidade", 0)
+      .order("validade", { ascending: true, nullsFirst: false });
+    setLotes((data as LoteRow[]) ?? []);
+    setLoadingLotes(false);
+  };
+
+  const salvarValidadeLote = async (loteId: string) => {
+    const nova = editLoteValidade[loteId];
+    setSavingLoteId(loteId);
+    const { error } = await (supabase as any).from("lotes").update({ validade: nova || null }).eq("id", loteId);
+    setSavingLoteId(null);
+    if (error) return toast.error(error.message);
+    toast.success("Validade do lote atualizada");
+    if (editProd && editProdSala) await loadLotesProduto(editProd.id, editProdSala.id);
+  };
+
+  const toggleAtivoSala = async (novo: boolean) => {
+    if (!editProd || !editProdSala) return;
+    setTogglingAtivo(true);
+    const { error } = await (supabase as any).rpc("toggle_produto_sala_ativo", {
+      _produto_id: editProd.id, _sala_id: editProdSala.id, _ativo: novo,
+    });
+    setTogglingAtivo(false);
+    if (error) return toast.error(error.message);
+    setEditProdAtivo(novo);
+    toast.success(novo ? "Produto ativado nesta sala" : "Produto inativado nesta sala");
+    load();
+  };
+
   const salvarProduto = async () => {
+    if (!editProd) return;
+    if (!editProdForm.nome.trim()) return toast.error("Nome obrigatório");
+    if (!editProdForm.categoria_id) return toast.error("Categoria obrigatória");
+    setSavingProd(true);
+    const { error } = await supabase.from("produtos").update({
+      nome: editProdForm.nome.trim(),
+      categoria_id: editProdForm.categoria_id,
+      unidade: (editProdForm.unidade || "Unidade").trim(),
+      estoque_minimo: Number(editProdForm.estoque_minimo) || 0,
+      descricao: editProdForm.descricao || null,
+      custo_unitario: Number(editProdForm.custo_unitario) || 0,
+    }).eq("id", editProd.id);
+    setSavingProd(false);
+    if (error) return toast.error(error.message);
+    toast.success("Produto atualizado");
+    setEditProd(null);
+    setEditProdSala(null);
+    load();
+  };
     if (!editProd) return;
     if (!editProdForm.nome.trim()) return toast.error("Nome obrigatório");
     if (!editProdForm.categoria_id) return toast.error("Categoria obrigatória");
