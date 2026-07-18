@@ -1240,6 +1240,20 @@ export default function EstoquePage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {resumoAval?.tem_avaliacao && (
+              <div className="text-xs rounded-md border bg-muted/40 px-3 py-2">
+                Avaliação atual:{" "}
+                <Badge variant={resumoAval.tipo === "confirmado" ? "default" : "secondary"} className="text-[10px]">
+                  {resumoAval.tipo === "confirmado" ? "Confirmado" : "Estimado"}
+                </Badge>
+                {typeof resumoAval.valor_unitario === "number" && (
+                  <span className="ml-2 text-muted-foreground">
+                    · R$ {Number(resumoAval.valor_unitario).toFixed(2)} /un
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Valor unitário (R$) *</Label>
