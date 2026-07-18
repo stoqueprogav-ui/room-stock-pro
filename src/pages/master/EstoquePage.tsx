@@ -1048,6 +1048,73 @@ export default function EstoquePage() {
               <Textarea value={editProdForm.descricao} onChange={(e) => setEditProdForm({ ...editProdForm, descricao: e.target.value })} rows={3} />
             </div>
 
+            <div className="space-y-2">
+              <Label>Custo unitário (R$)</Label>
+              <Input type="number" min={0} step="0.01" value={editProdForm.custo_unitario}
+                onChange={(e) => setEditProdForm({ ...editProdForm, custo_unitario: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">Usado como valor de referência quando não há Custo Médio Ponderado (CMP) apurado por compras.</p>
+            </div>
+
+            {isMaster && editProdSala && (
+              <div className="rounded-md border p-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium">Ativo nesta sala</div>
+                  <div className="text-xs text-muted-foreground">Inativar oculta o produto para operações; o histórico é preservado.</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">Sala: {editProdSala.nome}</div>
+                </div>
+                <Switch checked={editProdAtivo} disabled={togglingAtivo} onCheckedChange={toggleAtivoSala} />
+              </div>
+            )}
+
+            {isMaster && editProdSala && (
+              <div className="rounded-md border p-3 space-y-2">
+                <div className="text-sm font-semibold flex items-center gap-1.5">
+                  <Package className="size-4 text-primary" /> Lotes e validades
+                  <span className="text-xs text-muted-foreground font-normal">· {editProdSala.nome}</span>
+                </div>
+                {loadingLotes ? (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="size-3 animate-spin" /> Carregando lotes…</div>
+                ) : lotes.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">Nenhum lote com saldo nesta sala.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Qtd</TableHead>
+                          <TableHead className="text-xs">Validade</TableHead>
+                          <TableHead className="text-xs w-[110px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {lotes.map((l) => {
+                          const atual = editLoteValidade[l.id] ?? (l.validade ? l.validade.slice(0, 10) : "");
+                          const orig = l.validade ? l.validade.slice(0, 10) : "";
+                          const mudou = atual !== orig;
+                          return (
+                            <TableRow key={l.id}>
+                              <TableCell className="font-mono text-xs">{l.quantidade}</TableCell>
+                              <TableCell>
+                                <Input type="date" value={atual}
+                                  onChange={(e) => setEditLoteValidade({ ...editLoteValidade, [l.id]: e.target.value })} />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button size="sm" variant="outline" disabled={!mudou || savingLoteId === l.id}
+                                  onClick={() => salvarValidadeLote(l.id)}>
+                                  {savingLoteId === l.id && <Loader2 className="size-3 animate-spin" />} Salvar
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground italic">A quantidade do lote é ajustada via entradas/saídas de estoque.</p>
+              </div>
+            )}
+
             {/* Seção: Avaliação Patrimonial (Master + sala definida) */}
             {isMaster && editProdSala && (() => {
               const qtdEstoque = rows.find((rr) => rr.produto_id === editProd?.id && rr.sala_id === editProdSala.id)?.quantidade ?? 0;
