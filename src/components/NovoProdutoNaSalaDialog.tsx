@@ -260,10 +260,31 @@ export default function NovoProdutoNaSalaDialog({
               </Select>
               <p className="text-xs text-muted-foreground">Cada sala tem cadastro próprio. Para o mesmo item em outra sala, cadastre novamente ali (o catálogo é reaproveitado).</p>
             </div>
-            <div className="space-y-2">
-              <Label>Quantidade inicial</Label>
-              <Input type="number" min={0} value={qtdInicial} onChange={(e) => setQtdInicial(Number(e.target.value))} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Quantidade inicial</Label>
+                <Input type="number" min={0} value={qtdInicial} onChange={(e) => setQtdInicial(Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Validade <span className="text-muted-foreground text-xs font-normal">— opcional</span></Label>
+                <Input type="date" value={validadeInicial} onChange={(e) => setValidadeInicial(e.target.value)} />
+              </div>
             </div>
+            {Number(qtdInicial) > 0 && (
+              <p className="text-xs text-muted-foreground">A quantidade inicial entra como <strong>Entrada de estoque</strong> valorizada pelo custo unitário informado, criando o lote com a validade acima (quando preenchida).</p>
+            )}
+            {existenteInativo && (
+              <div className="rounded-md border border-warning/40 bg-warning/10 p-3 space-y-2">
+                <div className="text-sm">Este produto já existe nesta sala (inativo). Deseja reativá-lo?</div>
+                <div className="text-xs text-muted-foreground">{existenteInativo.nome}</div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={reativarExistente} disabled={reativando}>
+                    {reativando ? "Reativando..." : "Reativar este produto"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setExistenteInativo(null)}>Cancelar</Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>
