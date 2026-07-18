@@ -1107,7 +1107,7 @@ export default function RelatoriosPage() {
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
-            <ChartCard title="Salas que mais solicitam (unidades)">
+            <ChartCard title="Salas que mais RECEBEM empréstimos — por UNIDADES">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[...empSalas].sort((a, b) => b.recebidos_unidades - a.recebidos_unidades).slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" />
