@@ -34,10 +34,13 @@ export default function NovoProdutoNaSalaDialog({
   });
   const [salaUnica, setSalaUnica] = useState<string>(salaPadrao ?? "");
   const [qtdInicial, setQtdInicial] = useState<number>(0);
+  const [validadeInicial, setValidadeInicial] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [sugestoes, setSugestoes] = useState<Array<{ id: string; nome: string }>>([]);
   const [showSugestoes, setShowSugestoes] = useState(false);
   const [pickedFromCatalogo, setPickedFromCatalogo] = useState(false);
+  const [existenteInativo, setExistenteInativo] = useState<{ produtoId: string; nome: string } | null>(null);
+  const [reativando, setReativando] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
