@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { AlertTriangle, Plus, FileSpreadsheet, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt, Scale as ScaleIcon } from "lucide-react";
+import { AlertTriangle, Plus, FileSpreadsheet, Pencil, Search, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertOctagon, CheckCircle2, Tag, Trash2, X, Calendar, ChevronDown, ChevronRight, TrendingUp, Receipt, Scale as ScaleIcon, Package } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import type { Sala, Produto, Categoria } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveSala } from "@/contexts/ActiveSalaContext";
@@ -60,7 +61,14 @@ export default function EstoquePage() {
   // Edição rápida do PRODUTO
   const [editProd, setEditProd] = useState<Produto | null>(null);
   const [editProdSala, setEditProdSala] = useState<Sala | null>(null);
-  const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "" });
+  const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "", custo_unitario: 0 });
+  const [editProdAtivo, setEditProdAtivo] = useState<boolean>(true);
+  const [togglingAtivo, setTogglingAtivo] = useState(false);
+  type LoteRow = { id: string; quantidade: number; validade: string | null; created_at: string };
+  const [lotes, setLotes] = useState<LoteRow[]>([]);
+  const [loadingLotes, setLoadingLotes] = useState(false);
+  const [editLoteValidade, setEditLoteValidade] = useState<Record<string, string>>({});
+  const [savingLoteId, setSavingLoteId] = useState<string | null>(null);
   const [savingProd, setSavingProd] = useState(false);
 
   // Avaliação patrimonial (dentro do editar produto)
@@ -360,11 +368,58 @@ export default function EstoquePage() {
       unidade: p.unidade ?? "Unidade",
       estoque_minimo: p.estoque_minimo ?? 0,
       descricao: p.descricao ?? "",
+      custo_unitario: Number((p as any).custo_unitario ?? 0),
     });
     setResumoAval(null);
     setHistAval([]);
-    if (sala && isMaster) loadAvalProduto(p.id, sala.id);
+    setLotes([]);
+    setEditLoteValidade({});
+    if (sala) {
+      const r = rows.find((rr) => rr.produto_id === p.id && rr.sala_id === sala.id);
+      setEditProdAtivo(r ? r.ativo : true);
+      loadLotesProduto(p.id, sala.id);
+      if (isMaster) loadAvalProduto(p.id, sala.id);
+    } else {
+      setEditProdAtivo(true);
+    }
   };
+
+  const loadLotesProduto = async (produtoId: string, salaId: string) => {
+    setLoadingLotes(true);
+    const { data } = await (supabase as any)
+      .from("lotes")
+      .select("id, quantidade, validade, created_at")
+      .eq("produto_id", produtoId)
+      .eq("sala_id", salaId)
+      .gt("quantidade", 0)
+      .order("validade", { ascending: true, nullsFirst: false });
+    setLotes((data as LoteRow[]) ?? []);
+    setLoadingLotes(false);
+  };
+
+  const salvarValidadeLote = async (loteId: string) => {
+    const nova = editLoteValidade[loteId];
+    setSavingLoteId(loteId);
+    const { error } = await (supabase as any).from("lotes").update({ validade: nova || null }).eq("id", loteId);
+    setSavingLoteId(null);
+    if (error) return toast.error(error.message);
+    toast.success("Validade do lote atualizada");
+    if (editProd && editProdSala) await loadLotesProduto(editProd.id, editProdSala.id);
+  };
+
+  const toggleAtivoSala = async (novo: boolean) => {
+    if (!editProd || !editProdSala) return;
+    setTogglingAtivo(true);
+    const { error } = await (supabase as any).rpc("toggle_produto_sala_ativo", {
+      _produto_id: editProd.id, _sala_id: editProdSala.id, _ativo: novo,
+    });
+    setTogglingAtivo(false);
+    if (error) return toast.error(error.message);
+    setEditProdAtivo(novo);
+    toast.success(novo ? "Produto ativado nesta sala" : "Produto inativado nesta sala");
+    load();
+  };
+
   const salvarProduto = async () => {
     if (!editProd) return;
     if (!editProdForm.nome.trim()) return toast.error("Nome obrigatório");
@@ -376,6 +431,7 @@ export default function EstoquePage() {
       unidade: (editProdForm.unidade || "Unidade").trim(),
       estoque_minimo: Number(editProdForm.estoque_minimo) || 0,
       descricao: editProdForm.descricao || null,
+      custo_unitario: Number(editProdForm.custo_unitario) || 0,
     }).eq("id", editProd.id);
     setSavingProd(false);
     if (error) return toast.error(error.message);
@@ -991,6 +1047,73 @@ export default function EstoquePage() {
               <Label>Observações / descrição</Label>
               <Textarea value={editProdForm.descricao} onChange={(e) => setEditProdForm({ ...editProdForm, descricao: e.target.value })} rows={3} />
             </div>
+
+            <div className="space-y-2">
+              <Label>Custo unitário (R$)</Label>
+              <Input type="number" min={0} step="0.01" value={editProdForm.custo_unitario}
+                onChange={(e) => setEditProdForm({ ...editProdForm, custo_unitario: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">Usado como valor de referência quando não há Custo Médio Ponderado (CMP) apurado por compras.</p>
+            </div>
+
+            {isMaster && editProdSala && (
+              <div className="rounded-md border p-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium">Ativo nesta sala</div>
+                  <div className="text-xs text-muted-foreground">Inativar oculta o produto para operações; o histórico é preservado.</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">Sala: {editProdSala.nome}</div>
+                </div>
+                <Switch checked={editProdAtivo} disabled={togglingAtivo} onCheckedChange={toggleAtivoSala} />
+              </div>
+            )}
+
+            {isMaster && editProdSala && (
+              <div className="rounded-md border p-3 space-y-2">
+                <div className="text-sm font-semibold flex items-center gap-1.5">
+                  <Package className="size-4 text-primary" /> Lotes e validades
+                  <span className="text-xs text-muted-foreground font-normal">· {editProdSala.nome}</span>
+                </div>
+                {loadingLotes ? (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="size-3 animate-spin" /> Carregando lotes…</div>
+                ) : lotes.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">Nenhum lote com saldo nesta sala.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Qtd</TableHead>
+                          <TableHead className="text-xs">Validade</TableHead>
+                          <TableHead className="text-xs w-[110px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {lotes.map((l) => {
+                          const atual = editLoteValidade[l.id] ?? (l.validade ? l.validade.slice(0, 10) : "");
+                          const orig = l.validade ? l.validade.slice(0, 10) : "";
+                          const mudou = atual !== orig;
+                          return (
+                            <TableRow key={l.id}>
+                              <TableCell className="font-mono text-xs">{l.quantidade}</TableCell>
+                              <TableCell>
+                                <Input type="date" value={atual}
+                                  onChange={(e) => setEditLoteValidade({ ...editLoteValidade, [l.id]: e.target.value })} />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button size="sm" variant="outline" disabled={!mudou || savingLoteId === l.id}
+                                  onClick={() => salvarValidadeLote(l.id)}>
+                                  {savingLoteId === l.id && <Loader2 className="size-3 animate-spin" />} Salvar
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground italic">A quantidade do lote é ajustada via entradas/saídas de estoque.</p>
+              </div>
+            )}
 
             {/* Seção: Avaliação Patrimonial (Master + sala definida) */}
             {isMaster && editProdSala && (() => {
