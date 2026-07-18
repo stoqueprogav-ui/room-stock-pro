@@ -1096,7 +1096,7 @@ export default function RelatoriosPage() {
             ))}
           </div>
           <div className="grid lg:grid-cols-2 gap-4">
-            <ChartCard title="Salas que mais emprestam (unidades)">
+            <ChartCard title="Salas que mais emprestam — por UNIDADES">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[...empSalas].sort((a, b) => b.emprestados_unidades - a.emprestados_unidades).slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -1107,7 +1107,7 @@ export default function RelatoriosPage() {
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
-            <ChartCard title="Salas que mais solicitam (unidades)">
+            <ChartCard title="Salas que mais RECEBEM empréstimos — por UNIDADES">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[...empSalas].sort((a, b) => b.recebidos_unidades - a.recebidos_unidades).slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -1139,8 +1139,8 @@ export default function RelatoriosPage() {
         <TabsContent value="ranking" className="mt-4 space-y-4">
           <RankCard title="Top 10 salas que mais requisitam" rows={reqPorSala.slice(0, 10).map((r) => ({ sala: r.sala_nome, total: r.total }))} valueLabel="Requisições" />
           <RankCard title="Top 10 salas com maior consumo (R$)" rows={consumoPorSala.slice(0, 10).map((r) => ({ sala: r.sala, total: r.valor }))} valueLabel="Valor" money />
-          <RankCard title="Top 10 salas que mais pegam empréstimos" rows={[...empSalas].sort((a, b) => b.recebidos_qtd - a.recebidos_qtd).slice(0, 10).map((r) => ({ sala: r.sala_nome, total: r.recebidos_qtd }))} valueLabel="Empréstimos" />
-          <RankCard title="Top 10 salas que mais emprestam" rows={[...empSalas].sort((a, b) => b.emprestados_qtd - a.emprestados_qtd).slice(0, 10).map((r) => ({ sala: r.sala_nome, total: r.emprestados_qtd }))} valueLabel="Empréstimos" />
+          <RankCard title="Top 10 salas que mais RECEBEM empréstimos (nº de operações)" rows={[...empSalas].sort((a, b) => b.recebidos_qtd - a.recebidos_qtd).slice(0, 10).map((r) => ({ sala: r.sala_nome, total: r.recebidos_qtd }))} valueLabel="empréstimos" />
+          <RankCard title="Top 10 salas com mais empréstimos FEITOS (nº de operações)" rows={[...empSalas].sort((a, b) => b.emprestados_qtd - a.emprestados_qtd).slice(0, 10).map((r) => ({ sala: r.sala_nome, total: r.emprestados_qtd }))} valueLabel="empréstimos" />
           <RankCard title="Top 10 salas com maior custo operacional (R$)" rows={consumoPorSala.slice(0, 10).map((r) => ({ sala: r.sala, total: r.valor }))} valueLabel="Valor" money />
         </TabsContent>
 
