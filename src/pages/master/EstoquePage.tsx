@@ -441,10 +441,23 @@ export default function EstoquePage() {
     load();
   };
 
-  const abrirAtualizarAval = () => {
+  const abrirAtualizarAval = async () => {
+    let atual = resumoAval;
+    if (!atual && editProd && editProdSala) {
+      setLoadingAval(true);
+      try {
+        const { data: r } = await (supabase as any).rpc("resumo_avaliacao_produto", {
+          _produto: editProd.id, _sala: editProdSala.id,
+        });
+        atual = (r?.[0] as ResumoAval) ?? null;
+        setResumoAval(atual);
+      } finally {
+        setLoadingAval(false);
+      }
+    }
     setUpdAvalForm({
-      valor: resumoAval?.valor_unitario ? String(resumoAval.valor_unitario) : "",
-      tipo: (resumoAval?.tipo as any) === "confirmado" ? "confirmado" : "estimado",
+      valor: atual?.valor_unitario ? String(atual.valor_unitario) : "",
+      tipo: (atual?.tipo as any) === "confirmado" ? "confirmado" : "estimado",
       motivo: MOTIVOS_AVAL[0],
       motivoOutro: "",
     });
@@ -457,6 +470,10 @@ export default function EstoquePage() {
     if (!Number.isFinite(valor) || valor < 0) return toast.error("Valor unitário inválido");
     const motivoFinal = updAvalForm.motivo === "Outro" ? updAvalForm.motivoOutro.trim() : updAvalForm.motivo;
     if (!motivoFinal) return toast.error("Motivo é obrigatório");
+    if (resumoAval?.tipo === "confirmado" && updAvalForm.tipo === "estimado") {
+      const ok = window.confirm("Você está mudando de Confirmado para Estimado. Confirma?");
+      if (!ok) return;
+    }
     setSavingAval(true);
     const { error } = await (supabase as any).rpc("atualizar_avaliacao_patrimonial_produto", {
       _produto: editProd.id,
@@ -472,6 +489,7 @@ export default function EstoquePage() {
     await loadAvalProduto(editProd.id, editProdSala.id);
     load();
   };
+
 
 
   // -------- Exclusão (sempre por sala; cada produto pertence exclusivamente a uma sala) --------
@@ -1222,6 +1240,20 @@ export default function EstoquePage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {resumoAval?.tem_avaliacao && (
+              <div className="text-xs rounded-md border bg-muted/40 px-3 py-2">
+                Avaliação atual:{" "}
+                <Badge variant={resumoAval.tipo === "confirmado" ? "default" : "secondary"} className="text-[10px]">
+                  {resumoAval.tipo === "confirmado" ? "Confirmado" : "Estimado"}
+                </Badge>
+                {typeof resumoAval.valor_unitario === "number" && (
+                  <span className="ml-2 text-muted-foreground">
+                    · R$ {Number(resumoAval.valor_unitario).toFixed(2)} /un
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Valor unitário (R$) *</Label>
