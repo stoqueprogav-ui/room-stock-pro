@@ -1362,8 +1362,10 @@ export default function EstoquePage() {
             salas={salas}
             categorias={categorias}
             produtos={rows.map((r) => r.produto)}
+            salaPadrao={masterScope.scopeSalaId ?? null}
             onDone={load}
           />
+
         </>
       )}
     </div>
