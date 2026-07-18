@@ -71,11 +71,26 @@ export default function NovoProdutoNaSalaDialog({
     setForm({ nome: "", descricao: "", unidade: "Unidade", estoque_minimo: 0, custo_unitario: 0, categoria_id: "" });
     setSalaUnica(salaPadrao ?? "");
     setQtdInicial(0);
+    setValidadeInicial("");
     setSugestoes([]);
     setShowSugestoes(false);
     setPickedFromCatalogo(false);
+    setExistenteInativo(null);
   };
 
+  const reativarExistente = async () => {
+    if (!existenteInativo) return;
+    setReativando(true);
+    const { error } = await (supabase as any).rpc("toggle_produto_sala_ativo", {
+      _produto_id: existenteInativo.produtoId, _sala_id: salaUnica, _ativo: true,
+    });
+    setReativando(false);
+    if (error) return toast.error(error.message);
+    toast.success("Produto reativado nesta sala");
+    reset();
+    onOpenChange(false);
+    onDone();
+  };
 
   const salvar = async () => {
     if (!form.nome.trim()) return toast.error("Nome obrigatório");
@@ -83,9 +98,8 @@ export default function NovoProdutoNaSalaDialog({
     if (!salaUnica) return toast.error("Selecione a sala vinculada ao produto");
 
     setSaving(true);
+    setExistenteInativo(null);
 
-    // Antes de inserir, se o usuário não escolheu na lista, verifica se a chave-forte
-    // já existe no catálogo e reaproveita o nome canônico para cair no mesmo catalogo_id.
     let nomeFinal = form.nome.trim();
     if (!pickedFromCatalogo) {
       const alvo = normalize(nomeFinal);
@@ -112,18 +126,36 @@ export default function NovoProdutoNaSalaDialog({
     if (error || !novo) {
       setSaving(false);
       const msg = (error?.message ?? "").toLowerCase();
-      if (msg.includes("uniq_produtos_catalogo_sala") || msg.includes("produtos_nome_sala") || (msg.includes("duplicate") && msg.includes("nome"))) {
+      const isDup = msg.includes("uniq_produtos_catalogo_sala") || msg.includes("produtos_nome_sala") || (msg.includes("duplicate") && msg.includes("nome"));
+      if (isDup) {
+        const alvo = normalize(nomeFinal);
+        const { data: prods } = await supabase
+          .from("produtos")
+          .select("id, nome")
+          .eq("sala_id", salaUnica);
+        const existente = (prods ?? []).find((p: any) => normalize(p.nome) === alvo);
+        if (existente) {
+          setExistenteInativo({ produtoId: existente.id, nome: existente.nome });
+          return;
+        }
         return toast.error("Já existe um produto com este nome nesta sala.");
       }
       return toast.error(error?.message ?? "Erro ao criar produto");
     }
 
     if (Number(qtdInicial) > 0) {
-      const { error: e2 } = await supabase.rpc("ajustar_estoque", {
-        _produto: novo.id, _sala: salaUnica,
-        _quantidade: Number(qtdInicial), _observacao: "Estoque inicial no cadastro",
-      });
-      if (e2) toast.error(`Produto criado, mas falhou o ajuste inicial: ${e2.message}`);
+      const { error: e2 } = await supabase.rpc("registrar_entrada_estoque", {
+        _produto: novo.id,
+        _sala: salaUnica,
+        _quantidade: Number(qtdInicial),
+        _valor_unitario: Number(form.custo_unitario) || 0,
+        _fornecedor: null,
+        _numero_nf: null,
+        _data_entrada: new Date().toISOString(),
+        _observacao: "Estoque inicial no cadastro",
+        _validade: validadeInicial || null,
+      } as any);
+      if (e2) toast.error(`Produto criado, mas falhou a entrada inicial: ${e2.message}`);
     }
 
     setSaving(false);
@@ -132,6 +164,7 @@ export default function NovoProdutoNaSalaDialog({
     onOpenChange(false);
     onDone();
   };
+
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
