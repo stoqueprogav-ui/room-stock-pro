@@ -123,6 +123,15 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
       (!!activeSalaId && activeSalaId === e.sala_destino_id)
     );
 
+  const podeCancelar = (e: Emp) => podeEditar(e);
+
+  const cancelar = async (id: string) => {
+    const { error } = await supabase.rpc("cancelar_emprestimo" as any, { _emp: id });
+    if (error) return toast.error(error.message);
+    toast.success("Pedido de empréstimo cancelado");
+    await load();
+  };
+
   const pendenteTotal = (e: Emp) =>
     (e.itens ?? []).reduce((s, it) => s + (it.quantidade - (it.quantidade_devolvida ?? 0)), 0);
 
@@ -210,9 +219,11 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
               role={role}
               podeDecidir={podeDecidir(e)}
               podeEditar={podeEditar(e)}
+              podeCancelar={podeCancelar(e)}
               pendente={pendenteTotal(e)}
               onRevisar={() => setRevisarId(e.id)}
               onEditar={() => setEditarId(e.id)}
+              onCancelar={() => cancelar(e.id)}
               onAprovar={() => decidir(e.id, true)}
               onRejeitar={() => decidir(e.id, false)}
               onDevolver={() => setDevolverId(e.id)}
@@ -262,11 +273,11 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
 }
 
 function EmprestimoCard({
-  e, tab, role, podeDecidir, podeEditar, pendente,
-  onRevisar, onEditar, onAprovar, onRejeitar, onDevolver, onArquivarAprovado, onArquivarRejeitado, onImprimir, onChat,
+  e, tab, role, podeDecidir, podeEditar, podeCancelar, pendente,
+  onRevisar, onEditar, onCancelar, onAprovar, onRejeitar, onDevolver, onArquivarAprovado, onArquivarRejeitado, onImprimir, onChat,
 }: {
-  e: Emp; tab: string; role: string | null; podeDecidir: boolean; podeEditar: boolean; pendente: number;
-  onRevisar: () => void; onEditar: () => void; onAprovar: () => void; onRejeitar: () => void;
+  e: Emp; tab: string; role: string | null; podeDecidir: boolean; podeEditar: boolean; podeCancelar: boolean; pendente: number;
+  onRevisar: () => void; onEditar: () => void; onCancelar: () => void; onAprovar: () => void; onRejeitar: () => void;
   onDevolver: () => void; onArquivarAprovado: () => void; onArquivarRejeitado: () => void;
   onImprimir: () => void; onChat: () => void;
 }) {
@@ -320,6 +331,11 @@ function EmprestimoCard({
                 )}
                 {podeEditar && (
                   <Button size="sm" variant="outline" onClick={onEditar} title="Editar solicitação"><Pencil className="size-4" /> Editar</Button>
+                )}
+                {podeCancelar && (
+                  <Button size="sm" variant="outline" className="text-destructive" onClick={onCancelar} title="Cancelar pedido">
+                    <X className="size-4" /> Cancelar
+                  </Button>
                 )}
               </>
             )}
