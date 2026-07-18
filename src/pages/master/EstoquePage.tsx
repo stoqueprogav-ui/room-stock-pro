@@ -441,10 +441,23 @@ export default function EstoquePage() {
     load();
   };
 
-  const abrirAtualizarAval = () => {
+  const abrirAtualizarAval = async () => {
+    let atual = resumoAval;
+    if (!atual && editProd && editProdSala) {
+      setLoadingAval(true);
+      try {
+        const { data: r } = await (supabase as any).rpc("resumo_avaliacao_produto", {
+          _produto: editProd.id, _sala: editProdSala.id,
+        });
+        atual = (r?.[0] as ResumoAval) ?? null;
+        setResumoAval(atual);
+      } finally {
+        setLoadingAval(false);
+      }
+    }
     setUpdAvalForm({
-      valor: resumoAval?.valor_unitario ? String(resumoAval.valor_unitario) : "",
-      tipo: (resumoAval?.tipo as any) === "confirmado" ? "confirmado" : "estimado",
+      valor: atual?.valor_unitario ? String(atual.valor_unitario) : "",
+      tipo: (atual?.tipo as any) === "confirmado" ? "confirmado" : "estimado",
       motivo: MOTIVOS_AVAL[0],
       motivoOutro: "",
     });
@@ -457,6 +470,10 @@ export default function EstoquePage() {
     if (!Number.isFinite(valor) || valor < 0) return toast.error("Valor unitário inválido");
     const motivoFinal = updAvalForm.motivo === "Outro" ? updAvalForm.motivoOutro.trim() : updAvalForm.motivo;
     if (!motivoFinal) return toast.error("Motivo é obrigatório");
+    if (resumoAval?.tipo === "confirmado" && updAvalForm.tipo === "estimado") {
+      const ok = window.confirm("Você está mudando de Confirmado para Estimado. Confirma?");
+      if (!ok) return;
+    }
     setSavingAval(true);
     const { error } = await (supabase as any).rpc("atualizar_avaliacao_patrimonial_produto", {
       _produto: editProd.id,
@@ -472,6 +489,7 @@ export default function EstoquePage() {
     await loadAvalProduto(editProd.id, editProdSala.id);
     load();
   };
+
 
 
   // -------- Exclusão (sempre por sala; cada produto pertence exclusivamente a uma sala) --------
