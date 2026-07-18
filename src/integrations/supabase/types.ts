@@ -2149,6 +2149,7 @@ export type Database = {
         Args: { _conv: string; _user: string }
         Returns: boolean
       }
+      cancelar_emprestimo: { Args: { _emp: string }; Returns: undefined }
       catalogo_disponibilidade: {
         Args: {
           _catalogo: string
