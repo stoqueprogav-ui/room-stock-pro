@@ -61,7 +61,14 @@ export default function EstoquePage() {
   // Edição rápida do PRODUTO
   const [editProd, setEditProd] = useState<Produto | null>(null);
   const [editProdSala, setEditProdSala] = useState<Sala | null>(null);
-  const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "" });
+  const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "", custo_unitario: 0 });
+  const [editProdAtivo, setEditProdAtivo] = useState<boolean>(true);
+  const [togglingAtivo, setTogglingAtivo] = useState(false);
+  type LoteRow = { id: string; quantidade: number; validade: string | null; created_at: string };
+  const [lotes, setLotes] = useState<LoteRow[]>([]);
+  const [loadingLotes, setLoadingLotes] = useState(false);
+  const [editLoteValidade, setEditLoteValidade] = useState<Record<string, string>>({});
+  const [savingLoteId, setSavingLoteId] = useState<string | null>(null);
   const [savingProd, setSavingProd] = useState(false);
 
   // Avaliação patrimonial (dentro do editar produto)
