@@ -1096,7 +1096,7 @@ export default function RelatoriosPage() {
             ))}
           </div>
           <div className="grid lg:grid-cols-2 gap-4">
-            <ChartCard title="Salas que mais emprestam (unidades)">
+            <ChartCard title="Salas que mais emprestam — por UNIDADES">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[...empSalas].sort((a, b) => b.emprestados_unidades - a.emprestados_unidades).slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" />
