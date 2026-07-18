@@ -1,28 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, Upload, Loader2, CheckCircle2, AlertTriangle, Copy } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Sala, Categoria, Produto } from "@/lib/types";
 
-type RowStatus = "novo" | "atualizar" | "duplicado" | "erro";
 type Row = {
-  produto: string;
+  nome: string;
   categoria: string;
-  quantidade: number;
   unidade: string;
-  _status: RowStatus;
-  _msg?: string;
-  _include: boolean;
-  _matchedProdutoId?: string;
+  custo: string;
+  quantidade: string;
+  validade: string; // DD/MM/AAAA
+};
+
+type Analyzed = Row & {
+  _errors: string[];
+  _warnings: string[];
+  _categoriaId?: string | null;
+  _custoNum: number;
+  _qtdNum: number;
+  _validadeIso: string | null; // yyyy-mm-dd or null
+  _existingProdutoId?: string | null;
+  _existingAtivo?: boolean;
 };
 
 type Props = {
@@ -31,308 +38,424 @@ type Props = {
   salas: Sala[];
   categorias: Categoria[];
   produtos: Produto[];
+  salaPadrao?: string | null;
   onDone: () => void;
 };
 
 const norm = (s: any) => String(s ?? "").trim();
 const lower = (s: any) => norm(s).toLowerCase();
-const dedupeKey = (nome: string, categoria: string) => `${lower(nome)}|${lower(categoria)}`;
+const normalizeName = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
-const COL_ALIASES: Record<"produto" | "categoria" | "quantidade" | "unidade", string[]> = {
-  produto: ["produto", "nome", "item", "descricao", "descrição"],
-  categoria: ["categoria", "grupo", "tipo"],
-  quantidade: ["quantidade", "qtd", "qtde", "estoque"],
-  unidade: ["unidade", "un", "und", "medida"],
-};
-
-function pickKey(headers: string[], aliases: string[]) {
-  const lowered = headers.map((h) => lower(h));
-  for (const a of aliases) {
-    const i = lowered.indexOf(a);
-    if (i >= 0) return headers[i];
-  }
-  return null;
+function parseNumberBR(v: string): number | null {
+  const s = norm(v).replace(/\./g, "").replace(",", ".");
+  if (s === "") return 0;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
 }
 
-export default function ImportarProdutosDialog({ open, onOpenChange, salas, categorias, produtos, onDone }: Props) {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [salaDestino, setSalaDestino] = useState<string>("none");
+function parseDateBR(v: string): { iso: string | null; error: boolean } {
+  const s = norm(v);
+  if (!s) return { iso: null, error: false };
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return { iso: null, error: true };
+  const dd = Number(m[1]);
+  const mm = Number(m[2]);
+  const yyyy = Number(m[3]);
+  const d = new Date(yyyy, mm - 1, dd);
+  if (d.getFullYear() !== yyyy || d.getMonth() !== mm - 1 || d.getDate() !== dd) return { iso: null, error: true };
+  const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
+  return { iso, error: false };
+}
+
+const EMPTY_ROW = (): Row => ({ nome: "", categoria: "", unidade: "Unidade", custo: "", quantidade: "", validade: "" });
+
+const HEADER_LABEL = "Nome\tCategoria\tUnidade\tCusto unitário\tQuantidade\tValidade";
+
+function parseColada(text: string): Row[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+  if (lines.length === 0) return [];
+  const parseLine = (line: string): string[] => {
+    if (line.includes("\t")) return line.split("\t");
+    // CSV simples (sem aspas complexas)
+    return line.split(",");
+  };
+  const first = parseLine(lines[0]).map((c) => lower(c));
+  const looksLikeHeader = first.some((c) => ["nome", "produto", "categoria", "quantidade", "custo", "custo unitário", "validade"].includes(c));
+  const dataLines = looksLikeHeader ? lines.slice(1) : lines;
+  return dataLines.map((line) => {
+    const cols = parseLine(line);
+    return {
+      nome: norm(cols[0]),
+      categoria: norm(cols[1]),
+      unidade: norm(cols[2]) || "Unidade",
+      custo: norm(cols[3]),
+      quantidade: norm(cols[4]),
+      validade: norm(cols[5]),
+    };
+  });
+}
+
+export default function ImportarProdutosDialog({
+  open, onOpenChange, salas, categorias, produtos, salaPadrao, onDone,
+}: Props) {
+  const [rows, setRows] = useState<Row[]>([EMPTY_ROW()]);
+  const [pasted, setPasted] = useState("");
+  const [salaDestino, setSalaDestino] = useState<string>(salaPadrao ?? "");
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [resumo, setResumo] = useState<{ criados: number; entradas: number; ignoradas: Array<{ nome: string; motivo: string }> } | null>(null);
 
-  const reset = () => { setRows([]); setSalaDestino("none"); setProgress(null); };
+  useEffect(() => {
+    if (open) {
+      setSalaDestino(salaPadrao ?? "");
+      setResumo(null);
+    }
+  }, [open, salaPadrao]);
 
-  const baixarModelo = () => {
-    const ws = XLSX.utils.aoa_to_sheet([
-      ["Produto", "Categoria", "Quantidade", "Unidade"],
-      ["Coca-Cola 350ml", "Bar", 24, "un"],
-      ["Detergente", "Limpeza", 5, "un"],
-      ["Papel A4", "Administração", 2, "rs"],
-    ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Produtos");
-    XLSX.writeFile(wb, "modelo-importacao-produtos.xlsx");
-  };
+  const reset = () => { setRows([EMPTY_ROW()]); setPasted(""); setProgress(null); setResumo(null); };
 
-  // Reanalisa quando muda sala destino (matching considera sala)
-  const analyze = (parsed: Row[], salaId: string) => {
-    // Index produtos por nome (global ou da sala alvo)
-    const produtosByName = new Map<string, Produto>();
+  const catsByLower = useMemo(() => {
+    const m = new Map<string, Categoria>();
+    for (const c of categorias) m.set(lower(c.nome), c);
+    return m;
+  }, [categorias]);
+
+  const prodsSalaByNorm = useMemo(() => {
+    const m = new Map<string, { id: string; ativo: boolean }>();
+    if (!salaDestino) return m;
     for (const p of produtos) {
-      if (p.sala_id == null || (salaId !== "none" && p.sala_id === salaId)) {
-        // produto da sala-alvo tem prioridade sobre global
-        const cur = produtosByName.get(lower(p.nome));
-        if (!cur || (cur.sala_id == null && p.sala_id != null)) {
-          produtosByName.set(lower(p.nome), p);
-        }
+      if ((p as any).sala_id === salaDestino) {
+        m.set(normalizeName(p.nome), { id: p.id, ativo: (p as any).ativo !== false });
       }
     }
+    return m;
+  }, [produtos, salaDestino]);
 
-    const seen = new Map<string, number>(); // dedupeKey -> primeira ocorrência (índice)
-    return parsed.map((r, idx) => {
-      const out: Row = { ...r };
-      if (!out.produto) { out._status = "erro"; out._msg = "Sem nome"; out._include = false; return out; }
-      if (out.quantidade < 0) { out._status = "erro"; out._msg = "Quantidade negativa"; out._include = false; return out; }
+  const analyzed: Analyzed[] = useMemo(() => {
+    return rows.map((r) => {
+      const errors: string[] = [];
+      const warnings: string[] = [];
+      const nome = norm(r.nome);
+      if (!nome) errors.push("Nome vazio");
 
-      const key = dedupeKey(out.produto, out.categoria);
-      const firstIdx = seen.get(key);
-      if (firstIdx !== undefined) {
-        out._status = "duplicado";
-        out._msg = `Duplicado da linha ${firstIdx + 1}`;
-        out._include = false;
-        return out;
+      let categoriaId: string | null | undefined = undefined;
+      if (nome) {
+        if (!r.categoria) {
+          errors.push("Categoria vazia");
+        } else {
+          const cat = catsByLower.get(lower(r.categoria));
+          if (!cat) errors.push(`Categoria "${r.categoria}" não existe`);
+          else categoriaId = cat.id;
+        }
       }
-      seen.set(key, idx);
 
-      const existing = produtosByName.get(lower(out.produto));
-      if (existing) {
-        out._status = "atualizar";
-        out._matchedProdutoId = existing.id;
-      } else {
-        out._status = "novo";
+      const custoN = parseNumberBR(r.custo);
+      if (custoN === null || custoN < 0) errors.push("Custo inválido");
+
+      const qtdN = parseNumberBR(r.quantidade);
+      if (qtdN === null || qtdN < 0) errors.push("Quantidade inválida");
+
+      const val = parseDateBR(r.validade);
+      if (val.error) errors.push("Validade inválida (use DD/MM/AAAA)");
+
+      let existingId: string | null = null;
+      let existingAtivo = true;
+      if (nome && salaDestino) {
+        const found = prodsSalaByNorm.get(normalizeName(nome));
+        if (found) {
+          existingId = found.id;
+          existingAtivo = found.ativo;
+          if (!existingAtivo) warnings.push("Existe inativo — será reativado");
+          else warnings.push("Existe — nova entrada será adicionada");
+        }
       }
-      out._include = true;
-      return out;
+
+      return {
+        ...r,
+        _errors: errors,
+        _warnings: warnings,
+        _categoriaId: categoriaId ?? null,
+        _custoNum: custoN ?? 0,
+        _qtdNum: qtdN ?? 0,
+        _validadeIso: val.iso,
+        _existingProdutoId: existingId,
+        _existingAtivo: existingAtivo,
+      };
     });
+  }, [rows, catsByLower, prodsSalaByNorm, salaDestino]);
+
+  const validasCount = analyzed.filter((a) => a._errors.length === 0 && norm(a.nome)).length;
+  const errosCount = analyzed.filter((a) => a._errors.length > 0).length;
+
+  const aplicarColagem = () => {
+    const parsed = parseColada(pasted);
+    if (parsed.length === 0) { toast.error("Nada para importar. Cole linhas TSV/CSV."); return; }
+    setRows(parsed);
+    toast.success(`${parsed.length} linha(s) carregada(s)`);
   };
 
-  // Re-analisa quando salaDestino muda
-  useEffect(() => {
-    if (rows.length === 0) return;
-    setRows((prev) => analyze(prev.map(({ _status, _msg, _include, _matchedProdutoId, ...rest }) => ({
-      ...rest, _status: "novo", _include: true,
-    } as Row)), salaDestino));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [salaDestino]);
-
-  const handleFile = async (file: File) => {
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const json: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    if (json.length === 0) { toast.error("Planilha vazia"); return; }
-
-    const headers = Object.keys(json[0]);
-    const kProd = pickKey(headers, COL_ALIASES.produto);
-    const kCat = pickKey(headers, COL_ALIASES.categoria);
-    const kQtd = pickKey(headers, COL_ALIASES.quantidade);
-    const kUn = pickKey(headers, COL_ALIASES.unidade);
-    if (!kProd) { toast.error("Coluna 'Produto' não encontrada"); return; }
-
-    const parsed: Row[] = json.map((r) => ({
-      produto: norm(r[kProd]),
-      categoria: kCat ? norm(r[kCat]) : "",
-      quantidade: kQtd ? Number(String(r[kQtd]).replace(",", ".")) || 0 : 0,
-      unidade: kUn ? norm(r[kUn]) || "un" : "un",
-      _status: "novo" as RowStatus,
-      _include: true,
-    }));
-
-    const analyzed = analyze(parsed, salaDestino);
-    setRows(analyzed);
-    toast.success(`${analyzed.length} linha(s) carregada(s)`);
+  const updateCell = (idx: number, key: keyof Row, value: string) => {
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [key]: value } : r)));
   };
-
-  const toggleInclude = (idx: number) => {
-    setRows((prev) => prev.map((r, i) => i === idx ? { ...r, _include: !r._include } : r));
-  };
-
-  const stats = useMemo(() => {
-    const inc = rows.filter((r) => r._include);
-    return {
-      total: rows.length,
-      novos: inc.filter((r) => r._status === "novo").length,
-      atualizar: inc.filter((r) => r._status === "atualizar").length,
-      duplicados: rows.filter((r) => r._status === "duplicado").length,
-      erros: rows.filter((r) => r._status === "erro").length,
-      catsNovas: Array.from(new Set(inc
-        .filter((r) => r.categoria && !categorias.find((c) => lower(c.nome) === lower(r.categoria)))
-        .map((r) => r.categoria))),
-    };
-  }, [rows, categorias]);
+  const addRow = () => setRows((prev) => [...prev, EMPTY_ROW()]);
+  const removeRow = (idx: number) => setRows((prev) => prev.filter((_, i) => i !== idx));
 
   const importar = async () => {
-    const validRows = rows.filter((r) => r._include && (r._status === "novo" || r._status === "atualizar"));
-    if (validRows.length === 0) { toast.error("Nenhuma linha selecionada para importar"); return; }
+    if (!salaDestino) { toast.error("Selecione a sala destino"); return; }
+    const validas = analyzed.filter((a) => a._errors.length === 0 && norm(a.nome));
+    if (validas.length === 0) { toast.error("Nenhuma linha válida para importar"); return; }
+
     setLoading(true);
+    setProgress({ done: 0, total: validas.length });
+    let criados = 0;
+    let entradas = 0;
+    const ignoradas: Array<{ nome: string; motivo: string }> = [];
 
     try {
-      const catsByName = new Map(categorias.map((c) => [lower(c.nome), c]));
-      for (const nome of stats.catsNovas) {
-        const { data, error } = await supabase.from("categorias").insert({ nome }).select("id, nome").single();
-        if (!error && data) catsByName.set(lower(data.nome), data as Categoria);
-      }
+      for (let i = 0; i < validas.length; i++) {
+        const r = validas[i];
+        try {
+          let produtoId = r._existingProdutoId ?? null;
 
-      let done = 0;
-      setProgress({ done: 0, total: validRows.length });
-
-      for (const r of validRows) {
-        const cat = r.categoria ? catsByName.get(lower(r.categoria)) : null;
-        let prodId = r._matchedProdutoId;
-
-        if (prodId) {
-          const existing = produtos.find((p) => p.id === prodId);
-          await supabase.from("produtos").update({
-            unidade: r.unidade || existing?.unidade || "un",
-            categoria_id: cat?.id ?? existing?.categoria_id ?? null,
-            ativo: true,
-          }).eq("id", prodId);
-        } else {
-          if (salaDestino === "none") {
-            r._status = "erro"; r._msg = "Selecione uma sala destino para importar novos produtos"; continue;
+          // Reativar se necessário
+          if (produtoId && r._existingAtivo === false) {
+            await (supabase as any).rpc("toggle_produto_sala_ativo", {
+              _produto_id: produtoId, _sala_id: salaDestino, _ativo: true,
+            });
           }
-          const { data, error } = await supabase.from("produtos").insert({
-            nome: r.produto,
-            unidade: r.unidade || "un",
-            categoria_id: cat?.id ?? null,
-            sala_id: salaDestino,
-          } as any).select("id").single();
-          if (error || !data) { r._status = "erro"; r._msg = error?.message; continue; }
-          prodId = data.id;
-        }
 
-        if (salaDestino !== "none" && prodId && r.quantidade > 0) {
-          await supabase.rpc("ajustar_estoque", {
-            _produto: prodId, _sala: salaDestino,
-            _quantidade: r.quantidade,
-            _observacao: "Importação de planilha",
-          });
-        }
+          // Criar se não existe
+          if (!produtoId) {
+            // Reaproveita nome exato do catálogo por chave normalizada
+            let nomeFinal = norm(r.nome);
+            const alvo = normalizeName(nomeFinal);
+            if (alvo.length > 0) {
+              const { data: catalogos } = await supabase
+                .from("produtos_catalogo")
+                .select("id, nome");
+              const match = (catalogos ?? []).find((c: any) => normalizeName(c.nome) === alvo);
+              if (match) nomeFinal = match.nome;
+            }
 
-        done++;
-        setProgress({ done, total: validRows.length });
+            const { data: novo, error } = await supabase.from("produtos").insert({
+              nome: nomeFinal,
+              unidade: (r.unidade || "Unidade").trim(),
+              categoria_id: r._categoriaId,
+              custo_unitario: r._custoNum,
+              estoque_minimo: 0,
+              sala_id: salaDestino,
+            } as any).select("id").single();
+
+            if (error || !novo) {
+              // Trata caso em que existe (talvez inativo) — busca e reativa
+              const { data: prods } = await supabase
+                .from("produtos")
+                .select("id, ativo")
+                .eq("sala_id", salaDestino);
+              const existente = (prods ?? []).find((p: any) => normalizeName((p as any).nome ?? "") === alvo);
+              // fallback: busca por nome
+              const { data: prods2 } = existente ? { data: null } : await supabase
+                .from("produtos")
+                .select("id, nome, ativo")
+                .eq("sala_id", salaDestino)
+                .ilike("nome", nomeFinal);
+              const alvoRow: any = existente ?? (prods2 ?? []).find((p: any) => normalizeName(p.nome) === alvo);
+              if (alvoRow?.id) {
+                produtoId = alvoRow.id;
+                if (alvoRow.ativo === false) {
+                  await (supabase as any).rpc("toggle_produto_sala_ativo", {
+                    _produto_id: produtoId, _sala_id: salaDestino, _ativo: true,
+                  });
+                }
+              } else {
+                ignoradas.push({ nome: r.nome, motivo: error?.message ?? "Falha ao criar produto" });
+                setProgress({ done: i + 1, total: validas.length });
+                continue;
+              }
+            } else {
+              produtoId = novo.id;
+              criados++;
+            }
+          }
+
+          // Entrada de estoque valorizada + lote
+          if (produtoId && r._qtdNum > 0) {
+            const { error: e2 } = await supabase.rpc("registrar_entrada_estoque", {
+              _produto: produtoId,
+              _sala: salaDestino,
+              _quantidade: r._qtdNum,
+              _valor_unitario: r._custoNum,
+              _fornecedor: null,
+              _numero_nf: null,
+              _data_entrada: new Date().toISOString(),
+              _observacao: "Importação",
+              _validade: r._validadeIso,
+            } as any);
+            if (e2) {
+              ignoradas.push({ nome: r.nome, motivo: `Entrada falhou: ${e2.message}` });
+            } else {
+              entradas++;
+            }
+          }
+        } catch (e: any) {
+          ignoradas.push({ nome: r.nome, motivo: e?.message ?? "Erro" });
+        }
+        setProgress({ done: i + 1, total: validas.length });
       }
 
-      toast.success(`Importação concluída: ${done} produto(s) processado(s)`);
-      reset();
-      onOpenChange(false);
+      // Linhas com erro na pré-visualização também entram no resumo
+      for (const a of analyzed) {
+        if (a._errors.length > 0 && norm(a.nome)) {
+          ignoradas.push({ nome: a.nome, motivo: a._errors.join("; ") });
+        } else if (!norm(a.nome) && (a.categoria || a.custo || a.quantidade || a.validade)) {
+          ignoradas.push({ nome: "(sem nome)", motivo: "Nome vazio" });
+        }
+      }
+
+      setResumo({ criados, entradas, ignoradas });
+      toast.success(`Importação concluída: ${criados} criado(s), ${entradas} entrada(s)`);
       onDone();
     } catch (e: any) {
       toast.error(e?.message ?? "Erro na importação");
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!loading) { onOpenChange(v); if (!v) reset(); } }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Importar produtos de planilha</DialogTitle>
+          <DialogTitle>Importar produtos com estoque e validade</DialogTitle>
           <DialogDescription>
-            Aceita .xlsx ou .csv com colunas <b>Produto</b>, <b>Categoria</b>, <b>Quantidade</b>, <b>Unidade</b>.
-            Duplicados e produtos já cadastrados são detectados automaticamente.
+            Cole linhas de planilha (TSV/CSV) ou preencha a grade. Colunas:
+            <br /><code className="text-xs">{HEADER_LABEL.replace(/\t/g, "  |  ")}</code>
+            <br />Cada linha vira, na sala destino, um produto (se novo) e uma <strong>entrada valorizada</strong> com lote (se quantidade &gt; 0). Validade opcional em DD/MM/AAAA.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={baixarModelo}>
-            <Download className="size-4" /> Baixar modelo
-          </Button>
-          <Label htmlFor="file" className="cursor-pointer">
-            <div className="inline-flex items-center gap-2 rounded-md border bg-background px-3 h-9 text-sm hover:bg-muted">
-              <Upload className="size-4" /> Selecionar planilha
+        {resumo ? (
+          <div className="space-y-3">
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="text-sm font-medium">Resumo da importação</div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge className="bg-success/15 text-success border border-success/30">{resumo.criados} produto(s) criado(s)</Badge>
+                <Badge className="bg-primary/15 text-primary border border-primary/30">{resumo.entradas} entrada(s) adicionada(s)</Badge>
+                {resumo.ignoradas.length > 0 && <Badge variant="destructive">{resumo.ignoradas.length} linha(s) ignorada(s)</Badge>}
+              </div>
+              {resumo.ignoradas.length > 0 && (
+                <div className="text-xs max-h-40 overflow-y-auto border rounded p-2 bg-muted/30">
+                  {resumo.ignoradas.map((it, i) => (
+                    <div key={i}><strong>{it.nome}</strong>: {it.motivo}</div>
+                  ))}
+                </div>
+              )}
             </div>
-          </Label>
-          <Input id="file" type="file" accept=".xlsx,.xls,.csv" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
-        </div>
-
-        {rows.length > 0 && (
+            <DialogFooter>
+              <Button variant="outline" onClick={reset}>Nova importação</Button>
+              <Button onClick={() => { onOpenChange(false); reset(); }}>Fechar</Button>
+            </DialogFooter>
+          </div>
+        ) : (
           <>
             <div className="space-y-2">
-              <Label>Atualizar estoque na sala (opcional)</Label>
+              <Label>Sala destino *</Label>
               <Select value={salaDestino} onValueChange={setSalaDestino}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecione a sala destino" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">— não atualizar estoque —</SelectItem>
                   {salas.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">A detecção de duplicados considera a sala selecionada.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Colar da planilha (TSV/CSV)</Label>
+              <Textarea
+                rows={4}
+                placeholder={`${HEADER_LABEL}\nCoca-Cola 350ml\tBar\tUnidade\t3,50\t24\t31/12/2026`}
+                value={pasted}
+                onChange={(e) => setPasted(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={aplicarColagem}>Carregar linhas coladas</Button>
+                <Button size="sm" variant="ghost" onClick={() => setRows([EMPTY_ROW()])}>Limpar grade</Button>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2 text-xs">
-              <Badge className="bg-success/15 text-success border border-success/30">Novos: {stats.novos}</Badge>
-              <Badge className="bg-primary/15 text-primary border border-primary/30">Atualizar: {stats.atualizar}</Badge>
-              {stats.duplicados > 0 && <Badge variant="outline" className="border-warning/40 text-warning">Duplicados: {stats.duplicados}</Badge>}
-              {stats.erros > 0 && <Badge variant="destructive">Erros: {stats.erros}</Badge>}
-              {stats.catsNovas.length > 0 && (
-                <Badge variant="outline">Categorias novas: {stats.catsNovas.join(", ")}</Badge>
-              )}
+              <Badge className="bg-success/15 text-success border border-success/30">Válidas: {validasCount}</Badge>
+              {errosCount > 0 && <Badge variant="destructive">Com erro: {errosCount}</Badge>}
+              {!salaDestino && <Badge variant="outline" className="border-warning/40 text-warning">Selecione a sala destino</Badge>}
             </div>
 
-            <div className="border rounded-md max-h-72 overflow-y-auto">
+            <div className="border rounded-md max-h-[46vh] overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10"></TableHead>
-                    <TableHead>Produto</TableHead>
+                    <TableHead>Nome</TableHead>
                     <TableHead>Categoria</TableHead>
+                    <TableHead>Unidade</TableHead>
+                    <TableHead className="text-right">Custo unit.</TableHead>
                     <TableHead className="text-right">Qtd</TableHead>
-                    <TableHead>Un</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Validade</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.slice(0, 300).map((r, i) => (
-                    <TableRow key={i} className={r._status === "erro" || r._status === "duplicado" ? "opacity-60" : ""}>
-                      <TableCell>
-                        <Checkbox
-                          checked={r._include}
-                          disabled={r._status === "erro"}
-                          onCheckedChange={() => toggleInclude(i)}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{r.produto}</TableCell>
-                      <TableCell>{r.categoria || "—"}</TableCell>
-                      <TableCell className="text-right font-mono">{r.quantidade}</TableCell>
-                      <TableCell>{r.unidade}</TableCell>
-                      <TableCell className="text-xs">
-                        {r._status === "novo" && <span className="inline-flex items-center gap-1 text-success"><CheckCircle2 className="size-3" /> Novo</span>}
-                        {r._status === "atualizar" && <span className="text-primary">Atualizar existente</span>}
-                        {r._status === "duplicado" && <span className="inline-flex items-center gap-1 text-warning"><Copy className="size-3" /> {r._msg}</span>}
-                        {r._status === "erro" && <span className="inline-flex items-center gap-1 text-destructive"><AlertTriangle className="size-3" /> {r._msg}</span>}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {analyzed.map((a, i) => {
+                    const invalid = a._errors.length > 0;
+                    return (
+                      <TableRow key={i} className={invalid ? "bg-destructive/5" : ""}>
+                        <TableCell><Input value={a.nome} onChange={(e) => updateCell(i, "nome", e.target.value)} className="h-8" /></TableCell>
+                        <TableCell><Input value={a.categoria} onChange={(e) => updateCell(i, "categoria", e.target.value)} className="h-8" /></TableCell>
+                        <TableCell><Input value={a.unidade} onChange={(e) => updateCell(i, "unidade", e.target.value)} className="h-8 w-24" /></TableCell>
+                        <TableCell><Input value={a.custo} onChange={(e) => updateCell(i, "custo", e.target.value)} className="h-8 w-24 text-right" placeholder="0,00" /></TableCell>
+                        <TableCell><Input value={a.quantidade} onChange={(e) => updateCell(i, "quantidade", e.target.value)} className="h-8 w-20 text-right" placeholder="0" /></TableCell>
+                        <TableCell><Input value={a.validade} onChange={(e) => updateCell(i, "validade", e.target.value)} className="h-8 w-32" placeholder="DD/MM/AAAA" /></TableCell>
+                        <TableCell className="text-xs">
+                          {invalid && (
+                            <span className="inline-flex items-center gap-1 text-destructive">
+                              <AlertTriangle className="size-3" /> {a._errors.join("; ")}
+                            </span>
+                          )}
+                          {!invalid && a._warnings.length > 0 && (
+                            <span className="text-warning">{a._warnings.join("; ")}</span>
+                          )}
+                          {!invalid && a._warnings.length === 0 && norm(a.nome) && (
+                            <span className="inline-flex items-center gap-1 text-success"><CheckCircle2 className="size-3" /> Novo</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button size="icon" variant="ghost" onClick={() => removeRow(i)} className="h-7 w-7">
+                            <Trash2 className="size-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
-              {rows.length > 300 && <div className="text-xs text-muted-foreground text-center py-2">Mostrando 300 de {rows.length} linhas.</div>}
             </div>
+
+            <div>
+              <Button size="sm" variant="outline" onClick={addRow}><Plus className="size-3" /> Adicionar linha</Button>
+            </div>
+
+            {progress && (
+              <div className="text-sm text-muted-foreground">Processando {progress.done} de {progress.total}…</div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancelar</Button>
+              <Button onClick={importar} disabled={loading || validasCount === 0 || !salaDestino}>
+                {loading ? <><Loader2 className="size-4 animate-spin" /> Importando…</> : <>Importar {validasCount} linha(s)</>}
+              </Button>
+            </DialogFooter>
           </>
         )}
-
-        {progress && (
-          <div className="text-sm text-muted-foreground">Processando {progress.done} de {progress.total}…</div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancelar</Button>
-          <Button onClick={importar} disabled={loading || stats.novos + stats.atualizar === 0}>
-            {loading ? <><Loader2 className="size-4 animate-spin" /> Importando…</> : <>Importar {stats.novos + stats.atualizar} produto(s)</>}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
