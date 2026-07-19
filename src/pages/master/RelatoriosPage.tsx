@@ -1487,7 +1487,7 @@ function ComposicaoEstoquePanel({
   const data = [
     { name: "Confirmado", value: valorConfirmado, color: "hsl(var(--success))" },
     { name: "Estimado", value: valorEstimado, color: "hsl(var(--warning))" },
-    { name: "Sem avaliação", value: semAvaliacao, color: "hsl(var(--muted-foreground))" },
+    { name: "Sem valor", value: semAvaliacao, color: "hsl(var(--muted-foreground))" },
   ];
   return (
     <Card className="p-4">
@@ -1524,21 +1524,21 @@ function ComposicaoEstoquePanel({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-md border p-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-2 rounded-full bg-success" /> Confirmado (avaliação patrimonial)
+                <span className="size-2 rounded-full bg-success" /> Confirmado (compras + avaliação)
               </div>
               <div className="text-lg font-semibold text-success mt-1">{BRL(valorConfirmado)}</div>
               <div className="text-[11px] text-muted-foreground">{pctConf.toFixed(1)}% do total</div>
             </div>
             <div className="rounded-md border p-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-2 rounded-full bg-warning" /> Estimado (avaliação patrimonial)
+                <span className="size-2 rounded-full bg-warning" /> Estimado (referência + avaliação)
               </div>
               <div className="text-lg font-semibold text-warning mt-1">{BRL(valorEstimado)}</div>
               <div className="text-[11px] text-muted-foreground">{pctEst.toFixed(1)}% do total</div>
             </div>
             <div className="rounded-md border p-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-2 rounded-full bg-muted-foreground" /> Sem avaliação (custo de compras)
+                <span className="size-2 rounded-full bg-muted-foreground" /> Sem valor
               </div>
               <div className="text-lg font-semibold mt-1">{BRL(semAvaliacao)}</div>
               <div className="text-[11px] text-muted-foreground">{pctSem.toFixed(1)}% do total</div>
@@ -1560,7 +1560,7 @@ function ComposicaoEstoquePanel({
           <div className="text-lg font-semibold">{NUM(produtosEstimados)}</div>
         </div>
         <div>
-          <div className="text-[11px] text-muted-foreground">Sem avaliação</div>
+          <div className="text-[11px] text-muted-foreground">Sem valor</div>
           <div className="text-lg font-semibold text-destructive">{NUM(produtosSemAvaliacao)}</div>
         </div>
         <div>
@@ -1575,7 +1575,7 @@ function ComposicaoEstoquePanel({
         <div className="mt-3 rounded-md border border-warning/30 bg-warning/5 p-3 flex items-center justify-between flex-wrap gap-2">
           <div className="text-xs">
             <span className="font-medium text-warning">Faltam regularizar:</span>{" "}
-            <span className="font-semibold">{NUM(produtosSemAvaliacao)}</span> produto(s)
+            <span className="font-semibold">{NUM(produtosSemAvaliacao)}</span> produto(s) sem valor
             {pendValorAprox > 0 && <> · valor aproximado <span className="font-semibold">{BRL(pendValorAprox)}</span></>}
             {totalProdutos > 0 && <> · {((produtosSemAvaliacao / totalProdutos) * 100).toFixed(1)}% do catálogo</>}
           </div>
