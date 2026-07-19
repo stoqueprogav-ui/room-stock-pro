@@ -1487,7 +1487,7 @@ function ComposicaoEstoquePanel({
   const data = [
     { name: "Confirmado", value: valorConfirmado, color: "hsl(var(--success))" },
     { name: "Estimado", value: valorEstimado, color: "hsl(var(--warning))" },
-    { name: "Sem avaliação", value: semAvaliacao, color: "hsl(var(--muted-foreground))" },
+    { name: "Sem valor", value: semAvaliacao, color: "hsl(var(--muted-foreground))" },
   ];
   return (
     <Card className="p-4">
