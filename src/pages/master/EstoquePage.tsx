@@ -459,17 +459,9 @@ export default function EstoquePage() {
       unidade: (editProdForm.unidade || "Unidade").trim(),
       estoque_minimo: Number(editProdForm.estoque_minimo) || 0,
       descricao: editProdForm.descricao || null,
+      custo_unitario: Number(editProdForm.custo_unitario) || 0,
     }).eq("id", editProd.id);
     if (error) { setSavingProd(false); return toast.error(error.message); }
-    if (editProdSala) {
-      const { error: errCusto } = await (supabase as any).rpc("corrigir_custo_produto", {
-        _produto: editProd.id,
-        _sala: editProdSala.id,
-        _novo_custo: Number(editProdForm.custo_unitario) || 0,
-        _motivo: "Correção pelo editar produto",
-      });
-      if (errCusto) { setSavingProd(false); return toast.error(errCusto.message); }
-    }
     setSavingProd(false);
     toast.success("Produto atualizado");
     setEditProd(null);
