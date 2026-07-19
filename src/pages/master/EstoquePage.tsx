@@ -1140,11 +1140,16 @@ export default function EstoquePage() {
                         {lotes.map((l) => {
                           const atual = editLoteValidade[l.id] ?? (l.validade ? l.validade.slice(0, 10) : "");
                           const orig = l.validade ? l.validade.slice(0, 10) : "";
-                          const mudou = atual !== orig;
+                          const validadeMudou = atual !== orig;
                           const isEntrada = l.referencia_tipo === "entrada" && !!l.referencia_id;
-                          const valorOriginal = isEntrada ? (loteValores[l.referencia_id!] ?? 0) : 0;
-                          const valorAtual = editLoteValor[l.id] ?? (isEntrada ? String(valorOriginal) : "");
-                          const valorMudou = isEntrada && Number(valorAtual) !== Number(valorOriginal);
+                          const cmpAtual = Number(rows.find(rr => rr.produto_id === editProd?.id && rr.sala_id === editProdSala?.id)?.custo_medio ?? 0);
+                          const valorEntrada = isEntrada ? (loteValores[l.referencia_id!] ?? 0) : 0;
+                          const valorOriginal = l.valor_unitario != null
+                            ? Number(l.valor_unitario)
+                            : (isEntrada ? valorEntrada : cmpAtual);
+                          const valorAtual = editLoteValor[l.id] ?? String(valorOriginal ?? "");
+                          const valorMudou = Number(valorAtual) !== Number(valorOriginal);
+                          const mudou = validadeMudou || valorMudou;
                           return (
                             <TableRow key={l.id}>
                               <TableCell className="font-mono text-xs">{l.quantidade}</TableCell>
@@ -1153,24 +1158,14 @@ export default function EstoquePage() {
                                   onChange={(e) => setEditLoteValidade({ ...editLoteValidade, [l.id]: e.target.value })} />
                               </TableCell>
                               <TableCell>
-                                {isEntrada ? (
-                                  <Input type="number" min={0} step="0.01" value={valorAtual}
-                                    onChange={(e) => setEditLoteValor({ ...editLoteValor, [l.id]: e.target.value })} />
-                                ) : (
-                                  <span className="text-[11px] text-muted-foreground italic">— (lote {l.referencia_tipo ?? "manual"})</span>
-                                )}
+                                <Input type="number" min={0} step="0.01" value={valorAtual}
+                                  onChange={(e) => setEditLoteValor({ ...editLoteValor, [l.id]: e.target.value })} />
                               </TableCell>
                               <TableCell className="text-right space-x-1">
-                                <Button size="sm" variant="outline" disabled={!mudou || savingLoteId === l.id}
-                                  onClick={() => salvarValidadeLote(l.id)}>
-                                  {savingLoteId === l.id && <Loader2 className="size-3 animate-spin" />} Salvar
+                                <Button size="sm" variant="outline" disabled={!mudou || savingLoteId === l.id || savingLoteValorId === l.id}
+                                  onClick={() => salvarLinhaLote(l, atual, valorAtual, valorMudou, validadeMudou)}>
+                                  {(savingLoteId === l.id || savingLoteValorId === l.id) && <Loader2 className="size-3 animate-spin" />} Salvar
                                 </Button>
-                                {isEntrada && (
-                                  <Button size="sm" variant="outline" disabled={!valorMudou || savingLoteValorId === l.id}
-                                    onClick={() => corrigirValorLote(l)}>
-                                    {savingLoteValorId === l.id && <Loader2 className="size-3 animate-spin" />} Corrigir valor
-                                  </Button>
-                                )}
                               </TableCell>
                             </TableRow>
                           );
