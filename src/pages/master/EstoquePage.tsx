@@ -64,7 +64,7 @@ export default function EstoquePage() {
   const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "", custo_unitario: 0 });
   const [editProdAtivo, setEditProdAtivo] = useState<boolean>(true);
   const [togglingAtivo, setTogglingAtivo] = useState(false);
-  type LoteRow = { id: string; quantidade: number; validade: string | null; created_at: string; referencia_tipo: string | null; referencia_id: string | null };
+  type LoteRow = { id: string; quantidade: number; validade: string | null; created_at: string; referencia_tipo: string | null; referencia_id: string | null; valor_unitario: number | null };
   const [lotes, setLotes] = useState<LoteRow[]>([]);
   const [loadingLotes, setLoadingLotes] = useState(false);
   const [editLoteValidade, setEditLoteValidade] = useState<Record<string, string>>({});
