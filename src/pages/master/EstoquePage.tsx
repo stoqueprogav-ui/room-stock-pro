@@ -421,14 +421,21 @@ export default function EstoquePage() {
     return true;
   };
 
-  const salvarValidadeLote = async (loteId: string) => {
-    const nova = editLoteValidade[loteId];
-    setSavingLoteId(loteId);
-    const { error } = await (supabase as any).from("lotes").update({ validade: nova || null }).eq("id", loteId);
+  const salvarLinhaLote = async (lote: LoteRow, novaValidade: string, novoValor: string, valorMudou: boolean, validadeMudou: boolean) => {
+    setSavingLoteId(lote.id);
+    if (validadeMudou) {
+      const { error } = await (supabase as any).from("lotes").update({ validade: novaValidade || null }).eq("id", lote.id);
+      if (error) { setSavingLoteId(null); return toast.error(error.message); }
+    }
+    if (valorMudou) {
+      const ok = await corrigirValorLote(lote, novoValor);
+      if (!ok) { setSavingLoteId(null); return; }
+    }
     setSavingLoteId(null);
-    if (error) return toast.error(error.message);
-    toast.success("Validade do lote atualizada");
+    if (!validadeMudou && !valorMudou) return;
+    toast.success("Lote atualizado — estoque revalorizado");
     if (editProd && editProdSala) await loadLotesProduto(editProd.id, editProdSala.id);
+    load();
   };
 
   const toggleAtivoSala = async (novo: boolean) => {
