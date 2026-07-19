@@ -161,17 +161,19 @@ export default function EstoquePage() {
     ]);
     setSalas((s as Sala[]) ?? []);
     setCategorias((c as Categoria[]) ?? []);
-    const mapped: Row[] = (e ?? []).map((r: any) => ({
-      produto_id: r.produto_id,
-      sala_id: r.sala_id,
-      quantidade: r.quantidade,
-      quantidade_reservada: Number(r.quantidade_reservada ?? 0),
-      custo_medio: Number(r.custo_medio ?? 0),
-      valor_total: Number(r.valor_total ?? 0),
-      ativo: r.ativo !== false,
-      produto: r.produtos,
-      sala: r.salas,
-    }));
+    const mapped: Row[] = (e ?? [])
+      .filter((r: any) => r?.produtos?.excluido !== true)
+      .map((r: any) => ({
+        produto_id: r.produto_id,
+        sala_id: r.sala_id,
+        quantidade: r.quantidade,
+        quantidade_reservada: Number(r.quantidade_reservada ?? 0),
+        custo_medio: Number(r.custo_medio ?? 0),
+        valor_total: Number(r.valor_total ?? 0),
+        ativo: r.ativo !== false,
+        produto: r.produtos,
+        sala: r.salas,
+      }));
     setRows(mapped);
     const map = new Map<string, UltimaEntrada>();
     (ents ?? []).forEach((row: any) => {
@@ -534,8 +536,9 @@ export default function EstoquePage() {
     setDelLoading(false);
     if (error) return toast.error(error.message ?? "Não foi possível excluir");
     const res = (data as any) ?? {};
-    if (res.modo === "desativado") toast.warning(res.mensagem ?? "Produto desativado (possui histórico).");
-    else toast.success(res.mensagem ?? "Produto removido do estoque desta sala.");
+    if (res.ok === false) toast.warning(res.mensagem ?? "Não foi possível excluir");
+    else if (res.modo === "excluido") toast.success(res.mensagem ?? "Produto excluído (histórico preservado).");
+    else toast.success(res.mensagem ?? "Produto excluído permanentemente.");
     setSelectedIds((prev) => { const n = new Set(prev); n.delete(confirmDel.produto.id); return n; });
     setConfirmDel(null);
     load();
@@ -545,9 +548,8 @@ export default function EstoquePage() {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
     setBulkLoading(true);
-    let excl = 0, desat = 0, erros = 0;
-    // Cada produto pertence a exatamente uma sala — usa exclusão por sala.
-    const alvo = new Map<string, string>(); // produto_id -> sala_id
+    let excl = 0, hist = 0, bloq = 0, erros = 0;
+    const alvo = new Map<string, string>();
     rows.forEach((r) => { if (ids.includes(r.produto.id)) alvo.set(r.produto.id, r.sala.id); });
     for (const id of ids) {
       const salaId = alvo.get(id);
@@ -555,7 +557,8 @@ export default function EstoquePage() {
       const { data, error } = await supabase.rpc("excluir_produto_sala", { _produto: id, _sala: salaId });
       if (error) { erros++; continue; }
       const r = (data as any) ?? {};
-      if (r.modo === "desativado") desat++;
+      if (r.ok === false) bloq++;
+      else if (r.modo === "excluido") hist++;
       else excl++;
     }
     setBulkLoading(false);
@@ -563,7 +566,8 @@ export default function EstoquePage() {
     clearSelection();
     if (erros > 0) toast.error(`${erros} falha(s) na exclusão.`);
     if (excl > 0) toast.success(`${excl} produto(s) excluído(s) permanentemente.`);
-    if (desat > 0) toast.warning(`${desat} produto(s) desativado(s) (possuíam histórico/estoque).`);
+    if (hist > 0) toast.success(`${hist} produto(s) excluído(s) (histórico preservado nos relatórios).`);
+    if (bloq > 0) toast.warning(`${bloq} produto(s) bloqueado(s) (pedidos pendentes).`);
     load();
   };
 
