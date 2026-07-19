@@ -132,7 +132,8 @@ export default function NovoProdutoNaSalaDialog({
         const { data: prods } = await supabase
           .from("produtos")
           .select("id, nome")
-          .eq("sala_id", salaUnica);
+          .eq("sala_id", salaUnica)
+          .eq("ativo", true);
         const existente = (prods ?? []).find((p: any) => normalize(p.nome) === alvo);
         if (existente) {
           setExistenteInativo({ produtoId: existente.id, nome: existente.nome });
