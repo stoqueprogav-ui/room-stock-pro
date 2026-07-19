@@ -992,8 +992,8 @@ export default function RelatoriosPage() {
 
       {/* Composição do Valor do Estoque */}
       <ComposicaoEstoquePanel
-        valorConfirmado={Number(patTotais?.valor_compras ?? 0)}
-        valorEstimado={Number(patTotais?.valor_patrimonial ?? 0)}
+        valorConfirmado={Number(patTotais?.valor_confirmado ?? 0)}
+        valorEstimado={Number(patTotais?.valor_estimado ?? 0)}
         produtosConfirmados={Number(patTotais?.produtos_confirmados ?? 0)}
         produtosEstimados={Number(patTotais?.produtos_estimados ?? 0)}
         produtosSemAvaliacao={Number(patTotais?.produtos_sem_avaliacao ?? 0)}
