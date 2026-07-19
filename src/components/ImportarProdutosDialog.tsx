@@ -253,14 +253,14 @@ export default function ImportarProdutosDialog({
                 .from("produtos")
                 .select("id, ativo")
                 .eq("sala_id", salaDestino)
-                .eq("ativo", true);
+                .eq("excluido", false);
               const existente = (prods ?? []).find((p: any) => normalizeName((p as any).nome ?? "") === alvo);
               // fallback: busca por nome
               const { data: prods2 } = existente ? { data: null } : await supabase
                 .from("produtos")
                 .select("id, nome, ativo")
                 .eq("sala_id", salaDestino)
-                .eq("ativo", true)
+                .eq("excluido", false)
                 .ilike("nome", nomeFinal);
               const alvoRow: any = existente ?? (prods2 ?? []).find((p: any) => normalizeName(p.nome) === alvo);
               if (alvoRow?.id) {

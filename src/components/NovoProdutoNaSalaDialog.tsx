@@ -133,7 +133,7 @@ export default function NovoProdutoNaSalaDialog({
           .from("produtos")
           .select("id, nome")
           .eq("sala_id", salaUnica)
-          .eq("ativo", true);
+          .eq("excluido", false);
         const existente = (prods ?? []).find((p: any) => normalize(p.nome) === alvo);
         if (existente) {
           setExistenteInativo({ produtoId: existente.id, nome: existente.nome });
