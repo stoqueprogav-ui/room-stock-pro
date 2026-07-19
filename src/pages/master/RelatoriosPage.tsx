@@ -999,6 +999,7 @@ export default function RelatoriosPage() {
         produtosSemAvaliacao={Number(patTotais?.produtos_sem_avaliacao ?? 0)}
         coberturaPct={Number(patTotais?.cobertura_pct ?? 0)}
         pendValorAprox={pendValorAprox}
+        valorTotalEstoque={Number(patTotais?.valor_total_estoque ?? 0)}
       />
 
       <Tabs defaultValue="dashboard">
