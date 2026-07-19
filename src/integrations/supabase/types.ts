@@ -2202,6 +2202,15 @@ export type Database = {
           valor: number
         }[]
       }
+      corrigir_custo_produto: {
+        Args: {
+          _motivo?: string
+          _novo_custo: number
+          _produto: string
+          _sala: string
+        }
+        Returns: undefined
+      }
       criar_avaliacao_patrimonial: {
         Args: {
           _observacao?: string
