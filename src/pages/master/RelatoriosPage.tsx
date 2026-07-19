@@ -1524,7 +1524,7 @@ function ComposicaoEstoquePanel({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-md border p-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-2 rounded-full bg-success" /> Confirmado (avaliação patrimonial)
+                <span className="size-2 rounded-full bg-success" /> Confirmado (compras + avaliação)
               </div>
               <div className="text-lg font-semibold text-success mt-1">{BRL(valorConfirmado)}</div>
               <div className="text-[11px] text-muted-foreground">{pctConf.toFixed(1)}% do total</div>
