@@ -1575,7 +1575,7 @@ function ComposicaoEstoquePanel({
         <div className="mt-3 rounded-md border border-warning/30 bg-warning/5 p-3 flex items-center justify-between flex-wrap gap-2">
           <div className="text-xs">
             <span className="font-medium text-warning">Faltam regularizar:</span>{" "}
-            <span className="font-semibold">{NUM(produtosSemAvaliacao)}</span> produto(s)
+            <span className="font-semibold">{NUM(produtosSemAvaliacao)}</span> produto(s) sem valor
             {pendValorAprox > 0 && <> · valor aproximado <span className="font-semibold">{BRL(pendValorAprox)}</span></>}
             {totalProdutos > 0 && <> · {((produtosSemAvaliacao / totalProdutos) * 100).toFixed(1)}% do catálogo</>}
           </div>
