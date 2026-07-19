@@ -1133,6 +1133,8 @@ export type Database = {
           custo_unitario: number
           descricao: string | null
           estoque_minimo: number
+          excluido: boolean
+          excluido_em: string | null
           id: string
           nome: string
           sala_id: string
@@ -1147,6 +1149,8 @@ export type Database = {
           custo_unitario?: number
           descricao?: string | null
           estoque_minimo?: number
+          excluido?: boolean
+          excluido_em?: string | null
           id?: string
           nome: string
           sala_id: string
@@ -1161,6 +1165,8 @@ export type Database = {
           custo_unitario?: number
           descricao?: string | null
           estoque_minimo?: number
+          excluido?: boolean
+          excluido_em?: string | null
           id?: string
           nome?: string
           sala_id?: string
