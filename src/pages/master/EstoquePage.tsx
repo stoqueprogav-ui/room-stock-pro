@@ -64,10 +64,13 @@ export default function EstoquePage() {
   const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "", custo_unitario: 0 });
   const [editProdAtivo, setEditProdAtivo] = useState<boolean>(true);
   const [togglingAtivo, setTogglingAtivo] = useState(false);
-  type LoteRow = { id: string; quantidade: number; validade: string | null; created_at: string };
+  type LoteRow = { id: string; quantidade: number; validade: string | null; created_at: string; referencia_tipo: string | null; referencia_id: string | null };
   const [lotes, setLotes] = useState<LoteRow[]>([]);
   const [loadingLotes, setLoadingLotes] = useState(false);
   const [editLoteValidade, setEditLoteValidade] = useState<Record<string, string>>({});
+  const [loteValores, setLoteValores] = useState<Record<string, number>>({});
+  const [editLoteValor, setEditLoteValor] = useState<Record<string, string>>({});
+  const [savingLoteValorId, setSavingLoteValorId] = useState<string | null>(null);
   const [savingLoteId, setSavingLoteId] = useState<string | null>(null);
   const [savingProd, setSavingProd] = useState(false);
 
@@ -388,13 +391,38 @@ export default function EstoquePage() {
     setLoadingLotes(true);
     const { data } = await (supabase as any)
       .from("lotes")
-      .select("id, quantidade, validade, created_at")
+      .select("id, quantidade, validade, created_at, referencia_tipo, referencia_id")
       .eq("produto_id", produtoId)
       .eq("sala_id", salaId)
       .gt("quantidade", 0)
       .order("validade", { ascending: true, nullsFirst: false });
-    setLotes((data as LoteRow[]) ?? []);
+    const list = (data as LoteRow[]) ?? [];
+    setLotes(list);
+    const entradaIds = list.filter(l => l.referencia_tipo === "entrada" && l.referencia_id).map(l => l.referencia_id!) as string[];
+    let valores: Record<string, number> = {};
+    if (entradaIds.length) {
+      const { data: ents } = await (supabase as any).from("entradas_estoque").select("id, valor_unitario").in("id", entradaIds);
+      (ents ?? []).forEach((e: any) => { valores[e.id] = Number(e.valor_unitario) || 0; });
+    }
+    setLoteValores(valores);
+    setEditLoteValor({});
     setLoadingLotes(false);
+  };
+
+  const corrigirValorLote = async (lote: LoteRow) => {
+    if (!lote.referencia_id) return;
+    const novo = editLoteValor[lote.id] ?? String(loteValores[lote.referencia_id] ?? "");
+    setSavingLoteValorId(lote.id);
+    const { error } = await (supabase as any).rpc("corrigir_valor_entrada", {
+      _entrada: lote.referencia_id,
+      _novo_valor: Number(novo) || 0,
+      _motivo: "Correção pelo editar produto",
+    });
+    setSavingLoteValorId(null);
+    if (error) return toast.error(error.message);
+    toast.success("Valor da entrada corrigido — estoque revalorizado");
+    if (editProd && editProdSala) await loadLotesProduto(editProd.id, editProdSala.id);
+    load();
   };
 
   const salvarValidadeLote = async (loteId: string) => {
@@ -431,17 +459,9 @@ export default function EstoquePage() {
       unidade: (editProdForm.unidade || "Unidade").trim(),
       estoque_minimo: Number(editProdForm.estoque_minimo) || 0,
       descricao: editProdForm.descricao || null,
+      custo_unitario: Number(editProdForm.custo_unitario) || 0,
     }).eq("id", editProd.id);
     if (error) { setSavingProd(false); return toast.error(error.message); }
-    if (editProdSala) {
-      const { error: errCusto } = await (supabase as any).rpc("corrigir_custo_produto", {
-        _produto: editProd.id,
-        _sala: editProdSala.id,
-        _novo_custo: Number(editProdForm.custo_unitario) || 0,
-        _motivo: "Correção pelo editar produto",
-      });
-      if (errCusto) { setSavingProd(false); return toast.error(errCusto.message); }
-    }
     setSavingProd(false);
     toast.success("Produto atualizado");
     setEditProd(null);
@@ -1109,7 +1129,8 @@ export default function EstoquePage() {
                         <TableRow>
                           <TableHead className="text-xs">Qtd</TableHead>
                           <TableHead className="text-xs">Validade</TableHead>
-                          <TableHead className="text-xs w-[110px]"></TableHead>
+                          <TableHead className="text-xs">Valor unit. (R$)</TableHead>
+                          <TableHead className="text-xs w-[200px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1117,6 +1138,10 @@ export default function EstoquePage() {
                           const atual = editLoteValidade[l.id] ?? (l.validade ? l.validade.slice(0, 10) : "");
                           const orig = l.validade ? l.validade.slice(0, 10) : "";
                           const mudou = atual !== orig;
+                          const isEntrada = l.referencia_tipo === "entrada" && !!l.referencia_id;
+                          const valorOriginal = isEntrada ? (loteValores[l.referencia_id!] ?? 0) : 0;
+                          const valorAtual = editLoteValor[l.id] ?? (isEntrada ? String(valorOriginal) : "");
+                          const valorMudou = isEntrada && Number(valorAtual) !== Number(valorOriginal);
                           return (
                             <TableRow key={l.id}>
                               <TableCell className="font-mono text-xs">{l.quantidade}</TableCell>
@@ -1124,11 +1149,25 @@ export default function EstoquePage() {
                                 <Input type="date" value={atual}
                                   onChange={(e) => setEditLoteValidade({ ...editLoteValidade, [l.id]: e.target.value })} />
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell>
+                                {isEntrada ? (
+                                  <Input type="number" min={0} step="0.01" value={valorAtual}
+                                    onChange={(e) => setEditLoteValor({ ...editLoteValor, [l.id]: e.target.value })} />
+                                ) : (
+                                  <span className="text-[11px] text-muted-foreground italic">— (lote {l.referencia_tipo ?? "manual"})</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right space-x-1">
                                 <Button size="sm" variant="outline" disabled={!mudou || savingLoteId === l.id}
                                   onClick={() => salvarValidadeLote(l.id)}>
                                   {savingLoteId === l.id && <Loader2 className="size-3 animate-spin" />} Salvar
                                 </Button>
+                                {isEntrada && (
+                                  <Button size="sm" variant="outline" disabled={!valorMudou || savingLoteValorId === l.id}
+                                    onClick={() => corrigirValorLote(l)}>
+                                    {savingLoteValorId === l.id && <Loader2 className="size-3 animate-spin" />} Corrigir valor
+                                  </Button>
+                                )}
                               </TableCell>
                             </TableRow>
                           );
