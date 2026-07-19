@@ -1098,10 +1098,10 @@ export default function EstoquePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Custo unitário (R$)</Label>
+              <Label>Custo de referência (R$)</Label>
               <Input type="number" min={0} step="0.01" value={editProdForm.custo_unitario}
                 onChange={(e) => setEditProdForm({ ...editProdForm, custo_unitario: Number(e.target.value) })} />
-              <p className="text-xs text-muted-foreground">Usado como valor de referência quando não há Custo Médio Ponderado (CMP) apurado por compras.</p>
+              <p className="text-xs text-muted-foreground">Usado apenas quando não há custo apurado. Para corrigir o preço do estoque, edite o valor na seção Lotes e validades abaixo.</p>
             </div>
 
             {isMaster && editProdSala && (
