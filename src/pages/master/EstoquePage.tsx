@@ -64,7 +64,7 @@ export default function EstoquePage() {
   const [editProdForm, setEditProdForm] = useState({ nome: "", categoria_id: "", unidade: "Unidade", estoque_minimo: 0, descricao: "", custo_unitario: 0 });
   const [editProdAtivo, setEditProdAtivo] = useState<boolean>(true);
   const [togglingAtivo, setTogglingAtivo] = useState(false);
-  type LoteRow = { id: string; quantidade: number; validade: string | null; created_at: string; referencia_tipo: string | null; referencia_id: string | null };
+  type LoteRow = { id: string; quantidade: number; validade: string | null; created_at: string; referencia_tipo: string | null; referencia_id: string | null; valor_unitario: number | null };
   const [lotes, setLotes] = useState<LoteRow[]>([]);
   const [loadingLotes, setLoadingLotes] = useState(false);
   const [editLoteValidade, setEditLoteValidade] = useState<Record<string, string>>({});
@@ -391,7 +391,7 @@ export default function EstoquePage() {
     setLoadingLotes(true);
     const { data } = await (supabase as any)
       .from("lotes")
-      .select("id, quantidade, validade, created_at, referencia_tipo, referencia_id")
+      .select("id, quantidade, validade, created_at, referencia_tipo, referencia_id, valor_unitario")
       .eq("produto_id", produtoId)
       .eq("sala_id", salaId)
       .gt("quantidade", 0)
@@ -409,30 +409,33 @@ export default function EstoquePage() {
     setLoadingLotes(false);
   };
 
-  const corrigirValorLote = async (lote: LoteRow) => {
-    if (!lote.referencia_id) return;
-    const novo = editLoteValor[lote.id] ?? String(loteValores[lote.referencia_id] ?? "");
+  const corrigirValorLote = async (lote: LoteRow, novoValor: string) => {
     setSavingLoteValorId(lote.id);
-    const { error } = await (supabase as any).rpc("corrigir_valor_entrada", {
-      _entrada: lote.referencia_id,
-      _novo_valor: Number(novo) || 0,
+    const { error } = await (supabase as any).rpc("corrigir_valor_lote", {
+      _lote: lote.id,
+      _novo_valor: Number(novoValor) || 0,
       _motivo: "Correção pelo editar produto",
     });
     setSavingLoteValorId(null);
-    if (error) return toast.error(error.message);
-    toast.success("Valor da entrada corrigido — estoque revalorizado");
-    if (editProd && editProdSala) await loadLotesProduto(editProd.id, editProdSala.id);
-    load();
+    if (error) { toast.error(error.message); return false; }
+    return true;
   };
 
-  const salvarValidadeLote = async (loteId: string) => {
-    const nova = editLoteValidade[loteId];
-    setSavingLoteId(loteId);
-    const { error } = await (supabase as any).from("lotes").update({ validade: nova || null }).eq("id", loteId);
+  const salvarLinhaLote = async (lote: LoteRow, novaValidade: string, novoValor: string, valorMudou: boolean, validadeMudou: boolean) => {
+    setSavingLoteId(lote.id);
+    if (validadeMudou) {
+      const { error } = await (supabase as any).from("lotes").update({ validade: novaValidade || null }).eq("id", lote.id);
+      if (error) { setSavingLoteId(null); return toast.error(error.message); }
+    }
+    if (valorMudou) {
+      const ok = await corrigirValorLote(lote, novoValor);
+      if (!ok) { setSavingLoteId(null); return; }
+    }
     setSavingLoteId(null);
-    if (error) return toast.error(error.message);
-    toast.success("Validade do lote atualizada");
+    if (!validadeMudou && !valorMudou) return;
+    toast.success("Lote atualizado — estoque revalorizado");
     if (editProd && editProdSala) await loadLotesProduto(editProd.id, editProdSala.id);
+    load();
   };
 
   const toggleAtivoSala = async (novo: boolean) => {
@@ -1095,10 +1098,10 @@ export default function EstoquePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Custo unitário (R$)</Label>
+              <Label>Custo de referência (R$)</Label>
               <Input type="number" min={0} step="0.01" value={editProdForm.custo_unitario}
                 onChange={(e) => setEditProdForm({ ...editProdForm, custo_unitario: Number(e.target.value) })} />
-              <p className="text-xs text-muted-foreground">Usado como valor de referência quando não há Custo Médio Ponderado (CMP) apurado por compras.</p>
+              <p className="text-xs text-muted-foreground">Usado apenas quando não há custo apurado. Para corrigir o preço do estoque, edite o valor na seção Lotes e validades abaixo.</p>
             </div>
 
             {isMaster && editProdSala && (
@@ -1137,11 +1140,16 @@ export default function EstoquePage() {
                         {lotes.map((l) => {
                           const atual = editLoteValidade[l.id] ?? (l.validade ? l.validade.slice(0, 10) : "");
                           const orig = l.validade ? l.validade.slice(0, 10) : "";
-                          const mudou = atual !== orig;
+                          const validadeMudou = atual !== orig;
                           const isEntrada = l.referencia_tipo === "entrada" && !!l.referencia_id;
-                          const valorOriginal = isEntrada ? (loteValores[l.referencia_id!] ?? 0) : 0;
-                          const valorAtual = editLoteValor[l.id] ?? (isEntrada ? String(valorOriginal) : "");
-                          const valorMudou = isEntrada && Number(valorAtual) !== Number(valorOriginal);
+                          const cmpAtual = Number(rows.find(rr => rr.produto_id === editProd?.id && rr.sala_id === editProdSala?.id)?.custo_medio ?? 0);
+                          const valorEntrada = isEntrada ? (loteValores[l.referencia_id!] ?? 0) : 0;
+                          const valorOriginal = l.valor_unitario != null
+                            ? Number(l.valor_unitario)
+                            : (isEntrada ? valorEntrada : cmpAtual);
+                          const valorAtual = editLoteValor[l.id] ?? String(valorOriginal ?? "");
+                          const valorMudou = Number(valorAtual) !== Number(valorOriginal);
+                          const mudou = validadeMudou || valorMudou;
                           return (
                             <TableRow key={l.id}>
                               <TableCell className="font-mono text-xs">{l.quantidade}</TableCell>
@@ -1150,24 +1158,14 @@ export default function EstoquePage() {
                                   onChange={(e) => setEditLoteValidade({ ...editLoteValidade, [l.id]: e.target.value })} />
                               </TableCell>
                               <TableCell>
-                                {isEntrada ? (
-                                  <Input type="number" min={0} step="0.01" value={valorAtual}
-                                    onChange={(e) => setEditLoteValor({ ...editLoteValor, [l.id]: e.target.value })} />
-                                ) : (
-                                  <span className="text-[11px] text-muted-foreground italic">— (lote {l.referencia_tipo ?? "manual"})</span>
-                                )}
+                                <Input type="number" min={0} step="0.01" value={valorAtual}
+                                  onChange={(e) => setEditLoteValor({ ...editLoteValor, [l.id]: e.target.value })} />
                               </TableCell>
                               <TableCell className="text-right space-x-1">
-                                <Button size="sm" variant="outline" disabled={!mudou || savingLoteId === l.id}
-                                  onClick={() => salvarValidadeLote(l.id)}>
-                                  {savingLoteId === l.id && <Loader2 className="size-3 animate-spin" />} Salvar
+                                <Button size="sm" variant="outline" disabled={!mudou || savingLoteId === l.id || savingLoteValorId === l.id}
+                                  onClick={() => salvarLinhaLote(l, atual, valorAtual, valorMudou, validadeMudou)}>
+                                  {(savingLoteId === l.id || savingLoteValorId === l.id) && <Loader2 className="size-3 animate-spin" />} Salvar
                                 </Button>
-                                {isEntrada && (
-                                  <Button size="sm" variant="outline" disabled={!valorMudou || savingLoteValorId === l.id}
-                                    onClick={() => corrigirValorLote(l)}>
-                                    {savingLoteValorId === l.id && <Loader2 className="size-3 animate-spin" />} Corrigir valor
-                                  </Button>
-                                )}
                               </TableCell>
                             </TableRow>
                           );

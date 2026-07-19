@@ -807,6 +807,7 @@ export type Database = {
           referencia_tipo: string | null
           sala_id: string
           validade: string | null
+          valor_unitario: number | null
         }
         Insert: {
           created_at?: string
@@ -818,6 +819,7 @@ export type Database = {
           referencia_tipo?: string | null
           sala_id: string
           validade?: string | null
+          valor_unitario?: number | null
         }
         Update: {
           created_at?: string
@@ -829,6 +831,7 @@ export type Database = {
           referencia_tipo?: string | null
           sala_id?: string
           validade?: string | null
+          valor_unitario?: number | null
         }
         Relationships: [
           {
@@ -2202,8 +2205,8 @@ export type Database = {
           valor: number
         }[]
       }
-      corrigir_valor_entrada: {
-        Args: { _entrada: string; _motivo?: string; _novo_valor: number }
+      corrigir_valor_lote: {
+        Args: { _lote: string; _motivo?: string; _novo_valor: number }
         Returns: undefined
       }
       criar_avaliacao_patrimonial: {
