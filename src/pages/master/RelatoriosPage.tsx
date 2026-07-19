@@ -999,6 +999,7 @@ export default function RelatoriosPage() {
         produtosSemAvaliacao={Number(patTotais?.produtos_sem_avaliacao ?? 0)}
         coberturaPct={Number(patTotais?.cobertura_pct ?? 0)}
         pendValorAprox={pendValorAprox}
+        valorTotalEstoque={Number(patTotais?.valor_total_estoque ?? 0)}
       />
 
       <Tabs defaultValue="dashboard">
@@ -1471,19 +1472,22 @@ function RankCard({ title, rows, valueLabel, money }: { title: string; rows: { s
 function ComposicaoEstoquePanel({
   valorConfirmado, valorEstimado,
   produtosConfirmados, produtosEstimados, produtosSemAvaliacao,
-  coberturaPct, pendValorAprox,
+  coberturaPct, pendValorAprox, valorTotalEstoque,
 }: {
   valorConfirmado: number; valorEstimado: number;
   produtosConfirmados: number; produtosEstimados: number; produtosSemAvaliacao: number;
-  coberturaPct: number; pendValorAprox: number;
+  coberturaPct: number; pendValorAprox: number; valorTotalEstoque: number;
 }) {
-  const total = valorConfirmado + valorEstimado;
+  const total = Math.max(valorTotalEstoque, valorConfirmado + valorEstimado);
+  const semAvaliacao = Math.max(total - valorConfirmado - valorEstimado, 0);
   const pctConf = total > 0 ? (valorConfirmado / total) * 100 : 0;
   const pctEst = total > 0 ? (valorEstimado / total) * 100 : 0;
+  const pctSem = total > 0 ? (semAvaliacao / total) * 100 : 0;
   const totalProdutos = produtosConfirmados + produtosEstimados + produtosSemAvaliacao;
   const data = [
     { name: "Confirmado", value: valorConfirmado, color: "hsl(var(--success))" },
     { name: "Estimado", value: valorEstimado, color: "hsl(var(--warning))" },
+    { name: "Sem avaliação", value: semAvaliacao, color: "hsl(var(--muted-foreground))" },
   ];
   return (
     <Card className="p-4">
@@ -1515,11 +1519,12 @@ function ComposicaoEstoquePanel({
           <div className="w-full h-3 rounded-full overflow-hidden bg-muted flex">
             <div style={{ width: `${pctConf}%`, background: "hsl(var(--success))" }} />
             <div style={{ width: `${pctEst}%`, background: "hsl(var(--warning))" }} />
+            <div style={{ width: `${pctSem}%`, background: "hsl(var(--muted-foreground))" }} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-md border p-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-2 rounded-full bg-success" /> Confirmado (compras)
+                <span className="size-2 rounded-full bg-success" /> Confirmado (avaliação patrimonial)
               </div>
               <div className="text-lg font-semibold text-success mt-1">{BRL(valorConfirmado)}</div>
               <div className="text-[11px] text-muted-foreground">{pctConf.toFixed(1)}% do total</div>
@@ -1531,9 +1536,18 @@ function ComposicaoEstoquePanel({
               <div className="text-lg font-semibold text-warning mt-1">{BRL(valorEstimado)}</div>
               <div className="text-[11px] text-muted-foreground">{pctEst.toFixed(1)}% do total</div>
             </div>
+            <div className="rounded-md border p-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="size-2 rounded-full bg-muted-foreground" /> Sem avaliação (custo de compras)
+              </div>
+              <div className="text-lg font-semibold mt-1">{BRL(semAvaliacao)}</div>
+              <div className="text-[11px] text-muted-foreground">{pctSem.toFixed(1)}% do total</div>
+            </div>
           </div>
         </div>
       </div>
+
+
 
       {/* Indicadores complementares */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t">
