@@ -1129,7 +1129,8 @@ export default function EstoquePage() {
                         <TableRow>
                           <TableHead className="text-xs">Qtd</TableHead>
                           <TableHead className="text-xs">Validade</TableHead>
-                          <TableHead className="text-xs w-[110px]"></TableHead>
+                          <TableHead className="text-xs">Valor unit. (R$)</TableHead>
+                          <TableHead className="text-xs w-[200px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1137,6 +1138,10 @@ export default function EstoquePage() {
                           const atual = editLoteValidade[l.id] ?? (l.validade ? l.validade.slice(0, 10) : "");
                           const orig = l.validade ? l.validade.slice(0, 10) : "";
                           const mudou = atual !== orig;
+                          const isEntrada = l.referencia_tipo === "entrada" && !!l.referencia_id;
+                          const valorOriginal = isEntrada ? (loteValores[l.referencia_id!] ?? 0) : 0;
+                          const valorAtual = editLoteValor[l.id] ?? (isEntrada ? String(valorOriginal) : "");
+                          const valorMudou = isEntrada && Number(valorAtual) !== Number(valorOriginal);
                           return (
                             <TableRow key={l.id}>
                               <TableCell className="font-mono text-xs">{l.quantidade}</TableCell>
@@ -1144,11 +1149,25 @@ export default function EstoquePage() {
                                 <Input type="date" value={atual}
                                   onChange={(e) => setEditLoteValidade({ ...editLoteValidade, [l.id]: e.target.value })} />
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell>
+                                {isEntrada ? (
+                                  <Input type="number" min={0} step="0.01" value={valorAtual}
+                                    onChange={(e) => setEditLoteValor({ ...editLoteValor, [l.id]: e.target.value })} />
+                                ) : (
+                                  <span className="text-[11px] text-muted-foreground italic">— (lote {l.referencia_tipo ?? "manual"})</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right space-x-1">
                                 <Button size="sm" variant="outline" disabled={!mudou || savingLoteId === l.id}
                                   onClick={() => salvarValidadeLote(l.id)}>
                                   {savingLoteId === l.id && <Loader2 className="size-3 animate-spin" />} Salvar
                                 </Button>
+                                {isEntrada && (
+                                  <Button size="sm" variant="outline" disabled={!valorMudou || savingLoteValorId === l.id}
+                                    onClick={() => corrigirValorLote(l)}>
+                                    {savingLoteValorId === l.id && <Loader2 className="size-3 animate-spin" />} Corrigir valor
+                                  </Button>
+                                )}
                               </TableCell>
                             </TableRow>
                           );
