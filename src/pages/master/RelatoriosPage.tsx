@@ -1538,7 +1538,7 @@ function ComposicaoEstoquePanel({
             </div>
             <div className="rounded-md border p-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-2 rounded-full bg-muted-foreground" /> Sem avaliação (custo de compras)
+                <span className="size-2 rounded-full bg-muted-foreground" /> Sem valor
               </div>
               <div className="text-lg font-semibold mt-1">{BRL(semAvaliacao)}</div>
               <div className="text-[11px] text-muted-foreground">{pctSem.toFixed(1)}% do total</div>
