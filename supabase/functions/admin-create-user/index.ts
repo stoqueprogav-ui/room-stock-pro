@@ -82,21 +82,48 @@ Deno.serve(async (req) => {
       }
     }
 
+    const userMeta = {
+      nome,
+      sala_id: (role === "master" || role === "super_master") ? "" : sala_id,
+      must_change_password: "true",
+    };
+
     // admin.createUser NÃO altera a sessão do solicitante. A trigger cria só o profile.
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    let { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: {
-        nome,
-        sala_id: (role === "master" || role === "super_master") ? "" : sala_id,
-        must_change_password: "true",
-      },
+      user_metadata: userMeta,
     });
+
+    // Se o email já existe, verifica se é um "órfão" (sem profile/roles — restos de exclusão anterior)
+    // e nesse caso apaga e recria. Caso contrário, retorna erro amigável.
+    if (createErr && /already.*registered|exists/i.test(createErr.message ?? "")) {
+      const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+      const existing = list?.users?.find((u) => (u.email ?? "").toLowerCase() === email);
+      if (existing) {
+        const [{ data: existProf }, { data: existRoles }] = await Promise.all([
+          admin.from("profiles").select("id").eq("id", existing.id).maybeSingle(),
+          admin.from("user_roles").select("role").eq("user_id", existing.id),
+        ]);
+        const isOrphan = !existProf && (!existRoles || existRoles.length === 0);
+        if (isOrphan) {
+          await admin.auth.admin.deleteUser(existing.id);
+          const retry = await admin.auth.admin.createUser({
+            email, password, email_confirm: true, user_metadata: userMeta,
+          });
+          created = retry.data;
+          createErr = retry.error;
+        }
+      }
+    }
+
     if (createErr || !created?.user) {
       console.error("admin-create-user createUser error", createErr);
       const msg = createErr?.message ?? "Falha ao criar usuário no Auth";
-      const friendly = /already.*registered|exists/i.test(msg) ? "Já existe um usuário com este email" : msg;
+      const friendly = /already.*registered|exists/i.test(msg)
+        ? "Já existe um usuário ativo com este email"
+        : msg;
       return jsonResp({ ok: false, error: friendly, step: "auth.create", details: msg }, 400);
     }
 
