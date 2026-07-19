@@ -391,13 +391,38 @@ export default function EstoquePage() {
     setLoadingLotes(true);
     const { data } = await (supabase as any)
       .from("lotes")
-      .select("id, quantidade, validade, created_at")
+      .select("id, quantidade, validade, created_at, referencia_tipo, referencia_id")
       .eq("produto_id", produtoId)
       .eq("sala_id", salaId)
       .gt("quantidade", 0)
       .order("validade", { ascending: true, nullsFirst: false });
-    setLotes((data as LoteRow[]) ?? []);
+    const list = (data as LoteRow[]) ?? [];
+    setLotes(list);
+    const entradaIds = list.filter(l => l.referencia_tipo === "entrada" && l.referencia_id).map(l => l.referencia_id!) as string[];
+    let valores: Record<string, number> = {};
+    if (entradaIds.length) {
+      const { data: ents } = await (supabase as any).from("entradas_estoque").select("id, valor_unitario").in("id", entradaIds);
+      (ents ?? []).forEach((e: any) => { valores[e.id] = Number(e.valor_unitario) || 0; });
+    }
+    setLoteValores(valores);
+    setEditLoteValor({});
     setLoadingLotes(false);
+  };
+
+  const corrigirValorLote = async (lote: LoteRow) => {
+    if (!lote.referencia_id) return;
+    const novo = editLoteValor[lote.id] ?? String(loteValores[lote.referencia_id] ?? "");
+    setSavingLoteValorId(lote.id);
+    const { error } = await (supabase as any).rpc("corrigir_valor_entrada", {
+      _entrada: lote.referencia_id,
+      _novo_valor: Number(novo) || 0,
+      _motivo: "Correção pelo editar produto",
+    });
+    setSavingLoteValorId(null);
+    if (error) return toast.error(error.message);
+    toast.success("Valor da entrada corrigido — estoque revalorizado");
+    if (editProd && editProdSala) await loadLotesProduto(editProd.id, editProdSala.id);
+    load();
   };
 
   const salvarValidadeLote = async (loteId: string) => {
