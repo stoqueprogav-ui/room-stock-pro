@@ -1560,7 +1560,7 @@ function ComposicaoEstoquePanel({
           <div className="text-lg font-semibold">{NUM(produtosEstimados)}</div>
         </div>
         <div>
-          <div className="text-[11px] text-muted-foreground">Sem avaliação</div>
+          <div className="text-[11px] text-muted-foreground">Sem valor</div>
           <div className="text-lg font-semibold text-destructive">{NUM(produtosSemAvaliacao)}</div>
         </div>
         <div>
