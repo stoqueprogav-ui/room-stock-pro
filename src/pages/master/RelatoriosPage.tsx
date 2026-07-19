@@ -1547,7 +1547,7 @@ function ComposicaoEstoquePanel({
         </div>
       </div>
 
-      </div>
+
 
       {/* Indicadores complementares */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t">
