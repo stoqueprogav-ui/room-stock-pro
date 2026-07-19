@@ -120,9 +120,18 @@ export default function UsuariosPage() {
         sala_id: primary,
       },
     });
-    const payload = (data ?? {}) as { ok?: boolean; error?: string; step?: string; user_id?: string };
-    if (error) { setSaving(false); return toast.error(`Erro de rede: ${error.message}`); }
-    if (!payload.ok) { setSaving(false); return toast.error(payload.error ?? "Falha ao criar usuário"); }
+    let payload = (data ?? {}) as { ok?: boolean; error?: string; step?: string; user_id?: string };
+    if (error) {
+      const ctx: any = (error as any).context;
+      try {
+        if (ctx?.json) payload = await ctx.json();
+        else if (ctx?.text) payload = JSON.parse(await ctx.text());
+      } catch {}
+    }
+    if (!payload.ok) {
+      setSaving(false);
+      return toast.error(payload.error ?? error?.message ?? "Falha ao criar usuário");
+    }
     if (payload.user_id) {
       if (isMasterRole) {
         await supabase.rpc("admin_set_master_regioes" as any, { _user: payload.user_id, _regioes: form.regioes });
