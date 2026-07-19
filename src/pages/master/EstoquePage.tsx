@@ -391,7 +391,7 @@ export default function EstoquePage() {
     setLoadingLotes(true);
     const { data } = await (supabase as any)
       .from("lotes")
-      .select("id, quantidade, validade, created_at, referencia_tipo, referencia_id")
+      .select("id, quantidade, validade, created_at, referencia_tipo, referencia_id, valor_unitario")
       .eq("produto_id", produtoId)
       .eq("sala_id", salaId)
       .gt("quantidade", 0)
@@ -409,20 +409,16 @@ export default function EstoquePage() {
     setLoadingLotes(false);
   };
 
-  const corrigirValorLote = async (lote: LoteRow) => {
-    if (!lote.referencia_id) return;
-    const novo = editLoteValor[lote.id] ?? String(loteValores[lote.referencia_id] ?? "");
+  const corrigirValorLote = async (lote: LoteRow, novoValor: string) => {
     setSavingLoteValorId(lote.id);
-    const { error } = await (supabase as any).rpc("corrigir_valor_entrada", {
-      _entrada: lote.referencia_id,
-      _novo_valor: Number(novo) || 0,
+    const { error } = await (supabase as any).rpc("corrigir_valor_lote", {
+      _lote: lote.id,
+      _novo_valor: Number(novoValor) || 0,
       _motivo: "Correção pelo editar produto",
     });
     setSavingLoteValorId(null);
-    if (error) return toast.error(error.message);
-    toast.success("Valor da entrada corrigido — estoque revalorizado");
-    if (editProd && editProdSala) await loadLotesProduto(editProd.id, editProdSala.id);
-    load();
+    if (error) { toast.error(error.message); return false; }
+    return true;
   };
 
   const salvarValidadeLote = async (loteId: string) => {
