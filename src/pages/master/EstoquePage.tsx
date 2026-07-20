@@ -800,8 +800,8 @@ export default function EstoquePage() {
                     const full = `${dd}/${mm}/${yy}`;
                     const dias = Math.ceil((new Date(v + "T00:00:00").getTime() - Date.now()) / 86400000);
                     if (dias < 0) return <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/40" title={full}>Vencido</Badge>;
-                    if (dias <= 7) return <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/40" title={full}>vence em {dias}d</Badge>;
-                    if (dias <= 30) return <Badge variant="outline" className="bg-yellow-500/15 text-yellow-700 border-yellow-500/40 dark:text-yellow-400" title={full}>vence em {dias}d</Badge>;
+                    if (dias <= 30) return <Badge variant="outline" className="bg-orange-500/15 text-orange-600 border-orange-500/40 dark:text-orange-400" title={full}>vence em {dias}d</Badge>;
+                    if (dias <= 50) return <Badge variant="outline" className="bg-yellow-500/15 text-yellow-700 border-yellow-500/40 dark:text-yellow-400" title={full}>vence em {dias}d</Badge>;
                     return <span className="text-muted-foreground text-xs" title={full}>{full}</span>;
                   })()}
                 </TableCell>
