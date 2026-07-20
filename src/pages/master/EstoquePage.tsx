@@ -926,7 +926,7 @@ export default function EstoquePage() {
               </TableRow>
               {isMaster && expanded.has(`${r.produto_id}-${r.sala_id}`) && (
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableCell colSpan={14} className="p-0">
+                  <TableCell colSpan={15} className="p-0">
                     <FichaFinanceira
                       row={r}
                       loading={historyLoading.has(`${r.produto_id}-${r.sala_id}`)}
