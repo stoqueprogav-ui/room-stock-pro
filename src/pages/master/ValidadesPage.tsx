@@ -28,8 +28,8 @@ type Filtro = "todos" | "vencido" | "semana" | "mes" | "trimestre";
 
 const FAIXA_LABEL: Record<Faixa, string> = {
   vencido: "Vencido",
-  semana: "≤ 7 dias",
-  mes: "≤ 30 dias",
+  semana: "≤ 30 dias",
+  mes: "≤ 50 dias",
   trimestre: "≤ 90 dias",
   ok: "OK",
   sem_validade: "Sem validade",
