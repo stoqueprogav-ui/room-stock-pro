@@ -130,6 +130,7 @@ export default function EstoquePage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<Map<string, EntradaHist[]>>(new Map());
   const [historyLoading, setHistoryLoading] = useState<Set<string>>(new Set());
+  const [validadesMap, setValidadesMap] = useState<Record<string, string>>({});
 
   const toggleExpand = async (r: Row) => {
     const key = `${r.produto_id}-${r.sala_id}`;
