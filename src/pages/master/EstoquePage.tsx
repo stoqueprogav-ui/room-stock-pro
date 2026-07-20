@@ -130,6 +130,7 @@ export default function EstoquePage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<Map<string, EntradaHist[]>>(new Map());
   const [historyLoading, setHistoryLoading] = useState<Set<string>>(new Set());
+  const [validadesMap, setValidadesMap] = useState<Record<string, string>>({});
 
   const toggleExpand = async (r: Row) => {
     const key = `${r.produto_id}-${r.sala_id}`;
@@ -181,6 +182,20 @@ export default function EstoquePage() {
       if (!map.has(k)) map.set(k, { data: row.data_entrada, valor_unitario: Number(row.valor_unitario), fornecedor: row.fornecedor });
     });
     setUltimas(map);
+
+    // Validade mais próxima por (produto, sala)
+    const { data: lotesVal } = await supabase
+      .from("lotes")
+      .select("produto_id, sala_id, validade")
+      .not("validade", "is", null)
+      .gt("quantidade", 0);
+    const valMap: Record<string, string> = {};
+    (lotesVal ?? []).forEach((l: any) => {
+      const k = `${l.produto_id}:${l.sala_id}`;
+      if (!valMap[k] || l.validade < valMap[k]) valMap[k] = l.validade;
+    });
+    setValidadesMap(valMap);
+
 
     // Avaliações patrimoniais ativas (quantidade_restante > 0)
     if (isMaster) {
@@ -707,6 +722,8 @@ export default function EstoquePage() {
               <TableHead>Produto</TableHead>
               <TableHead className="w-[120px]">Categoria</TableHead>
               <TableHead>Sala</TableHead>
+              <TableHead className="w-[110px]">Validade</TableHead>
+
               <TableHead className="text-right w-[80px]" title="Estoque físico">Físico</TableHead>
               <TableHead className="text-right w-[90px]" title="Comprometido por empréstimos pendentes">Reservado</TableHead>
               <TableHead className="text-right w-[90px]" title="Disponível = Físico − Reservado">Disponível</TableHead>
@@ -775,6 +792,19 @@ export default function EstoquePage() {
                     : <span className="text-xs text-muted-foreground">—</span>}
                 </TableCell>
                 <TableCell>{r.sala.nome}</TableCell>
+                <TableCell>
+                  {(() => {
+                    const v = validadesMap[`${r.produto_id}:${r.sala_id}`];
+                    if (!v) return <span className="text-muted-foreground">—</span>;
+                    const [yy, mm, dd] = v.split("-");
+                    const full = `${dd}/${mm}/${yy}`;
+                    const dias = Math.ceil((new Date(v + "T00:00:00").getTime() - Date.now()) / 86400000);
+                    if (dias < 0) return <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/40" title={full}>Vencido</Badge>;
+                    if (dias <= 7) return <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/40" title={full}>vence em {dias}d</Badge>;
+                    if (dias <= 30) return <Badge variant="outline" className="bg-yellow-500/15 text-yellow-700 border-yellow-500/40 dark:text-yellow-400" title={full}>vence em {dias}d</Badge>;
+                    return <span className="text-muted-foreground text-xs" title={full}>{full}</span>;
+                  })()}
+                </TableCell>
                 <TableCell className="text-right font-mono font-semibold">{r.quantidade}</TableCell>
                 <TableCell className="text-right font-mono text-warning">{r.quantidade_reservada > 0 ? r.quantidade_reservada : <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-right font-mono font-semibold text-primary">{Math.max(r.quantidade - r.quantidade_reservada, 0)}</TableCell>
@@ -896,7 +926,7 @@ export default function EstoquePage() {
               </TableRow>
               {isMaster && expanded.has(`${r.produto_id}-${r.sala_id}`) && (
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableCell colSpan={14} className="p-0">
+                  <TableCell colSpan={15} className="p-0">
                     <FichaFinanceira
                       row={r}
                       loading={historyLoading.has(`${r.produto_id}-${r.sala_id}`)}
@@ -907,7 +937,7 @@ export default function EstoquePage() {
               )}
             </React.Fragment>
             ))}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 14 : 8} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={isMaster ? 15 : 9} className="text-center text-muted-foreground py-12">Sem resultados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
