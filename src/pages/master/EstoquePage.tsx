@@ -183,6 +183,20 @@ export default function EstoquePage() {
     });
     setUltimas(map);
 
+    // Validade mais próxima por (produto, sala)
+    const { data: lotesVal } = await supabase
+      .from("lotes")
+      .select("produto_id, sala_id, validade")
+      .not("validade", "is", null)
+      .gt("quantidade", 0);
+    const valMap: Record<string, string> = {};
+    (lotesVal ?? []).forEach((l: any) => {
+      const k = `${l.produto_id}:${l.sala_id}`;
+      if (!valMap[k] || l.validade < valMap[k]) valMap[k] = l.validade;
+    });
+    setValidadesMap(valMap);
+
+
     // Avaliações patrimoniais ativas (quantidade_restante > 0)
     if (isMaster) {
       const { data: avs } = await (supabase as any)
