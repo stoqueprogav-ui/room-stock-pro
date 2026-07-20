@@ -28,8 +28,8 @@ type Filtro = "todos" | "vencido" | "semana" | "mes" | "trimestre";
 
 const FAIXA_LABEL: Record<Faixa, string> = {
   vencido: "Vencido",
-  semana: "≤ 7 dias",
-  mes: "≤ 30 dias",
+  semana: "≤ 30 dias",
+  mes: "≤ 50 dias",
   trimestre: "≤ 90 dias",
   ok: "OK",
   sem_validade: "Sem validade",
@@ -77,8 +77,8 @@ export default function ValidadesPage() {
 
   const cards = [
     { faixa: "vencido" as Faixa, label: "Vencidos", icon: AlertTriangle, tone: "text-destructive" },
-    { faixa: "semana" as Faixa, label: "Vence em 7 dias", icon: CalendarClock, tone: "text-orange-500" },
-    { faixa: "mes" as Faixa, label: "Vence em 30 dias", icon: CalendarDays, tone: "text-yellow-500" },
+    { faixa: "semana" as Faixa, label: "Vence em 30 dias", icon: CalendarClock, tone: "text-orange-500" },
+    { faixa: "mes" as Faixa, label: "Vence em 50 dias", icon: CalendarDays, tone: "text-yellow-500" },
     { faixa: "trimestre" as Faixa, label: "Vence em 90 dias", icon: CalendarRange, tone: "text-blue-500" },
   ];
 
