@@ -130,7 +130,7 @@ function ReqRow({ s }: { s: Req }) {
   const grupos = useMemo(() => {
     const m = new Map<string, Item[]>();
     for (const it of s.itens) {
-      const k = it.produto.categoria?.nome ?? "Sem categoria";
+      const k = it.produto?.categoria?.nome ?? "Sem categoria";
       if (!m.has(k)) m.set(k, []);
       m.get(k)!.push(it);
     }
