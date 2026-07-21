@@ -13,7 +13,7 @@ import { formatDateTime } from "@/lib/format";
 import { ChevronDown, FileText, Package, FolderTree, Tag, Search, Filter, Calendar, X } from "lucide-react";
 import { toast } from "sonner";
 
-type Item = { quantidade: number; produto: { nome: string; unidade: string; categoria: { nome: string } | null } };
+type Item = { quantidade: number; produto: { nome: string; unidade: string; categoria: { nome: string } | null } | null };
 type Req = {
   id: string;
   status: string;
