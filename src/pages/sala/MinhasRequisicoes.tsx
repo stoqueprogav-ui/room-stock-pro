@@ -35,13 +35,16 @@ export default function MinhasRequisicoes() {
 
   const load = useCallback(async () => {
     if (!activeSalaId) return;
-    const { data } = await supabase
+    console.log("[MinhasReq] activeSalaId =", activeSalaId);
+    const { data, error } = await supabase
       .from("solicitacoes")
       .select(`id, status, observacao, created_at, decidido_em,
                usuario:profiles!solicitacoes_usuario_id_fkey(nome),
                itens:solicitacao_itens(quantidade, produto:produtos(nome, unidade, categoria:categorias(nome)))`)
       .eq("sala_id", activeSalaId)
       .order("created_at", { ascending: false });
+    if (error) { console.error("[MinhasReq] erro:", error); toast.error(error.message); }
+    console.log("[MinhasReq] linhas =", data?.length);
     setRows((data as any) ?? []);
   }, [activeSalaId]);
   useEffect(() => { load(); }, [load]);
