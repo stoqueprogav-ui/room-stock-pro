@@ -61,7 +61,7 @@ export default function MinhasRequisicoes() {
         s.id.toLowerCase().includes(t) ||
         (s.observacao ?? "").toLowerCase().includes(t) ||
         (s.usuario?.nome ?? "").toLowerCase().includes(t) ||
-        s.itens.some((it) => it.produto.nome.toLowerCase().includes(t))
+        s.itens.some((it) => (it.produto?.nome ?? "").toLowerCase().includes(t))
       );
     });
   }, [rows, busca, statusF, dataIni, dataFim]);
