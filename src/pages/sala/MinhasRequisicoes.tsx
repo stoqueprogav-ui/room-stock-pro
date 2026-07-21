@@ -13,7 +13,7 @@ import { formatDateTime } from "@/lib/format";
 import { ChevronDown, FileText, Package, FolderTree, Tag, Search, Filter, Calendar, X } from "lucide-react";
 import { toast } from "sonner";
 
-type Item = { quantidade: number; produto: { nome: string; unidade: string; categoria: { nome: string } | null } };
+type Item = { quantidade: number; produto: { nome: string; unidade: string; categoria: { nome: string } | null } | null };
 type Req = {
   id: string;
   status: string;
@@ -61,7 +61,7 @@ export default function MinhasRequisicoes() {
         s.id.toLowerCase().includes(t) ||
         (s.observacao ?? "").toLowerCase().includes(t) ||
         (s.usuario?.nome ?? "").toLowerCase().includes(t) ||
-        s.itens.some((it) => it.produto.nome.toLowerCase().includes(t))
+        s.itens.some((it) => (it.produto?.nome ?? "").toLowerCase().includes(t))
       );
     });
   }, [rows, busca, statusF, dataIni, dataFim]);
@@ -130,7 +130,7 @@ function ReqRow({ s }: { s: Req }) {
   const grupos = useMemo(() => {
     const m = new Map<string, Item[]>();
     for (const it of s.itens) {
-      const k = it.produto.categoria?.nome ?? "Sem categoria";
+      const k = it.produto?.categoria?.nome ?? "Sem categoria";
       if (!m.has(k)) m.set(k, []);
       m.get(k)!.push(it);
     }
@@ -173,8 +173,8 @@ function ReqRow({ s }: { s: Req }) {
                   <tbody>
                     {itens.map((it, i) => (
                       <tr key={i} className="border-b border-border/30 last:border-b-0">
-                        <td className="px-4 py-1.5">{it.produto.nome}</td>
-                        <td className="px-4 py-1.5 text-right font-mono font-semibold w-32">{it.quantidade} <span className="text-muted-foreground text-xs">{it.produto.unidade}</span></td>
+                        <td className="px-4 py-1.5">{it.produto?.nome ?? <span className="italic text-muted-foreground">Produto removido</span>}</td>
+                        <td className="px-4 py-1.5 text-right font-mono font-semibold w-32">{it.quantidade} <span className="text-muted-foreground text-xs">{it.produto?.unidade ?? ""}</span></td>
                       </tr>
                     ))}
                   </tbody>
