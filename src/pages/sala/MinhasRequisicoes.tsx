@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatDateTime } from "@/lib/format";
 import { ChevronDown, FileText, Package, FolderTree, Tag, Search, Filter, Calendar, X } from "lucide-react";
+import { toast } from "sonner";
 
 type Item = { quantidade: number; produto: { nome: string; unidade: string; categoria: { nome: string } | null } };
 type Req = {
