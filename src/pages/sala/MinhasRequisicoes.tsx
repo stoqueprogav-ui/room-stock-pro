@@ -173,8 +173,8 @@ function ReqRow({ s }: { s: Req }) {
                   <tbody>
                     {itens.map((it, i) => (
                       <tr key={i} className="border-b border-border/30 last:border-b-0">
-                        <td className="px-4 py-1.5">{it.produto.nome}</td>
-                        <td className="px-4 py-1.5 text-right font-mono font-semibold w-32">{it.quantidade} <span className="text-muted-foreground text-xs">{it.produto.unidade}</span></td>
+                        <td className="px-4 py-1.5">{it.produto?.nome ?? <span className="italic text-muted-foreground">Produto removido</span>}</td>
+                        <td className="px-4 py-1.5 text-right font-mono font-semibold w-32">{it.quantidade} <span className="text-muted-foreground text-xs">{it.produto?.unidade ?? ""}</span></td>
                       </tr>
                     ))}
                   </tbody>
