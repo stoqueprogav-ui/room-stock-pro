@@ -2051,6 +2051,10 @@ export type Database = {
         Args: { _produto: string; _quantidade: number; _sala: string }
         Returns: number
       }
+      _json_itens_emprestimo: { Args: { _emp: string }; Returns: Json }
+      _json_itens_solicitacao: { Args: { _solic: string }; Returns: Json }
+      _nome_produto: { Args: { _produto: string }; Returns: string }
+      _nome_sala: { Args: { _sala: string }; Returns: string }
       _norm_produto_nome: { Args: { _nome: string }; Returns: string }
       _notify_masters: {
         Args: {
@@ -2099,6 +2103,9 @@ export type Database = {
         Args: { _produto: string; _sala: string }
         Returns: undefined
       }
+      _ref_curta: { Args: { _id: string }; Returns: string }
+      _resumo_itens_emprestimo: { Args: { _emp: string }; Returns: string }
+      _resumo_itens_solicitacao: { Args: { _solic: string }; Returns: string }
       _sync_estoque_from_lotes: {
         Args: { _produto: string; _sala: string }
         Returns: undefined
