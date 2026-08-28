@@ -2278,6 +2278,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      eh_master: { Args: { _user: string }; Returns: boolean }
       ensure_my_profile: {
         Args: never
         Returns: {
