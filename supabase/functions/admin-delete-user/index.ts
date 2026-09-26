@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace("Bearer ", "");
-    if (!token) return jsonResp({ ok: false, error: "missing token", step: "auth" });
+    if (!token) return jsonResp({ ok: false, error: "missing token", step: "auth" }, 401);
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -32,29 +32,46 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await admin.auth.getUser(token);
     if (userErr || !userData.user) {
       console.error("admin-delete-user invalid token", userErr);
-      return jsonResp({ ok: false, error: "Sessão inválida — faça login novamente", step: "auth" });
+      return jsonResp({ ok: false, error: "Sessão inválida — faça login novamente", step: "auth" }, 401);
     }
 
-    const { data: roleRow } = await admin
-      .from("user_roles").select("role")
-      .eq("user_id", userData.user.id).eq("role", "master").maybeSingle();
-    if (!roleRow) return jsonResp({ ok: false, error: "Apenas Master pode excluir usuários", step: "perm" });
+    const { data: callerRoles } = await admin
+      .from("user_roles").select("role").eq("user_id", userData.user.id);
+    const roles = (callerRoles ?? []).map((r: { role: string }) => r.role);
+    const isSuper = roles.includes("super_master");
+    const isMaster = roles.includes("master");
+    if (!isSuper && !isMaster) {
+      return jsonResp({ ok: false, error: "Apenas Master pode excluir usuários", step: "perm" }, 403);
+    }
 
     let body: any = {};
     try { body = await req.json(); } catch { return jsonResp({ ok: false, error: "payload inválido", step: "input" }); }
 
     const target_user_id = String(body?.target_user_id ?? "");
-    if (!target_user_id) return jsonResp({ ok: false, error: "target_user_id obrigatório", step: "input" });
+    if (!target_user_id) return jsonResp({ ok: false, error: "target_user_id obrigatório", step: "input" }, 400);
     if (target_user_id === userData.user.id) {
-      return jsonResp({ ok: false, error: "Não é possível excluir a si mesmo", step: "input" });
+      return jsonResp({ ok: false, error: "Não é possível excluir a si mesmo", step: "input" }, 400);
     }
 
-    // Garante que não estamos apagando outro Master sem intenção
+    // Alvo privilegiado: só o Super Master pode excluir, e ainda com confirmação
     const { data: targetRoles } = await admin
       .from("user_roles").select("role").eq("user_id", target_user_id);
-    const isMasterTarget = (targetRoles ?? []).some((r) => r.role === "master");
-    if (isMasterTarget && !body?.confirm_master) {
-      return jsonResp({ ok: false, error: "Alvo é Master. Reenvie com confirm_master=true para prosseguir", step: "perm" });
+    const targetIsPrivileged = (targetRoles ?? [])
+      .some((r: { role: string }) => r.role === "master" || r.role === "super_master");
+    if (targetIsPrivileged) {
+      if (!isSuper) {
+        return jsonResp({ ok: false, error: "Apenas o Super Master pode excluir um Master", step: "perm" }, 403);
+      }
+      if (!body?.confirm_master) {
+        return jsonResp({ ok: false, error: "Alvo é Master. Reenvie com confirm_master=true para prosseguir", step: "perm" }, 400);
+      }
+    } else if (!isSuper) {
+      const { data: podeVer } = await admin.rpc("master_ve_usuario", {
+        _master: userData.user.id, _target: target_user_id,
+      });
+      if (!podeVer) {
+        return jsonResp({ ok: false, error: "Usuário fora da sua região", step: "perm" }, 403);
+      }
     }
 
     // Desvincula histórico (FKs principais já são ON DELETE SET NULL/CASCADE)
