@@ -2328,6 +2328,10 @@ export type Database = {
         Returns: Json
       }
       excluir_sala: { Args: { _force?: boolean; _sala: string }; Returns: Json }
+      gestor_da_sala: {
+        Args: { _sala: string; _user: string }
+        Returns: boolean
+      }
       get_or_create_direct_conversation: {
         Args: { _other: string }
         Returns: string
@@ -2760,6 +2764,7 @@ export type Database = {
         Returns: boolean
       }
       user_regioes: { Args: { _user: string }; Returns: string[] }
+      user_regioes_explicitas: { Args: { _user: string }; Returns: string[] }
       usuarios_compartilham_regiao: {
         Args: { _a: string; _b: string }
         Returns: boolean
