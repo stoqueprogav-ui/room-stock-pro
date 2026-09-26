@@ -33,29 +33,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verifica se é master
-    const { data: roleRow } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("role", "master")
-      .maybeSingle();
-
-    if (!roleRow) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        status: 403,
+    const jsonResp = (payload: unknown, status = 200) =>
+      new Response(JSON.stringify(payload), {
+        status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    }
+
+    // Cargo do solicitante
+    const { data: callerRoles } = await admin
+      .from("user_roles").select("role").eq("user_id", userData.user.id);
+    const roles = (callerRoles ?? []).map((r: { role: string }) => r.role);
+    const isSuper = roles.includes("super_master");
+    const isMaster = roles.includes("master");
+    if (!isSuper && !isMaster) return jsonResp({ error: "forbidden" }, 403);
 
     const body = await req.json();
     const target_user_id = String(body?.target_user_id ?? "");
     const new_password = String(body?.new_password ?? "");
     if (!target_user_id || new_password.length < 6) {
-      return new Response(JSON.stringify({ error: "invalid input" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return jsonResp({ error: "invalid input" }, 400);
+    }
+
+    // Alvo privilegiado: só o Super Master mexe
+    const { data: targetRoles } = await admin
+      .from("user_roles").select("role").eq("user_id", target_user_id);
+    const targetIsPrivileged = (targetRoles ?? [])
+      .some((r: { role: string }) => r.role === "master" || r.role === "super_master");
+    if (targetIsPrivileged && !isSuper) {
+      return jsonResp({ error: "Apenas o Super Master pode redefinir a senha de um Master" }, 403);
+    }
+
+    // Alvo comum: precisa estar numa região do solicitante
+    if (!isSuper) {
+      const { data: podeVer } = await admin.rpc("master_ve_usuario", {
+        _master: userData.user.id, _target: target_user_id,
       });
+      if (!podeVer) return jsonResp({ error: "Usuário fora da sua região" }, 403);
     }
 
     const { error: updErr } = await admin.auth.admin.updateUserById(target_user_id, {

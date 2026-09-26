@@ -41,12 +41,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`reset-system step=auth.master user=${userData.user.id}`);
-    const { data: roleRow } = await admin
+    console.log(`reset-system step=auth.super user=${userData.user.id}`);
+    const { data: superRow } = await admin
       .from("user_roles").select("role")
-      .eq("user_id", userData.user.id).eq("role", "master").maybeSingle();
-    if (!roleRow) {
-      return new Response(JSON.stringify({ success: false, step: "auth.master", error: "apenas Master pode resetar o sistema" }), {
+      .eq("user_id", userData.user.id).eq("role", "super_master").maybeSingle();
+    if (!superRow) {
+      return new Response(JSON.stringify({ success: false, step: "auth.super", error: "apenas o Super Master pode resetar o sistema" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
