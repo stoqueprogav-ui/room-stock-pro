@@ -155,11 +155,18 @@ export default function UsuariosPage() {
 
 
   const remover = async (u: UserRow) => {
+    const privileged = u.role === "master" || u.role === "super_master";
     const { data, error } = await supabase.functions.invoke("admin-delete-user", {
-      body: { target_user_id: u.id },
+      body: { target_user_id: u.id, confirm_master: privileged },
     });
-    const payload = (data ?? {}) as { ok?: boolean; error?: string };
-    if (error) return toast.error(`Erro de rede: ${error.message}`);
+    let payload = (data ?? {}) as { ok?: boolean; error?: string };
+    if (error) {
+      try {
+        const ctx = (error as any).context;
+        if (ctx?.json) payload = await ctx.json();
+      } catch { /* ignore */ }
+      return toast.error(payload.error ?? `Erro: ${error.message}`);
+    }
     if (!payload.ok) return toast.error(payload.error ?? "Falha ao excluir");
     toast.success("Usuário excluído permanentemente");
     load();
