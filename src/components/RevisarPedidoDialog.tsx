@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 
-type Item = { quantidade: number; produto: { id: string; nome: string; unidade: string; categoria: { nome: string } | null } };
+type Item = { quantidade: number; produto: { id: string; nome: string; unidade: string; categoria: { nome: string } | null } | null };
 type LoteAviso = { produto_nome: string; quantidade: number; dias_para_vencer: number | null; validade: string | null; sala_nome: string };
 type TrocaSug = {
   lote_id: string;
@@ -26,7 +26,7 @@ type RequisicaoFull = {
   id: string;
   observacao: string | null;
   created_at: string;
-  sala: { id: string; nome: string };
+  sala: { id: string; nome: string } | null;
   usuario: { nome: string; email: string } | null;
   itens: Item[];
 };
@@ -35,8 +35,8 @@ type EmprestimoFull = {
   id: string;
   observacao: string | null;
   created_at: string;
-  origem: { id: string; nome: string };
-  destino: { nome: string };
+  origem: { id: string; nome: string } | null;
+  destino: { nome: string } | null;
   solicitante: { nome: string; email: string } | null;
   itens: Item[];
 };
@@ -91,8 +91,8 @@ export default function RevisarPedidoDialog({
   // Aviso de validade: lotes na sala de atendimento vencendo em <= 30 dias
   useEffect(() => {
     if (!data) { setAvisos([]); return; }
-    const salaId = data.kind === "requisicao" ? data.sala.id : data.origem.id;
-    const produtoIds = new Set(data.itens.map((i) => i.produto.id));
+    const salaId = data.kind === "requisicao" ? data.sala?.id : data.origem?.id;
+    const produtoIds = new Set(data.itens.flatMap((i) => i.produto ? [i.produto.id] : []));
     if (!salaId || produtoIds.size === 0) { setAvisos([]); return; }
     (async () => {
       const { data: rows } = await supabase.rpc("lotes_por_validade", { _sala: salaId, _regiao: null, _dias: 30 });
@@ -110,9 +110,11 @@ export default function RevisarPedidoDialog({
   // Sugestões de troca (rodízio): apenas requisições
   const loadTrocas = useCallback(async () => {
     if (!data || data.kind !== "requisicao") { setTrocas([]); return; }
-    const salaAtende = data.sala.id;
+    const salaAtende = data.sala?.id;
+    if (!salaAtende) { setTrocas([]); return; }
     const results = await Promise.all(
       data.itens.map(async (it) => {
+        if (!it.produto) return [];
         const { data: rows } = await supabase.rpc("sugerir_troca_validade", {
           _sala_atende: salaAtende,
           _produto: it.produto.id,
@@ -142,7 +144,7 @@ export default function RevisarPedidoDialog({
 
   const fazerTroca = async (s: TrocaSug) => {
     const qtd = Math.min(s.quantidade, s.qtd_pedida);
-    if (qtd <= 0 || !data || data.kind !== "requisicao") return;
+    if (qtd <= 0 || !data || data.kind !== "requisicao" || !data.sala) return;
     setTrocando(s.lote_id);
     try {
       const { error } = await supabase.rpc("trocar_lotes", {
@@ -172,9 +174,9 @@ export default function RevisarPedidoDialog({
     if (!data) return [] as [string, Item[]][];
     const m = new Map<string, Item[]>();
     for (const it of data.itens) {
-      const k = it.produto.categoria?.nome ?? "Sem categoria";
+      const k = it.produto?.categoria?.nome ?? "Sem categoria";
       if (!m.has(k)) m.set(k, []);
-      m.get(k)!.push(it);
+      m.get(k)?.push(it);
     }
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   })();
@@ -194,14 +196,14 @@ export default function RevisarPedidoDialog({
             <div className="grid sm:grid-cols-2 gap-3 text-sm">
               {data.kind === "requisicao" ? (
                 <>
-                  <Field label="Sala">{data.sala.nome}</Field>
+                  <Field label="Sala">{data.sala?.nome ?? "Sala indisponível"}</Field>
                   <Field label="Solicitante">{data.usuario?.nome ?? "—"}<div className="text-xs text-muted-foreground">{data.usuario?.email}</div></Field>
                 </>
               ) : (
                 <>
                   <Field label="Trajeto">
                     <span className="inline-flex items-center gap-1 font-medium">
-                      {data.origem.nome} <ArrowRight className="size-3.5" /> {data.destino.nome}
+                      {data.origem?.nome ?? "Sala indisponível"} <ArrowRight className="size-3.5" /> {data.destino?.nome ?? "Sala indisponível"}
                     </span>
                   </Field>
                   <Field label="Solicitante">{data.solicitante?.nome ?? "—"}<div className="text-xs text-muted-foreground">{data.solicitante?.email}</div></Field>
@@ -288,8 +290,8 @@ export default function RevisarPedidoDialog({
                   <ul className="divide-y divide-border">
                     {itens.map((it, i) => (
                       <li key={i} className="px-3 py-2 flex items-center justify-between text-sm">
-                        <span className="font-medium">{it.produto.nome}</span>
-                        <span className="font-mono text-foreground">{it.quantidade} {it.produto.unidade}</span>
+                        <span className="font-medium">{it.produto?.nome ?? "Produto indisponível"}</span>
+                        <span className="font-mono text-foreground">{it.quantidade} {it.produto?.unidade ?? ""}</span>
                       </li>
                     ))}
                   </ul>

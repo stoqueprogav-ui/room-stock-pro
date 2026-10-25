@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -20,20 +20,27 @@ type Divida = {
   valor_financeiro?: number;
   sala_devedora_id: string;
   sala_credora_id: string;
-  devedora: { nome: string };
-  credora: { nome: string };
-  produto: { nome: string; unidade: string };
+  devedora: { nome: string } | null;
+  credora: { nome: string } | null;
+  produto: { nome: string; unidade: string } | null;
 };
 
 export default function DividasPage() {
-  const { role } = useAuth();
-  const { activeSalaId } = useActiveSala();
-  const { scopeSalaId } = useMasterScope();
+  const { role, loading: authLoading } = useAuth();
+  const { activeSalaId, loading: salaLoading } = useActiveSala();
+  const { scopeSalaId, scopeReady } = useMasterScope();
+  const requestId = useRef(0);
+  const ready = !authLoading && !!role && (role === "master" ? scopeReady : !salaLoading && !!activeSalaId);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [rows, setRows] = useState<Divida[]>([]);
   const [editing, setEditing] = useState<Divida | null>(null);
   const [qtd, setQtd] = useState(0);
 
   const load = useCallback(async () => {
+    const current = ++requestId.current;
+    setRows([]);
+    if (!ready) return;
+    setLoadError(null);
     let q = supabase
       .from("dividas")
       .select(`id, saldo, valor_financeiro, sala_devedora_id, sala_credora_id,
@@ -46,9 +53,11 @@ export default function DividasPage() {
     } else if (role !== "master" && activeSalaId) {
       q = q.or(`sala_devedora_id.eq.${activeSalaId},sala_credora_id.eq.${activeSalaId}`);
     }
-    const { data } = await q;
+    const { data, error } = await q;
+    if (current !== requestId.current) return;
+    if (error) { setLoadError(error.message); return; }
     setRows((data as any) ?? []);
-  }, [role, scopeSalaId, activeSalaId]);
+  }, [role, scopeSalaId, activeSalaId, ready]);
   useEffect(() => { load(); }, [load]);
   useRealtimeSync(["dividas", "emprestimos", "movimentacoes"], load, { debounceMs: 300 });
 
@@ -82,6 +91,7 @@ export default function DividasPage() {
           </div>
         )}
       </div>
+      {loadError && <div role="alert" className="text-destructive">Não foi possível carregar as dívidas: {loadError}</div>}
       <div className="panel overflow-x-auto">
         <Table>
           <TableHeader>
@@ -98,13 +108,13 @@ export default function DividasPage() {
               <TableRow key={d.id} className="table-row-hover">
                 <TableCell>
                   <div className="flex items-center gap-2 font-medium">
-                    {d.devedora.nome} <ArrowRight className="size-3 text-muted-foreground" /> {d.credora.nome}
+                    {(d.devedora?.nome ?? "Sala indisponível")} <ArrowRight className="size-3 text-muted-foreground" /> {(d.credora?.nome ?? "Sala indisponível")}
                   </div>
                 </TableCell>
-                <TableCell>{d.produto.nome}</TableCell>
+                <TableCell>{(d.produto?.nome ?? "Produto indisponível")}</TableCell>
                 <TableCell className="text-right font-mono">
                   <span className="inline-flex items-center gap-1 rounded-md bg-destructive/15 text-destructive px-2 py-0.5">
-                    {d.saldo} {d.produto.unidade}
+                    {d.saldo} {(d.produto?.unidade ?? "")}
                   </span>
                 </TableCell>
                 {role === "master" && (
@@ -118,7 +128,7 @@ export default function DividasPage() {
                       size="sm"
                       variant="outline"
                       disabled={d.saldo > 0}
-                      title={d.saldo > 0 ? `Registre a devolução dos ${d.saldo} ${d.produto.unidade} pendentes antes de quitar` : "Encerrar formalmente a dívida"}
+                      title={d.saldo > 0 ? `Registre a devolução dos ${d.saldo} ${(d.produto?.unidade ?? "")} pendentes antes de quitar` : "Encerrar formalmente a dívida"}
                       onClick={() => { setEditing(d); setQtd(d.saldo); }}
                     >
                       <Wallet className="size-4" /> Quitar
@@ -127,7 +137,7 @@ export default function DividasPage() {
                 )}
               </TableRow>
             ))}
-            {rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Sem dívidas em aberto.</TableCell></TableRow>}
+            {!loadError && rows.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-12">Sem dívidas em aberto.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -138,7 +148,7 @@ export default function DividasPage() {
           {editing && (
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground">
-                Todos os itens de <span className="font-medium text-foreground">{editing.produto.nome}</span> emprestados por {editing.credora.nome} a {editing.devedora.nome} já foram devolvidos.
+                Todos os itens de <span className="font-medium text-foreground">{(editing.produto?.nome ?? "Produto indisponível")}</span> emprestados por {(editing.credora?.nome ?? "Sala indisponível")} a {(editing.devedora?.nome ?? "Sala indisponível")} já foram devolvidos.
               </div>
               <div className="text-sm">
                 Ao confirmar, a dívida será encerrada formalmente, registrada na auditoria e as salas serão notificadas. O estoque não é alterado — ele já foi restaurado no momento em que a devolução foi registrada.
