@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -32,17 +32,20 @@ type Emp = {
   solicitante_id: string | null;
   retirado_por: string | null;
   retirado_em: string | null;
-  origem: { nome: string };
-  destino: { nome: string };
+  origem: { nome: string } | null;
+  destino: { nome: string } | null;
   solicitante: { nome: string } | null;
-  itens: { quantidade: number; quantidade_devolvida: number; produto: { nome: string; unidade: string } }[];
+  itens: { quantidade: number; quantidade_devolvida: number; produto: { nome: string; unidade: string } | null }[];
 };
 
 export default function EmprestimosPage({ approveOnly = false }: { approveOnly?: boolean }) {
-  const { role, profile } = useAuth();
-  const { activeSalaId } = useActiveSala();
+  const { role, loading: authLoading } = useAuth();
+  const { activeSalaId, loading: salaLoading } = useActiveSala();
   const navigate = useNavigate();
-  const { scopeSalaId } = useMasterScope();
+  const { scopeSalaId, scopeReady } = useMasterScope();
+  const requestId = useRef(0);
+  const ready = !authLoading && !!role && (role === "master" ? scopeReady : !salaLoading && !!activeSalaId);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<"pendente" | "aprovado" | "rejeitado" | "arquivado">("pendente");
   const [rows, setRows] = useState<Emp[]>([]);
   const [busca, setBusca] = useState("");
@@ -55,6 +58,10 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
   const [editarId, setEditarId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    const current = ++requestId.current;
+    setRows([]);
+    if (!ready) return;
+    setLoadError(null);
     let q = supabase
       .from("emprestimos")
       .select(`id, status, observacao, created_at, sala_origem_id, sala_destino_id, solicitante_id, retirado_por, retirado_em,
@@ -66,9 +73,14 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     if (role === "master" && scopeSalaId) {
       q = q.or(`sala_origem_id.eq.${scopeSalaId},sala_destino_id.eq.${scopeSalaId}`);
     }
-    const { data } = await q;
+    if (role !== "master" && activeSalaId) {
+      q = q.or(`sala_origem_id.eq.${activeSalaId},sala_destino_id.eq.${activeSalaId}`);
+    }
+    const { data, error } = await q;
+    if (current !== requestId.current) return;
+    if (error) { setLoadError(error.message); return; }
     setRows((data as any) ?? []);
-  }, [role, scopeSalaId]);
+  }, [role, scopeSalaId, activeSalaId, ready]);
   useEffect(() => { load(); }, [load]);
   useRealtimeSync(["emprestimos", "emprestimo_itens", "devolucoes", "estoque", "dividas"], load, { debounceMs: 300 });
 
@@ -143,13 +155,13 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
     if (busca.trim()) {
       const t = busca.trim().toLowerCase();
       l = l.filter((e) =>
-        e.origem.nome.toLowerCase().includes(t) ||
-        e.destino.nome.toLowerCase().includes(t) ||
+        (e.origem?.nome ?? "").toLowerCase().includes(t) ||
+        (e.destino?.nome ?? "").toLowerCase().includes(t) ||
         (e.solicitante?.nome ?? "").toLowerCase().includes(t) ||
         (e.observacao ?? "").toLowerCase().includes(t) ||
         (e.retirado_por ?? "").toLowerCase().includes(t) ||
         e.id.toLowerCase().includes(t) ||
-        e.itens.some((it) => it.produto.nome.toLowerCase().includes(t)),
+        (e.itens ?? []).some((it) => (it.produto?.nome ?? "").toLowerCase().includes(t)),
       );
     }
     return l;
@@ -208,7 +220,8 @@ export default function EmprestimosPage({ approveOnly = false }: { approveOnly?:
         )}
 
         <TabsContent value={tab} className="mt-4 space-y-2">
-          {list.length === 0 && (
+          {loadError && <div role="alert" className="text-destructive">Não foi possível carregar os empréstimos: {loadError}</div>}
+          {!loadError && list.length === 0 && (
             <div className="panel p-12 text-center text-muted-foreground">Nenhum empréstimo.</div>
           )}
           {list.map((e) => (
@@ -283,7 +296,7 @@ function EmprestimoCard({
 }) {
   const [open, setOpen] = useState(false);
   const shortId = e.id.slice(0, 8).toUpperCase();
-  const totalItens = e.itens.length;
+  const totalItens = (e.itens ?? []).length;
 
   return (
     <div className="panel overflow-hidden">
@@ -310,7 +323,7 @@ function EmprestimoCard({
               </div>
               <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                 <span className="inline-flex items-center gap-1 text-foreground font-medium">
-                  {e.origem.nome} <ArrowRight className="size-3 text-muted-foreground" /> {e.destino.nome}
+                  {e.origem?.nome ?? "Sala indisponível"} <ArrowRight className="size-3 text-muted-foreground" /> {e.destino?.nome ?? "Sala indisponível"}
                 </span>
                 <span>·</span>
                 <span>{e.solicitante?.nome ?? "—"}</span>
@@ -358,12 +371,12 @@ function EmprestimoCard({
                 </tr>
               </thead>
               <tbody>
-                {e.itens.map((it, i) => {
+                {(e.itens ?? []).map((it, i) => {
                   const pend = it.quantidade - (it.quantidade_devolvida ?? 0);
                   return (
                     <tr key={i} className="border-b border-border/30 last:border-b-0">
-                      <td className="py-1.5">{it.produto.nome}</td>
-                      <td className="py-1.5 text-right font-mono">{it.quantidade} <span className="text-muted-foreground text-xs">{it.produto.unidade}</span></td>
+                      <td className="py-1.5">{it.produto?.nome ?? "Produto indisponível"}</td>
+                      <td className="py-1.5 text-right font-mono">{it.quantidade} <span className="text-muted-foreground text-xs">{it.produto?.unidade ?? ""}</span></td>
                       {e.status === "aprovado" && <td className="py-1.5 text-right font-mono text-emerald-600 dark:text-emerald-400">{it.quantidade_devolvida ?? 0}</td>}
                       {e.status === "aprovado" && <td className={`py-1.5 text-right font-mono font-semibold ${pend === 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>{pend}</td>}
                     </tr>

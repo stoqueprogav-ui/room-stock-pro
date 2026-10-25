@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,8 +23,8 @@ type Mov = {
   referencia_id: string | null;
   custo_unitario_aplicado: number | null;
   valor_financeiro: number | null;
-  produto: { nome: string; unidade: string };
-  sala: { nome: string };
+  produto: { nome: string; unidade: string } | null;
+  sala: { nome: string } | null;
   usuario: { nome: string } | null;
   originador?: { nome: string } | null;
 };
@@ -57,9 +57,12 @@ const TIPO_OPTIONS = [
 ];
 
 export default function MovimentacoesPage() {
-  const { role } = useAuth();
-  const { activeSalaId } = useActiveSala();
-  const { scopeSalaId } = useMasterScope();
+  const { role, loading: authLoading } = useAuth();
+  const { activeSalaId, loading: salaLoading } = useActiveSala();
+  const { scopeSalaId, scopeReady } = useMasterScope();
+  const requestId = useRef(0);
+  const ready = !authLoading && !!role && (role === "master" ? scopeReady : !salaLoading && !!activeSalaId);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const PAGE_SIZE = 100;
   const [rows, setRows] = useState<Mov[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
@@ -83,17 +86,18 @@ export default function MovimentacoesPage() {
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
     if (before) q = q.lt("created_at", before);
-    if (salaFilter !== "all") q = q.eq("sala_id", salaFilter);
+    const sala = role === "master" ? (scopeSalaId ?? (salaFilter === "all" ? null : salaFilter)) : activeSalaId;
+    if (sala) q = q.eq("sala_id", sala);
     if (tipoFilter !== "all") q = q.eq("tipo", tipoFilter as any);
     if (dataInicial) q = q.gte("created_at", `${dataInicial}T00:00:00`);
     if (dataFinal) q = q.lte("created_at", `${dataFinal}T23:59:59`);
     return q;
-  }, [salaFilter, tipoFilter, dataInicial, dataFinal]);
+  }, [salaFilter, tipoFilter, dataInicial, dataFinal, role, activeSalaId, scopeSalaId]);
 
   // Para movimentações originadas de uma solicitação/empréstimo, busca quem foi o solicitante original
   const enrichOriginadores = useCallback(async (list: Mov[]): Promise<Mov[]> => {
-    const solIds = Array.from(new Set(list.filter(r => r.referencia_tipo === "solicitacao" && r.referencia_id).map(r => r.referencia_id!)));
-    const empIds = Array.from(new Set(list.filter(r => r.referencia_tipo === "emprestimo" && r.referencia_id).map(r => r.referencia_id!)));
+    const solIds = Array.from(new Set(list.filter(r => r.referencia_tipo === "solicitacao" && r.referencia_id).flatMap(r => r.referencia_id ? [r.referencia_id] : [])));
+    const empIds = Array.from(new Set(list.filter(r => r.referencia_tipo === "emprestimo" && r.referencia_id).flatMap(r => r.referencia_id ? [r.referencia_id] : [])));
     const [solsRes, empsRes] = await Promise.all([
       solIds.length
         ? supabase.from("solicitacoes").select("id, solicitante:profiles!solicitacoes_usuario_id_fkey(nome)").in("id", solIds)
@@ -121,26 +125,37 @@ export default function MovimentacoesPage() {
 
 
   const load = useCallback(async () => {
+    const current = ++requestId.current;
+    setRows([]);
+    setHasMore(false);
+    if (!ready) { setLoading(false); return; }
     setLoading(true);
-    const [{ data }, { data: ss }] = await Promise.all([
+    setLoadError(null);
+    const [{ data, error }, { data: ss }] = await Promise.all([
       buildQuery(),
       supabase.from("salas").select("*").order("nome"),
     ]);
+    if (current !== requestId.current) return;
+    if (error) { setLoadError(error.message); setLoading(false); return; }
     const page = (data as any[]) ?? [];
     const enriched = await enrichOriginadores(page as Mov[]);
+    if (current !== requestId.current) return;
     setRows(enriched);
     setSalas((ss as Sala[]) ?? []);
     setHasMore(page.length === PAGE_SIZE);
     setLoading(false);
-  }, [buildQuery, enrichOriginadores]);
+  }, [buildQuery, enrichOriginadores, ready]);
 
   const loadMore = useCallback(async () => {
     if (!rows.length || loadingMore) return;
+    const current = requestId.current;
     setLoadingMore(true);
     const last = rows[rows.length - 1];
-    const { data } = await buildQuery(last.created_at);
+    const { data, error } = await buildQuery(last.created_at);
+    if (error) { setLoadError(error.message); setLoadingMore(false); return; }
     const more = (data as any[]) ?? [];
     const enriched = await enrichOriginadores(more as Mov[]);
+    if (current !== requestId.current) { setLoadingMore(false); return; }
     setRows((prev) => [...prev, ...enriched]);
     setHasMore(more.length === PAGE_SIZE);
     setLoadingMore(false);
@@ -161,7 +176,7 @@ export default function MovimentacoesPage() {
 
   const filtered = useMemo(() => {
     return rows
-      .filter((r) => !busca || r.produto.nome.toLowerCase().includes(busca.toLowerCase()))
+      .filter((r) => !busca || (r.produto?.nome ?? "").toLowerCase().includes(busca.toLowerCase()))
       .filter((r) => {
         if (!buscaUsuario) return true;
         const t = buscaUsuario.toLowerCase();
@@ -236,6 +251,7 @@ export default function MovimentacoesPage() {
         </div>
       </div>
 
+      {loadError && <div role="alert" className="text-destructive">Não foi possível carregar o histórico: {loadError}</div>}
       <div className="panel overflow-x-auto">
         <Table>
           <TableHeader>
@@ -273,15 +289,15 @@ export default function MovimentacoesPage() {
                     )}
                   </TableCell>
 
-                  <TableCell>{m.sala.nome}</TableCell>
+                  <TableCell>{m.sala?.nome ?? "Sala indisponível"}</TableCell>
                   <TableCell><Badge variant="outline" className={tipoCfg.cls}>{tipoCfg.label}</Badge></TableCell>
-                  <TableCell>{m.produto.nome}</TableCell>
+                  <TableCell>{m.produto?.nome ?? "Produto indisponível"}</TableCell>
                   <TableCell className={`text-right font-mono ${m.quantidade < 0 ? "text-destructive" : "text-success"}`}>{m.quantidade > 0 ? "+" : ""}{m.quantidade}</TableCell>
                   <TableCell className="text-right font-mono">{m.saldo_apos}</TableCell>
                 </TableRow>
               );
             })}
-            {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhuma movimentação encontrada com os filtros aplicados.</TableCell></TableRow>}
+            {!loadError && !loading && filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-12">Nenhuma movimentação encontrada com os filtros aplicados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>

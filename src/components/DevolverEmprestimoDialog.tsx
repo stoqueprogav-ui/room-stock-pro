@@ -14,13 +14,13 @@ type Item = {
   produto_id: string;
   quantidade: number;
   quantidade_devolvida: number;
-  produto: { nome: string; unidade: string };
+  produto: { nome: string; unidade: string } | null;
 };
 
 type Emp = {
   id: string;
-  origem: { nome: string };
-  destino: { nome: string };
+  origem: { nome: string } | null;
+  destino: { nome: string } | null;
 };
 
 export default function DevolverEmprestimoDialog({
@@ -88,7 +88,7 @@ export default function DevolverEmprestimoDialog({
         <DialogHeader>
           <DialogTitle>Registrar devolução</DialogTitle>
           <DialogDescription>
-            {emp ? <>Devolvendo de <strong>{emp.destino.nome}</strong> para <strong>{emp.origem.nome}</strong>. A dívida será baixada automaticamente.</> : "Carregando..."}
+            {emp ? <>Devolvendo de <strong>{emp.destino?.nome ?? "Sala indisponível"}</strong> para <strong>{emp.origem?.nome ?? "Sala indisponível"}</strong>. A dívida será baixada automaticamente.</> : "Carregando..."}
           </DialogDescription>
         </DialogHeader>
 
@@ -113,7 +113,7 @@ export default function DevolverEmprestimoDialog({
                   const pend = it.quantidade - it.quantidade_devolvida;
                   return (
                     <TableRow key={it.id}>
-                      <TableCell className="font-medium">{it.produto.nome} <span className="text-muted-foreground text-xs">({it.produto.unidade})</span></TableCell>
+                      <TableCell className="font-medium">{it.produto?.nome ?? "Produto indisponível"} <span className="text-muted-foreground text-xs">({it.produto?.unidade ?? ""})</span></TableCell>
                       <TableCell className="text-right font-mono">{it.quantidade}</TableCell>
                       <TableCell className="text-right font-mono">{it.quantidade_devolvida}</TableCell>
                       <TableCell className="text-right font-mono">{pend}</TableCell>
